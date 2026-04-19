@@ -13,18 +13,15 @@
         display: flex;
         height: 100vh;
     }
-
-    /* Сайдбар */
     .sidebar {
         width: 200px;
         background: #111118;
         border-right: 1px solid #1e1e2a;
         padding: 16px 0;
-        display: flex;
-        flex-direction: column;
+        flex-shrink: 0;
     }
     .sidebar-title {
-        font-size: 11px;
+        font-size: 10px;
         text-transform: uppercase;
         letter-spacing: 1.5px;
         color: #555;
@@ -32,7 +29,7 @@
     }
     .sidebar-item {
         padding: 10px 16px;
-        font-size: 14px;
+        font-size: 13px;
         cursor: pointer;
         color: #888;
         border-left: 2px solid transparent;
@@ -43,50 +40,25 @@
         border-left-color: #7dd3fc;
         background: #0c1a2a;
     }
-    .sidebar-item.locked {
-        color: #333;
-        cursor: not-allowed;
-    }
+    .sidebar-item.locked { color: #333; cursor: not-allowed; }
+    .main { flex: 1; padding: 24px; overflow-y: auto; }
 
-    /* Основна панель */
-    .main {
-        flex: 1;
-        padding: 24px;
-        overflow-y: auto;
-    }
-
-    /* Ресурси зверху */
-    .resources-bar {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 20px;
-    }
+    .resources-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
     .res-card {
         background: #111118;
         border: 1px solid #1e1e2a;
         border-radius: 8px;
-        padding: 12px 16px;
-        min-width: 140px;
+        padding: 10px 14px;
+        min-width: 150px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
-    .res-label {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #555;
-        margin-bottom: 4px;
-    }
-    .res-value {
-        font-size: 22px;
-        font-variant-numeric: tabular-nums;
-        color: #7dd3fc;
-    }
-    .res-rate {
-        font-size: 11px;
-        color: #4a9;
-        margin-top: 2px;
-    }
+    .res-icon { width: 32px; height: 32px; image-rendering: pixelated; }
+    .res-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #555; }
+    .res-value { font-size: 20px; font-variant-numeric: tabular-nums; color: #7dd3fc; }
+    .res-rate { font-size: 11px; color: #4a9; }
 
-    /* Панелі контенту */
     .panel {
         background: #111118;
         border: 1px solid #1e1e2a;
@@ -95,12 +67,44 @@
         margin-bottom: 12px;
     }
     .panel-title {
-        font-size: 13px;
+        font-size: 12px;
         color: #555;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-bottom: 12px;
     }
+
+    .upgrade-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+    .upgrade-card {
+        background: #0d0d14;
+        border: 1px solid #1e1e2a;
+        border-radius: 8px;
+        padding: 12px;
+    }
+    .upgrade-card.maxed { border-color: #2a4a2a; }
+    .upgrade-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .upgrade-name { font-size: 13px; color: #ddd; }
+    .upgrade-lvl { font-size: 11px; color: #666; }
+    .upgrade-desc { font-size: 11px; color: #888; margin-bottom: 8px; }
+    .upgrade-btn {
+        width: 100%;
+        background: #0c1a2a;
+        border: 1px solid #1e3a5a;
+        color: #7dd3fc;
+        padding: 6px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 11px;
+    }
+    .upgrade-btn:hover { background: #132a42; }
+    .upgrade-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .upgrade-btn.maxed-btn {
+        background: #1a2a1a;
+        border-color: #2a4a2a;
+        color: #4a8a4a;
+        cursor: default;
+    }
+
     .gen-row {
         display: flex;
         justify-content: space-between;
@@ -111,17 +115,6 @@
     .gen-row:last-child { border-bottom: none; }
     .gen-name { font-size: 14px; color: #ddd; }
     .gen-info { font-size: 12px; color: #666; margin-top: 2px; }
-    .gen-btn {
-        background: #0c1a2a;
-        border: 1px solid #1e3a5a;
-        color: #7dd3fc;
-        padding: 6px 14px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 12px;
-    }
-    .gen-btn:hover { background: #132a42; border-color: #2a5a8a; }
-    .gen-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
     .page { display: none; }
     .page.active { display: block; }
@@ -130,17 +123,17 @@
 <body>
 <div class="sidebar">
   <div class="sidebar-title">Виробництво</div>
-  <div class="sidebar-item active" onclick="showPage('generators')">Генератори</div>
+  <div class="sidebar-item active" onclick="showPage('generators', this)">Генератори</div>
   <div class="sidebar-item locked">Обмін</div>
   <div class="sidebar-item locked">Синтез</div>
 
-  <div class="sidebar-title" style="margin-top: 16px">Прогресія</div>
-  <div class="sidebar-item locked">Апгрейди</div>
+  <div class="sidebar-title" style="margin-top:16px">Прогресія</div>
+  <div class="sidebar-item" onclick="showPage('upgrades', this)">Апгрейди</div>
   <div class="sidebar-item locked">Досягнення</div>
   <div class="sidebar-item locked">Престиж</div>
 
-  <div class="sidebar-title" style="margin-top: 16px">Мета</div>
-  <div class="sidebar-item" onclick="showPage('stats')">Статистика</div>
+  <div class="sidebar-title" style="margin-top:16px">Мета</div>
+  <div class="sidebar-item" onclick="showPage('stats', this)">Статистика</div>
 </div>
 
 <div class="main">
@@ -149,62 +142,113 @@
   <div id="page-generators" class="page active">
     <div class="panel">
       <div class="panel-title">Генератори енергії</div>
-      <div id="generators-list"></div>
+      <div id="generators-list">
+        <div class="gen-row">
+          <div>
+            <div class="gen-name">Генератор пустоти</div>
+            <div class="gen-info">Виробляє 0.5 енергії / рівень / с</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-upgrades" class="page">
+    <div class="panel">
+      <div class="panel-title">Покращення — Tier 0: Пустота</div>
+      <div class="upgrade-grid" id="upgrades-list"></div>
     </div>
   </div>
 
   <div id="page-stats" class="page">
     <div class="panel">
       <div class="panel-title">Статистика</div>
-      <div id="stats-content" style="color: #666; font-size: 13px;">
-        Тік працює щосекунди на сервері.
-      </div>
+      <div style="color:#666;font-size:13px;">Тік працює щосекунди на сервері.</div>
     </div>
   </div>
 </div>
 
 <script>
   const SAVE_ID = 1;
+  const ICONS = { E: 'Energy', p: 'Proton', n: 'Neutron', e: 'Electron', VC: 'VoidCrystal' };
   let prevResources = {};
 
-  function formatBigNum(number, exponent) {
+  function fmt(number, exponent) {
       if (number === 0) return "0";
-      if (exponent <= 2 && exponent >= 0) {
-          return (number * Math.pow(10, exponent)).toFixed(1);
-      }
+      if (exponent >= 0 && exponent <= 2) return (number * Math.pow(10, exponent)).toFixed(1);
       return number.toFixed(2) + "e" + exponent;
   }
 
-  function showPage(name) {
+  function fmtCost(num, exp, mult, level) {
+      const realExp = exp + Math.floor(Math.log10(Math.pow(mult, level)));
+      const realNum = num * Math.pow(mult, level) / Math.pow(10, Math.floor(Math.log10(Math.pow(mult, level))));
+      return fmt(realNum, realExp);
+  }
+
+  function showPage(name, el) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
       document.getElementById('page-' + name).classList.add('active');
-      event.target.classList.add('active');
+      if (el) el.classList.add('active');
   }
 
   async function fetchState() {
       const res = await fetch('/api/state/' + SAVE_ID);
       const data = await res.json();
-
       const bar = document.getElementById('resources-bar');
       bar.innerHTML = data.map(r => {
+          const icon = ICONS[r.resource] || 'Energy';
           const prev = prevResources[r.resource] || { number: r.number, exponent: r.exponent };
           const curr = r.number * Math.pow(10, r.exponent);
           const old = prev.number * Math.pow(10, prev.exponent);
           const rate = curr - old;
-
           prevResources[r.resource] = { number: r.number, exponent: r.exponent };
-
           return `<div class="res-card">
-              <div class="res-label">${r.resource}</div>
-              <div class="res-value">${formatBigNum(r.number, r.exponent)}</div>
-              <div class="res-rate">${rate >= 0 ? '+' : ''}${rate.toFixed(1)}/с</div>
+              <img class="res-icon" src="/img/${icon}.png" alt="${r.resource}">
+              <div>
+                  <div class="res-label">${r.resource}</div>
+                  <div class="res-value">${fmt(r.number, r.exponent)}</div>
+                  <div class="res-rate">${rate >= 0 ? '+' : ''}${rate.toFixed(1)}/с</div>
+              </div>
           </div>`;
       }).join('');
   }
 
+  async function fetchUpgrades() {
+      const res = await fetch('/api/upgrades/' + SAVE_ID);
+      const data = await res.json();
+      const list = document.getElementById('upgrades-list');
+      list.innerHTML = data.map(u => {
+          const maxed = u.currentLevel >= u.maxLevel;
+          return `<div class="upgrade-card ${maxed ? 'maxed' : ''}">
+              <div class="upgrade-header">
+                  <span class="upgrade-name">${u.name}</span>
+                  <span class="upgrade-lvl">${u.currentLevel} / ${u.maxLevel}</span>
+              </div>
+              <div class="upgrade-desc">${u.description}</div>
+              <button class="upgrade-btn ${maxed ? 'maxed-btn' : ''}"
+                      ${maxed ? 'disabled' : ''}
+                      onclick="buyUpgrade(${u.id})">
+                  ${maxed ? 'Максимум' : 'Купити — ' + fmtCost(u.costNumber, u.costExponent, u.costMultiplier, u.currentLevel) + ' E'}
+              </button>
+          </div>`;
+      }).join('');
+  }
+
+  async function buyUpgrade(id) {
+      await fetch('/api/buy-upgrade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ saveId: SAVE_ID, upgradeId: id })
+      });
+      fetchState();
+      fetchUpgrades();
+  }
+
   fetchState();
+  fetchUpgrades();
   setInterval(fetchState, 1000);
+  setInterval(fetchUpgrades, 2000);
 </script>
 </body>
 </html>

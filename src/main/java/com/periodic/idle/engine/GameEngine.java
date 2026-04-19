@@ -18,8 +18,9 @@ public class GameEngine {
     private final SaveRepository saveRepository;
     private final PlayerResourceRepository playerResourceRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
+    private final PlayerUpgradeRepository playerUpgradeRepository;
 
-    @Scheduled(fixedRate = 1000)
+    @Scheduled(fixedRate = 100)
     @Transactional
     public void tick() {
         List<Save> saves = saveRepository.findAll();
@@ -32,18 +33,20 @@ public class GameEngine {
     private void processSave(Save save) {
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(save.getId());
         List<PlayerGenerator> generators = playerGeneratorRepository.findBySaveId(save.getId());
+        List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(save.getId());
+
+        double energyMult = calcMultiplier(upgrades, "ENERGY_MULT");
+        double genMult = calcMultiplier(upgrades, "GENERATOR_MULT");
 
         for (PlayerGenerator pg : generators) {
             if (pg.getLevel() <= 0) continue;
 
             for (GeneratorOutput output : pg.getGenerator().getOutputs()) {
                 double rate = output.getRatePerLevel() * pg.getLevel();
+                rate *= genMult;
+                rate *= energyMult;
 
-                PlayerResource pr = resources.stream()
-                        .filter(r -> r.getResource().getId().equals(output.getResource().getId()))
-                        .findFirst()
-                        .orElse(null);
-
+                PlayerResource pr = findResource(resources, output.getResource().getId());
                 if (pr == null) continue;
 
                 BigNum current = new BigNum(pr.getNumber(), pr.getExponent());
@@ -54,5 +57,23 @@ public class GameEngine {
                 pr.setExponent(result.getExponent());
             }
         }
+    }
+
+    private double calcMultiplier(List<PlayerUpgrade> upgrades, String effectType) {
+        double mult = 1.0;
+        for (PlayerUpgrade pu : upgrades) {
+            if (pu.getLevel() <= 0) continue;
+            if (pu.getUpgrade().getEffectType().equals(effectType)) {
+                mult += pu.getUpgrade().getEffectValue() * pu.getLevel();
+            }
+        }
+        return mult;
+    }
+
+    private PlayerResource findResource(List<PlayerResource> resources, Long resourceId) {
+        return resources.stream()
+                .filter(r -> r.getResource().getId().equals(resourceId))
+                .findFirst()
+                .orElse(null);
     }
 }
