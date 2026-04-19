@@ -6,22 +6,22 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "resources")
+@Table(name = "generator_input")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Resource {
+public class GeneratorInput {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false,unique = true)
-    private String code;
+    @ManyToOne
+    @JoinColumn(name = "generator_id")
+    private Generator generator;
 
-    @Column(nullable = false)
-    private String name;
+    @ManyToOne
+    @JoinColumn(name = "resource_id")
+    private Resource resource;
 
-    @Column(nullable = false)
-    private int tier;
-
+    private double ratePerLevel;
 }
