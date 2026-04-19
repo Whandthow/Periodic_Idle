@@ -10,6 +10,5 @@ public class PeriodicIdleApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(PeriodicIdleApplication.class, args);
-		SpringApplication.run(PeriodicIdleApplication.class, args);
 	}
 }
