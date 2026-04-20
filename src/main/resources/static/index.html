@@ -4,159 +4,77 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Periodic Idle</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-        font-family: system-ui, sans-serif;
-        background: #0a0a0f;
-        color: #e0e0e0;
-        display: flex;
-        height: 100vh;
-    }
-    .sidebar {
-        width: 200px;
-        background: #111118;
-        border-right: 1px solid #1e1e2a;
-        padding: 16px 0;
-        flex-shrink: 0;
-    }
-    .sidebar-title {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        color: #555;
-        padding: 8px 16px 4px;
-    }
-    .sidebar-item {
-        padding: 10px 16px;
-        font-size: 13px;
-        cursor: pointer;
-        color: #888;
-        border-left: 2px solid transparent;
-    }
-    .sidebar-item:hover { color: #ccc; background: #16161f; }
-    .sidebar-item.active {
-        color: #7dd3fc;
-        border-left-color: #7dd3fc;
-        background: #0c1a2a;
-    }
-    .sidebar-item.locked { color: #333; cursor: not-allowed; }
-    .main { flex: 1; padding: 24px; overflow-y: auto; }
-
-    .resources-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-    .res-card {
-        background: #111118;
-        border: 1px solid #1e1e2a;
-        border-radius: 8px;
-        padding: 10px 14px;
-        min-width: 150px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .res-icon { width: 32px; height: 32px; image-rendering: pixelated; }
-    .res-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #555; }
-    .res-value { font-size: 20px; font-variant-numeric: tabular-nums; color: #7dd3fc; }
-    .res-rate { font-size: 11px; color: #4a9; }
-
-    .panel {
-        background: #111118;
-        border: 1px solid #1e1e2a;
-        border-radius: 10px;
-        padding: 16px;
-        margin-bottom: 12px;
-    }
-    .panel-title {
-        font-size: 12px;
-        color: #555;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 12px;
-    }
-
-    .upgrade-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
-    .upgrade-card {
-        background: #0d0d14;
-        border: 1px solid #1e1e2a;
-        border-radius: 8px;
-        padding: 12px;
-    }
-    .upgrade-card.maxed { border-color: #2a4a2a; }
-    .upgrade-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    .upgrade-name { font-size: 13px; color: #ddd; }
-    .upgrade-lvl { font-size: 11px; color: #666; }
-    .upgrade-desc { font-size: 11px; color: #888; margin-bottom: 8px; }
-    .upgrade-btn {
-        width: 100%;
-        background: #0c1a2a;
-        border: 1px solid #1e3a5a;
-        color: #7dd3fc;
-        padding: 6px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 11px;
-    }
-    .upgrade-btn:hover { background: #132a42; }
-    .upgrade-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    .upgrade-btn.maxed-btn {
-        background: #1a2a1a;
-        border-color: #2a4a2a;
-        color: #4a8a4a;
-        cursor: default;
-    }
-
-    .gen-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #1a1a24;
-    }
-    .gen-row:last-child { border-bottom: none; }
-    .gen-name { font-size: 14px; color: #ddd; }
-    .gen-info { font-size: 12px; color: #666; margin-top: 2px; }
-
-    .page { display: none; }
-    .page.active { display: block; }
-  </style>
+  <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
+
+<!-- Сайдбар: етапи -->
 <div class="sidebar">
-  <div class="sidebar-title">Виробництво</div>
-  <div class="sidebar-item active" onclick="showPage('generators', this)">Генератори</div>
-  <div class="sidebar-item locked">Обмін</div>
-  <div class="sidebar-item locked">Синтез</div>
+  <div class="tier-btn active" onclick="selectTier(0, this)">
+    <img src="/img/VoidVortexTir1.png" alt="Void">
+    <span>Пустота</span>
+  </div>
+  <div class="tier-btn locked">
+    <img src="/img/Proton.png" alt="Matter">
+    <span>Матерія</span>
+  </div>
+  <div class="tier-btn locked">
+    <img src="/img/AtomTear2.png" alt="Atoms">
+    <span>Атоми</span>
+  </div>
 
-  <div class="sidebar-title" style="margin-top:16px">Прогресія</div>
-  <div class="sidebar-item" onclick="showPage('upgrades', this)">Апгрейди</div>
-  <div class="sidebar-item locked">Досягнення</div>
-  <div class="sidebar-item locked">Престиж</div>
+  <div class="sidebar-spacer"></div>
 
-  <div class="sidebar-title" style="margin-top:16px">Мета</div>
-  <div class="sidebar-item" onclick="showPage('stats', this)">Статистика</div>
+  <div class="tier-btn settings-btn" onclick="openSettings(this)" title="Налаштування">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+      <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+    </svg>
+    <span>Налашт.</span>
+  </div>
 </div>
 
+<!-- Друга панель: вкладки поточного етапу -->
+<div class="sub-nav" id="sub-nav">
+  <div class="sub-nav-title">Пустота</div>
+  <div class="sub-nav-item active" onclick="showPage('generators', this)">Генератори</div>
+  <div class="sub-nav-item" onclick="showPage('upgrades', this)">Апгрейди</div>
+  <div class="sub-nav-item locked">Престиж</div>
+  <div class="sub-nav-item" onclick="showPage('stats', this)">Статистика</div>
+</div>
+
+<!-- Основний контент -->
 <div class="main">
   <div class="resources-bar" id="resources-bar"></div>
 
   <div id="page-generators" class="page active">
     <div class="panel">
       <div class="panel-title">Генератори енергії</div>
-      <div id="generators-list">
-        <div class="gen-row">
-          <div>
-            <div class="gen-name">Генератор пустоти</div>
-            <div class="gen-info">Виробляє 0.5 енергії / рівень / с</div>
-          </div>
-        </div>
-      </div>
+      <div id="generators-list"></div>
     </div>
   </div>
 
   <div id="page-upgrades" class="page">
-    <div class="panel">
-      <div class="panel-title">Покращення — Tier 0: Пустота</div>
-      <div class="upgrade-grid" id="upgrades-list"></div>
+    <div class="upgrade-compass">
+      <div class="upg upg-nw" data-title="Покращення V"    data-cost="1.00e4 E" data-desc="Опис буде пізніше"><img src="/img/Update5Tir1.png" alt="U5"></div>
+      <div class="upg upg-n"  data-title="Покращення I"    data-cost="100 E"    data-desc="Опис буде пізніше"><img src="/img/Update1Tir1.png" alt="U1"></div>
+      <div class="upg upg-ne" data-title="Покращення VIII" data-cost="1.00e6 E" data-desc="Опис буде пізніше"><img src="/img/Update8Tir1.png" alt="U8"></div>
+      <div class="upg upg-w"  data-title="Покращення III"  data-cost="500 E"    data-desc="Опис буде пізніше"><img src="/img/Update3Tir1.png" alt="U3"></div>
+      <div class="upg upg-center" data-title="Ядро"        data-cost="—"        data-desc="Центральне ядро пустоти"><img src="/img/Update0Tir1.png" alt="U0"></div>
+      <div class="upg upg-e"  data-title="Покращення IV"   data-cost="2500 E"   data-desc="Опис буде пізніше"><img src="/img/Update4Tir1.png" alt="U4"></div>
+      <div class="upg upg-sw" data-title="Покращення VII"  data-cost="1.00e5 E" data-desc="Опис буде пізніше"><img src="/img/Update7Tir1.png" alt="U7"></div>
+      <div class="upg upg-s"  data-title="Покращення II"   data-cost="250 E"    data-desc="Опис буде пізніше"><img src="/img/Update2Tir1.png" alt="U2"></div>
+      <div class="upg upg-se" data-title="Покращення VI"   data-cost="5.00e4 E" data-desc="Опис буде пізніше"><img src="/img/Update6Tir1.png" alt="U6"></div>
+    </div>
+
+    <!-- Info-панель (hover = превʼю, click = закріплення + "Купити") -->
+    <div id="upg-info" class="upg-info">
+      <div class="upg-info-title">Покращення</div>
+      <div class="upg-info-body">
+        <div class="upg-info-desc">Наведи курсор на покращення</div>
+        <div class="upg-info-cost-label">Вартість</div>
+        <div class="upg-info-cost">—</div>
+        <button class="upg-info-btn">Купити</button>
+      </div>
     </div>
   </div>
 
@@ -166,89 +84,64 @@
       <div style="color:#666;font-size:13px;">Тік працює щосекунди на сервері.</div>
     </div>
   </div>
+
+  <div id="page-settings" class="page">
+    <div class="panel settings-panel">
+      <div class="panel-title">Налаштування</div>
+
+      <div class="settings-row">
+        <div class="settings-label">Звук</div>
+        <div class="settings-ctrl">
+          <label class="toggle">
+            <input type="checkbox" id="setting-sound" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div class="settings-label">Нотація чисел</div>
+        <div class="settings-ctrl">
+          <select id="setting-notation">
+            <option value="sci">Наукова (1.23e6)</option>
+            <option value="eng">Інженерна (1.23M)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div class="settings-label">FPS інтерполяції</div>
+        <div class="settings-ctrl">
+          <select id="setting-fps">
+            <option value="60">60</option>
+            <option value="30">30</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <div class="settings-row danger">
+        <div class="settings-label">
+          Скинути збереження
+          <div class="settings-hint">Видалить весь прогрес і почне гру з нуля</div>
+        </div>
+        <div class="settings-ctrl">
+          <button class="btn-danger" onclick="resetSave()">Скинути</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<script>
-  const SAVE_ID = 1;
-  const ICONS = { E: 'Energy', p: 'Proton', n: 'Neutron', e: 'Electron', VC: 'VoidCrystal' };
-  let prevResources = {};
-
-  function fmt(number, exponent) {
-      if (number === 0) return "0";
-      if (exponent >= 0 && exponent <= 2) return (number * Math.pow(10, exponent)).toFixed(1);
-      return number.toFixed(2) + "e" + exponent;
-  }
-
-  function fmtCost(num, exp, mult, level) {
-      const realExp = exp + Math.floor(Math.log10(Math.pow(mult, level)));
-      const realNum = num * Math.pow(mult, level) / Math.pow(10, Math.floor(Math.log10(Math.pow(mult, level))));
-      return fmt(realNum, realExp);
-  }
-
-  function showPage(name, el) {
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
-      document.getElementById('page-' + name).classList.add('active');
-      if (el) el.classList.add('active');
-  }
-
-  async function fetchState() {
-      const res = await fetch('/api/state/' + SAVE_ID);
-      const data = await res.json();
-      const bar = document.getElementById('resources-bar');
-      bar.innerHTML = data.map(r => {
-          const icon = ICONS[r.resource] || 'Energy';
-          const prev = prevResources[r.resource] || { number: r.number, exponent: r.exponent };
-          const curr = r.number * Math.pow(10, r.exponent);
-          const old = prev.number * Math.pow(10, prev.exponent);
-          const rate = curr - old;
-          prevResources[r.resource] = { number: r.number, exponent: r.exponent };
-          return `<div class="res-card">
-              <img class="res-icon" src="/img/${icon}.png" alt="${r.resource}">
-              <div>
-                  <div class="res-label">${r.resource}</div>
-                  <div class="res-value">${fmt(r.number, r.exponent)}</div>
-                  <div class="res-rate">${rate >= 0 ? '+' : ''}${rate.toFixed(1)}/с</div>
-              </div>
-          </div>`;
-      }).join('');
-  }
-
-  async function fetchUpgrades() {
-      const res = await fetch('/api/upgrades/' + SAVE_ID);
-      const data = await res.json();
-      const list = document.getElementById('upgrades-list');
-      list.innerHTML = data.map(u => {
-          const maxed = u.currentLevel >= u.maxLevel;
-          return `<div class="upgrade-card ${maxed ? 'maxed' : ''}">
-              <div class="upgrade-header">
-                  <span class="upgrade-name">${u.name}</span>
-                  <span class="upgrade-lvl">${u.currentLevel} / ${u.maxLevel}</span>
-              </div>
-              <div class="upgrade-desc">${u.description}</div>
-              <button class="upgrade-btn ${maxed ? 'maxed-btn' : ''}"
-                      ${maxed ? 'disabled' : ''}
-                      onclick="buyUpgrade(${u.id})">
-                  ${maxed ? 'Максимум' : 'Купити — ' + fmtCost(u.costNumber, u.costExponent, u.costMultiplier, u.currentLevel) + ' E'}
-              </button>
-          </div>`;
-      }).join('');
-  }
-
-  async function buyUpgrade(id) {
-      await fetch('/api/buy-upgrade', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ saveId: SAVE_ID, upgradeId: id })
-      });
-      fetchState();
-      fetchUpgrades();
-  }
-
-  fetchState();
-  fetchUpgrades();
-  setInterval(fetchState, 1000);
-  setInterval(fetchUpgrades, 2000);
-</script>
+<!-- JS модулі (порядок важливий: залежності спочатку) -->
+<script src="/js/config.js"></script>
+<script src="/js/utils.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/resources.js"></script>
+<script src="/js/generators.js"></script>
+<script src="/js/upgrades.js"></script>
+<script src="/js/upgrade-info.js"></script>
+<script src="/js/main.js"></script>
 </body>
 </html>

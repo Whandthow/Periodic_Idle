@@ -7,7 +7,7 @@ import lombok.*;
 @Entity
 @Table(name = "player_generators")
 @Getter @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class PlayerGenerator {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
