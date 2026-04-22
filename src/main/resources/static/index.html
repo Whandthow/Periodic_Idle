@@ -49,32 +49,68 @@
   <div id="page-generators" class="page active">
     <div class="panel">
       <div class="panel-title">Генератори енергії</div>
+      <div class="gen-toolbar">
+        <div class="gen-mult-group" role="group" aria-label="Множник купівлі">
+          <button class="gen-mult-btn active" data-mult="1">x1</button>
+          <button class="gen-mult-btn" data-mult="10">x10</button>
+          <button class="gen-mult-btn" data-mult="100">x100</button>
+          <button class="gen-mult-btn" data-mult="-1">Max</button>
+        </div>
+        <button class="gen-buy-all-btn" onclick="buyAllGenerators()">Купити все (max)</button>
+      </div>
       <div id="generators-list"></div>
     </div>
   </div>
 
   <div id="page-upgrades" class="page">
     <div class="upgrade-compass">
-      <div class="upg upg-nw" data-title="Покращення V"    data-cost="1.00e4 E" data-desc="Опис буде пізніше"><img src="/img/Update5Tir1.png" alt="U5"></div>
-      <div class="upg upg-n"  data-title="Покращення I"    data-cost="100 E"    data-desc="Опис буде пізніше"><img src="/img/Update1Tir1.png" alt="U1"></div>
-      <div class="upg upg-ne" data-title="Покращення VIII" data-cost="1.00e6 E" data-desc="Опис буде пізніше"><img src="/img/Update8Tir1.png" alt="U8"></div>
-      <div class="upg upg-w"  data-title="Покращення III"  data-cost="500 E"    data-desc="Опис буде пізніше"><img src="/img/Update3Tir1.png" alt="U3"></div>
-      <div class="upg upg-center" data-title="Ядро"        data-cost="—"        data-desc="Центральне ядро пустоти"><img src="/img/Update0Tir1.png" alt="U0"></div>
-      <div class="upg upg-e"  data-title="Покращення IV"   data-cost="2500 E"   data-desc="Опис буде пізніше"><img src="/img/Update4Tir1.png" alt="U4"></div>
-      <div class="upg upg-sw" data-title="Покращення VII"  data-cost="1.00e5 E" data-desc="Опис буде пізніше"><img src="/img/Update7Tir1.png" alt="U7"></div>
-      <div class="upg upg-s"  data-title="Покращення II"   data-cost="250 E"    data-desc="Опис буде пізніше"><img src="/img/Update2Tir1.png" alt="U2"></div>
-      <div class="upg upg-se" data-title="Покращення VI"   data-cost="5.00e4 E" data-desc="Опис буде пізніше"><img src="/img/Update6Tir1.png" alt="U6"></div>
+      <div class="upg upg-nw" data-code="upg_gen_stack"    style="display:none"><img src="/img/Update8Tir1.png" alt=""></div>
+      <div class="upg upg-n"  data-code="upg_energy_mult"  style="display:none"><img src="/img/Update1Tir1.png" alt=""></div>
+      <div class="upg upg-ne" data-code="upg_gen_specific" style="display:none"><img src="/img/Update2Tir1.png" alt=""></div>
+      <div class="upg upg-w"  data-code="upg_cost_scale"   style="display:none"><img src="/img/Update7Tir1.png" alt=""></div>
+      <div class="upg upg-center" data-code="core"><img src="/img/Update0Tir1.png" alt=""></div>
+      <div class="upg upg-e"  data-code="upg_crystal_gain" style="display:none"><img src="/img/Update3Tir1.png" alt=""></div>
+      <div class="upg upg-sw" data-code="upg_phantom"      style="display:none"><img src="/img/Update6Tir1.png" alt=""></div>
+      <div class="upg upg-s"  data-code="upg_energy_pow"   style="display:none"><img src="/img/Update5Tir1.png" alt=""></div>
+      <div class="upg upg-se" data-code="upg_autobuy"      style="display:none"><img src="/img/Update4Tir1.png" alt=""></div>
     </div>
 
-    <!-- Info-панель (hover = превʼю, click = закріплення + "Купити") -->
-    <div id="upg-info" class="upg-info">
-      <div class="upg-info-title">Покращення</div>
-      <div class="upg-info-body">
-        <div class="upg-info-desc">Наведи курсор на покращення</div>
-        <div class="upg-info-cost-label">Вартість</div>
-        <div class="upg-info-cost">—</div>
-        <button class="upg-info-btn">Купити</button>
+    <!-- Info-панель: завжди видима, за замовчуванням показує серце -->
+    <div id="upg-info" class="upg-info always-on">
+      <!-- Стандартний стан: коли нічого не вибрано і нічого не наведено -->
+      <div class="upg-info-default">
+        <div class="upg-info-heart">♥</div>
+        <div class="upg-info-default-hint">Наведи на покращення<br>або клікни, щоб обрати</div>
       </div>
+
+      <!-- Наповнення: показується, коли є наведення/вибір -->
+      <div class="upg-info-filled">
+        <div class="upg-info-title">Покращення</div>
+        <div class="upg-info-body">
+          <div class="upg-info-desc">—</div>
+          <div class="upg-info-level">Рівень: 0</div>
+          <div class="upg-info-cost-label">Вартість</div>
+          <div class="upg-info-cost">—</div>
+          <div class="upg-info-msg"></div>
+        </div>
+      </div>
+
+      <!-- Тулбар: мультиплікатор купівлі + hover-to-buy -->
+      <div class="upg-info-toolbar">
+        <div class="upg-mult-group" role="group" aria-label="Множник купівлі">
+          <button class="upg-mult-btn active" data-mult="1">x1</button>
+          <button class="upg-mult-btn" data-mult="10">x10</button>
+          <button class="upg-mult-btn" data-mult="100">x100</button>
+          <button class="upg-mult-btn" data-mult="-1">Max</button>
+        </div>
+        <label class="upg-hover-buy">
+          <input type="checkbox" id="upg-hover-buy-toggle">
+          <span>Hover&nbsp;Buy</span>
+        </label>
+      </div>
+
+      <!-- Кнопка Купити — завжди у правому нижньому куті панелі -->
+      <button class="upg-info-btn" title="Купити">Купити</button>
     </div>
   </div>
 
@@ -88,6 +124,21 @@
   <div id="page-settings" class="page">
     <div class="panel settings-panel">
       <div class="panel-title">Налаштування</div>
+
+      <div class="panel-title" style="margin-top:4px;color:#c4b5fd">Реінкарнація</div>
+
+      <div class="settings-row">
+        <div class="settings-label">Скинути прогрес за кристали пустоти
+          <div class="settings-hint" id="prestige-hint">Потрібно щонайменше 1e10 енергії</div>
+        </div>
+        <div class="settings-ctrl">
+          <button class="btn-danger" id="prestige-btn"
+                  style="background:rgba(88,28,135,0.9);color:#e9d5ff"
+                  onclick="doPrestige()">Реінкарнація</button>
+        </div>
+      </div>
+
+      <div class="settings-divider"></div>
 
       <div class="settings-row">
         <div class="settings-label">Звук</div>
@@ -121,6 +172,40 @@
 
       <div class="settings-divider"></div>
 
+      <div class="panel-title" style="margin-top:8px">Dev-інструменти</div>
+
+      <div class="settings-row">
+        <div class="settings-label">Висока швидкість (x10)
+          <div class="settings-hint">Прискорює тіки у 10 разів</div>
+        </div>
+        <div class="settings-ctrl">
+          <label class="toggle">
+            <input type="checkbox" id="setting-fast-tick" onchange="toggleFastTick(this)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div class="settings-label">+1 до експоненти енергії
+          <div class="settings-hint">Помножує енергію в 10 раз (для тестування)</div>
+        </div>
+        <div class="settings-ctrl">
+          <button class="btn-danger" style="background:rgba(12,48,72,0.9);color:#7dd3fc" onclick="addResourceExp('E', 1)">+1 E</button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div class="settings-label">+1 до експоненти кристалів
+          <div class="settings-hint">Помножує кристали в 10 раз</div>
+        </div>
+        <div class="settings-ctrl">
+          <button class="btn-danger" style="background:rgba(12,48,72,0.9);color:#7dd3fc" onclick="addResourceExp('VC', 1)">+1 VC</button>
+        </div>
+      </div>
+
+      <div class="settings-divider"></div>
+
       <div class="settings-row danger">
         <div class="settings-label">
           Скинути збереження
@@ -141,6 +226,7 @@
 <script src="/js/resources.js"></script>
 <script src="/js/generators.js"></script>
 <script src="/js/upgrades.js"></script>
+<script src="/js/dev.js"></script>
 <script src="/js/upgrade-info.js"></script>
 <script src="/js/main.js"></script>
 </body>

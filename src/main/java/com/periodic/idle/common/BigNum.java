@@ -54,7 +54,7 @@ public class BigNum implements Comparable<BigNum> {
     public BigNum add(BigNum additionNum){
         double finalNumber=getNumber();
         long finalExponent= getExponent();
-        if(Math.abs(finalExponent-additionNum.exponent)<=40){
+        if(Math.abs(finalExponent-additionNum.exponent)<=380){
             if(additionNum.exponent<finalExponent){
                 double tmp = additionNum.number * Math.pow(10,(additionNum.exponent-finalExponent));
                 return new BigNum((finalNumber+tmp),finalExponent);
@@ -64,7 +64,7 @@ public class BigNum implements Comparable<BigNum> {
             }else{
                 return new BigNum(finalNumber+ additionNum.number,finalExponent);
             }
-        }else if(additionNum.exponent-finalExponent>40){
+        }else if(additionNum.exponent-finalExponent>308){
             return new BigNum(additionNum.number, additionNum.exponent);
         }else{
             return new BigNum(this.number, this.exponent);
@@ -74,7 +74,7 @@ public class BigNum implements Comparable<BigNum> {
     public BigNum subtract(BigNum subtractNum) {
         double finalNumber=getNumber();
         long finalExponent= getExponent();
-        if (subtractNum.exponent < finalExponent && Math.abs(finalExponent - subtractNum.exponent) <= 40) {
+        if (subtractNum.exponent < finalExponent && Math.abs(finalExponent - subtractNum.exponent) <= 308) {
             double tmp = subtractNum.number * Math.pow(10, (subtractNum.exponent - finalExponent));
             return new BigNum(finalNumber - tmp, finalExponent);
         } else if (subtractNum.exponent > finalExponent) {

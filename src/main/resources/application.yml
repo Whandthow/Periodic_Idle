@@ -5,9 +5,15 @@ spring:
     password:
   h2:
     console:
-      enabled: true
+      enabled: ${H2_CONSOLE_ENABLED:false}
   jpa:
     hibernate:
       ddl-auto: validate
   flyway:
     enabled: true
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: always
+    include-binding-errors: always

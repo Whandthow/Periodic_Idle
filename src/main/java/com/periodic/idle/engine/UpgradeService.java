@@ -18,8 +18,22 @@ public class UpgradeService {
     private final PlayerUpgradeRepository playerUpgradeRepository;
     private final PlayerResourceRepository playerResourceRepository;
 
+    /** Запобіжник нескінченного циклу bulk-купівлі. */
+    private static final int BULK_HARD_CAP = 100_000;
+
     @Transactional
     public void buy(Long saveId, Long upgradeId) {
+        buyBulk(saveId, upgradeId, 1);
+    }
+
+    /**
+     * Купити до {@code amount} рівнів апгрейду. {@code amount < 0} = max (скільки вистачить).
+     * Якщо не вдалось купити жодного — кидає помилку.
+     */
+    @Transactional
+    public int buyBulk(Long saveId, Long upgradeId, int amount) {
+        if (amount == 0) return 0;
+
         Upgrade upgrade = upgradeRepository.findById(upgradeId)
                 .orElseThrow(() -> new RuntimeException("Upgrade not found"));
 
@@ -36,12 +50,19 @@ public class UpgradeService {
             throw new RuntimeException("Already max level");
         }
 
-        // Рахуємо вартість
-        double costNum = upgrade.getCostNumber() * Math.pow(upgrade.getCostMultiplier(), currentLevel);
-        long costExp = upgrade.getCostExponent();
-        BigNum cost = new BigNum(costNum, costExp);
+        // Гейт відкриття: залежить від тіру Ядра
+        int requiredCoreTier = upgrade.getUnlockCoreTier();
+        if (requiredCoreTier > 0) {
+            int coreLevel = playerUpgrades.stream()
+                    .filter(p -> "CORE".equals(p.getUpgrade().getEffectType()))
+                    .mapToInt(PlayerUpgrade::getLevel)
+                    .max()
+                    .orElse(0);
+            if (coreLevel < requiredCoreTier) {
+                throw new RuntimeException("Upgrade locked: requires Core tier " + requiredCoreTier);
+            }
+        }
 
-        // Перевіряємо ресурси
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
         PlayerResource pr = resources.stream()
                 .filter(r -> r.getResource().getId().equals(upgrade.getCostResource().getId()))
@@ -50,24 +71,34 @@ public class UpgradeService {
 
         BigNum current = new BigNum(pr.getNumber(), pr.getExponent());
 
-        if (current.compareTo(cost) < 0) {
+        int maxLevel = upgrade.getMaxLevel();
+        int target = amount < 0 ? BULK_HARD_CAP : Math.min(amount, BULK_HARD_CAP);
+        int bought = 0;
+        int level = currentLevel;
+        while (bought < target && level < maxLevel) {
+            double costNum = upgrade.getCostNumber() * Math.pow(upgrade.getCostMultiplier(), level);
+            if (!Double.isFinite(costNum) || costNum <= 0) break;
+            BigNum cost = new BigNum(costNum, upgrade.getCostExponent());
+            if (current.compareTo(cost) < 0) break;
+            current = current.subtract(cost);
+            level++;
+            bought++;
+        }
+
+        if (bought == 0) {
             throw new RuntimeException("Not enough resources");
         }
 
-        // Списуємо
-        BigNum result = current.subtract(cost);
-        pr.setNumber(result.getNumber());
-        pr.setExponent(result.getExponent());
+        pr.setNumber(current.getNumber());
+        pr.setExponent(current.getExponent());
 
-        // Підвищуємо рівень
         if (pu == null) {
             pu = new PlayerUpgrade();
             pu.setSave(pr.getSave());
             pu.setUpgrade(upgrade);
-            pu.setLevel(1);
-        } else {
-            pu.setLevel(currentLevel + 1);
         }
+        pu.setLevel(level);
         playerUpgradeRepository.save(pu);
+        return bought;
     }
 }

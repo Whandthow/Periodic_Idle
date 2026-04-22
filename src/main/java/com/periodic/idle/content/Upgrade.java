@@ -44,6 +44,9 @@ public class Upgrade {
 
     private int maxLevel;
 
+    @Column(name = "unlock_core_tier", nullable = false)
+    private int unlockCoreTier;
+
     @ManyToOne
     @JoinColumn(name = "required_upgrade_id")
     private Upgrade requiredUpgrade;
