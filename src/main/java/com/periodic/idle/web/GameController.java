@@ -4,6 +4,7 @@ import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorRepository;
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
+import com.periodic.idle.engine.ExchangeService;
 import com.periodic.idle.engine.GameEngine;
 import com.periodic.idle.engine.GeneratorService;
 import com.periodic.idle.engine.PrestigeService;
@@ -28,12 +29,21 @@ public class GameController {
     private final GeneratorService generatorService;
     private final GameEngine gameEngine;
     private final PrestigeService prestigeService;
+    private final ExchangeService exchangeService;
 
     @GetMapping("/state/{saveId}")
     public List<Map<String, Object>> getState(@PathVariable Long saveId) {
         Map<Long, Double> production = gameEngine.calculateProductionPerSec(saveId);
 
         return playerResourceRepository.findBySaveId(saveId).stream()
+                .peek(pr -> {
+                    // Санітайз: якщо в БД NaN/Infinity — скидаємо до 0.
+                    if (!Double.isFinite(pr.getNumber())) {
+                        pr.setNumber(0);
+                        pr.setExponent(0);
+                        playerResourceRepository.save(pr);
+                    }
+                })
                 .map(pr -> {
                     Map<String, Object> map = new LinkedHashMap<>();
                     map.put("resource", pr.getResource().getCode());
@@ -77,10 +87,19 @@ public class GameController {
     @GetMapping("/generators/{saveId}")
     public List<Map<String, Object>> getGenerators(@PathVariable Long saveId) {
         List<PlayerGenerator> playerGenerators = playerGeneratorRepository.findBySaveId(saveId);
-        List<Generator> allGenerators = generatorRepository.findAll();
+        List<Generator> allGenerators = generatorRepository.findAll().stream()
+                .sorted(java.util.Comparator.comparing(Generator::getId))
+                .toList();
         List<PlayerUpgrade> playerUpgrades = playerUpgradeRepository.findBySaveId(saveId);
+        Map<Long, GameEngine.GenBreakdown> breakdown = gameEngine.calculateGeneratorBreakdown(saveId);
+        double totalEnergy = breakdown.values().stream()
+                .mapToDouble(GameEngine.GenBreakdown::energyPerSec)
+                .sum();
 
-        return allGenerators.stream().map(g -> {
+        int idx = 0;
+        List<Map<String, Object>> out = new java.util.ArrayList<>();
+        for (Generator g : allGenerators) {
+            idx++;
             int level = playerGenerators.stream()
                     .filter(pg -> pg.getGenerator().getId().equals(g.getId()))
                     .findFirst()
@@ -90,6 +109,10 @@ public class GameController {
             double ratePerLevel = g.getOutputs().stream()
                     .mapToDouble(o -> o.getRatePerLevel())
                     .sum();
+
+            GameEngine.GenBreakdown br = breakdown.getOrDefault(g.getId(),
+                    new GameEngine.GenBreakdown(0.0, 0.0));
+            double share = (totalEnergy > 0) ? (br.energyPerSec() / totalEnergy) : 0.0;
 
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("id", g.getId());
@@ -102,8 +125,14 @@ public class GameController {
             map.put("costMultiplier", g.getCostMultiplier());
             map.put("effectiveCostMultiplier",
                     generatorService.effectiveCostMultiplier(g.getCostMultiplier(), playerUpgrades));
-            return map;
-        }).toList();
+            // нові поля для UI
+            map.put("iconIndex", idx);                 // 1..N — індекс іконки Generator{N}Tier1.png
+            map.put("energyPerSec", br.energyPerSec()); // з усіма бустами
+            map.put("phantomBonus", br.phantomBonus()); // скільки фантомних копій
+            map.put("shareOfTotal", share);             // 0..1
+            out.add(map);
+        }
+        return out;
     }
 
     @PostMapping("/buy-generator")
@@ -141,6 +170,21 @@ public class GameController {
         map.put("gainNumber", gain.getNumber());
         map.put("gainExponent", gain.getExponent());
         return map;
+    }
+
+    @PostMapping("/reset")
+    public Map<String, String> resetSave(@RequestBody Map<String, Long> request) {
+        prestigeService.hardReset(request.get("saveId"));
+        return Map.of("status", "ok");
+    }
+
+    @PostMapping("/exchange/split")
+    public Map<String, Object> splitCrystals(@RequestBody Map<String, Object> request) {
+        Long saveId = ((Number) request.get("saveId")).longValue();
+        Object amt = request.get("amount");
+        long amount = amt == null ? 1 : ((Number) amt).longValue(); // -1 = max
+        long split = exchangeService.splitCrystals(saveId, amount);
+        return Map.of("status", "ok", "split", split);
     }
 
     @PostMapping("/buy-upgrade")

@@ -15,10 +15,14 @@ public class BigNum implements Comparable<BigNum> {
 
     public BigNum(double number,long exponent){
         if(number<0) throw new negativeNumberInBigNumException();
-        if(number==0){
+        if(number==0 || Double.isNaN(number)){
             this.number=0;
             this.exponent=0;
             return;
+        }
+        if(Double.isInfinite(number)){
+            // Захист від зависання в while-лупі нормалізації.
+            throw new IllegalArgumentException("BigNum received Infinity");
         }
         this.exponent=exponent;
         while (number >= 10) {

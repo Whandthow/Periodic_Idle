@@ -358,4 +358,21 @@ public class BigNumTest {
         assertEquals(0, result.getNumber(), 0.001);
         assertEquals(0, result.getExponent());
     }
+
+    // === Захист від NaN / Infinity ===
+
+    @Test
+    @DisplayName("Infinity у конструкторі кидає IllegalArgumentException (без зависання)")
+    void constructorInfinityThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new BigNum(Double.POSITIVE_INFINITY, 0));
+    }
+
+    @Test
+    @DisplayName("NaN у конструкторі трактується як 0")
+    void constructorNanAsZero() {
+        BigNum n = new BigNum(Double.NaN, 10);
+        assertEquals(0, n.getNumber(), 0.001);
+        assertEquals(0, n.getExponent());
+    }
 }

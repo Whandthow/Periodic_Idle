@@ -14,11 +14,11 @@
     <img src="/img/VoidVortexTir1.png" alt="Void">
     <span>Пустота</span>
   </div>
-  <div class="tier-btn locked">
+  <div class="tier-btn locked" id="tier-btn-1" onclick="selectTier(1, this)">
     <img src="/img/Proton.png" alt="Matter">
     <span>Матерія</span>
   </div>
-  <div class="tier-btn locked">
+  <div class="tier-btn locked" id="tier-btn-2" onclick="selectTier(2, this)">
     <img src="/img/AtomTear2.png" alt="Atoms">
     <span>Атоми</span>
   </div>
@@ -121,6 +121,39 @@
     </div>
   </div>
 
+  <!-- Тір 1: Обмін кристалів на субатомні частинки -->
+  <div id="page-exchange" class="page">
+    <div class="panel">
+      <div class="panel-title">Обмін</div>
+      <div class="exchange-intro">
+        Розщеплюючи <strong>Кристал Пустоти</strong>, ви отримуєте субатомну трійцю:
+        <span class="ex-p">1&nbsp;протон</span> + <span class="ex-n">1&nbsp;нейтрон</span> + <span class="ex-e">1&nbsp;електрон</span> за кожен кристал.
+      </div>
+
+      <div class="exchange-row">
+        <img class="exchange-icon" src="/img/VoidCrystal.png" alt="VC">
+        <div class="exchange-arrow">→</div>
+        <div class="exchange-triad">
+          <img src="/img/Proton.png"   alt="p" title="Протон">
+          <img src="/img/Neutron.png"  alt="n" title="Нейтрон">
+          <img src="/img/Electron.png" alt="e" title="Електрон">
+        </div>
+      </div>
+
+      <div class="exchange-toolbar">
+        <div class="gen-mult-group" role="group" aria-label="Множник розщеплення">
+          <button class="gen-mult-btn active" data-mult="1">x1</button>
+          <button class="gen-mult-btn" data-mult="10">x10</button>
+          <button class="gen-mult-btn" data-mult="100">x100</button>
+          <button class="gen-mult-btn" data-mult="-1">Max</button>
+        </div>
+        <button class="gen-buy-all-btn" onclick="splitCrystals()">Розщепити</button>
+      </div>
+
+      <div id="exchange-msg" class="exchange-msg"></div>
+    </div>
+  </div>
+
   <div id="page-settings" class="page">
     <div class="panel settings-panel">
       <div class="panel-title">Налаштування</div>
@@ -220,14 +253,15 @@
 </div>
 
 <!-- JS модулі (порядок важливий: залежності спочатку) -->
-<script src="/js/config.js"></script>
-<script src="/js/utils.js"></script>
-<script src="/js/nav.js"></script>
-<script src="/js/resources.js"></script>
-<script src="/js/generators.js"></script>
-<script src="/js/upgrades.js"></script>
-<script src="/js/dev.js"></script>
-<script src="/js/upgrade-info.js"></script>
-<script src="/js/main.js"></script>
+<script src="/js/config.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script src="/js/nav.js?v=2"></script>
+<script src="/js/resources.js?v=2"></script>
+<script src="/js/generators.js?v=2"></script>
+<script src="/js/upgrades.js?v=2"></script>
+<script src="/js/dev.js?v=2"></script>
+<script src="/js/upgrade-info.js?v=2"></script>
+<script src="/js/exchange.js?v=2"></script>
+<script src="/js/main.js?v=2"></script>
 </body>
 </html>

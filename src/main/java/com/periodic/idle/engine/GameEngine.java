@@ -58,7 +58,10 @@ public class GameEngine {
             PlayerResource pr = findResource(resources, entry.getKey());
             if (pr == null) continue;
 
-            double addPerTick = entry.getValue() * TICK_INTERVAL_SEC * tickSpeedMultiplier;
+            double rate = entry.getValue();
+            if (!Double.isFinite(rate) || rate <= 0) continue; // захист від NaN/Infinity
+            double addPerTick = rate * TICK_INTERVAL_SEC * tickSpeedMultiplier;
+            if (!Double.isFinite(addPerTick) || addPerTick <= 0) continue;
 
             BigNum current = new BigNum(pr.getNumber(), pr.getExponent());
             BigNum addition = new BigNum(addPerTick, 0);
@@ -72,6 +75,53 @@ public class GameEngine {
     /** Виробництво за секунду, згруповане за resourceId. Використовується для UI. */
     public Map<Long, Double> calculateProductionPerSec(Long saveId) {
         return computeProduction(saveId);
+    }
+
+    /** Детальна інформація про внесок одного генератора (для UI-розбивки). */
+    public record GenBreakdown(double energyPerSec, double phantomBonus) {}
+
+    /**
+     * Повертає посекундне виробництво енергії окремо для кожного генератора
+     * з урахуванням усіх бустів, а також фантомний бонус (множник, на який
+     * помножується цей ген). Ключ — generatorId.
+     */
+    public Map<Long, GenBreakdown> calculateGeneratorBreakdown(Long saveId) {
+        List<PlayerGenerator> generators = playerGeneratorRepository.findBySaveId(saveId);
+        List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
+        List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
+
+        double energyMult = calcEnergyMult(upgrades);
+        double genMult = calcMultiplier(upgrades, "GENERATOR_MULT");
+        double coreBoost = calcCoreBoost(upgrades, resources);
+        Map<Long, Double> genSpecific = calcGenSpecificMults(upgrades, generators);
+        double energyPow = calcEnergyPow(upgrades);
+        Map<Long, Double> genStack = calcGenStackMults(upgrades, generators);
+        Map<Long, Double> phantomBonus = calcPhantomBonus(upgrades, generators);
+
+        Map<Long, GenBreakdown> result = new HashMap<>();
+        for (PlayerGenerator pg : generators) {
+            Long gid = pg.getGenerator().getId();
+            double phantom = phantomBonus.getOrDefault(gid, 0.0);
+            if (pg.getLevel() <= 0) {
+                result.put(gid, new GenBreakdown(0.0, phantom));
+                continue;
+            }
+            double energyRate = 0.0;
+            for (GeneratorOutput output : pg.getGenerator().getOutputs()) {
+                if (!"E".equals(output.getResource().getCode())) continue;
+                double perGen = genSpecific.getOrDefault(gid, 1.0);
+                double stack = genStack.getOrDefault(gid, 1.0);
+                double rate = output.getRatePerLevel() * pg.getLevel()
+                        * genMult * energyMult * coreBoost * perGen * stack;
+                if (phantom > 0) rate *= (1.0 + phantom);
+                if (energyPow != 1.0 && rate > 1.0) {
+                    rate = Math.pow(rate, energyPow);
+                }
+                energyRate += rate;
+            }
+            result.put(gid, new GenBreakdown(energyRate, phantom));
+        }
+        return result;
     }
 
     private Map<Long, Double> computeProduction(Long saveId) {
@@ -268,13 +318,15 @@ public class GameEngine {
             if (pr.getResource() != null && "VC".equals(pr.getResource().getCode())) {
                 double mantissa = pr.getNumber();
                 long exp = pr.getExponent();
-                if (mantissa <= 0) break;
+                // Захист від NaN/Infinity у DB: трактуємо як 0 кристалів.
+                if (!Double.isFinite(mantissa) || mantissa <= 0) break;
                 crystalsLog10 = Math.log10(mantissa) + exp;
                 break;
             }
         }
-        if (crystalsLog10 <= 0) return 1.0;
-        return Math.pow(10, coreLevel * coreCoeff * crystalsLog10);
+        if (!Double.isFinite(crystalsLog10) || crystalsLog10 <= 0) return 1.0;
+        double result = Math.pow(10, coreLevel * coreCoeff * crystalsLog10);
+        return Double.isFinite(result) ? result : 1.0;
     }
 
     private PlayerResource findResource(List<PlayerResource> resources, Long resourceId) {
