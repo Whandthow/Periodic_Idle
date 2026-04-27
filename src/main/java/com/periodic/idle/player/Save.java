@@ -14,4 +14,16 @@ public class Save {
     private Long id;
     private String playerName;
     private LocalDateTime lastTick;
+
+    /** true після одноразового апгрейду "Зламати нескінченність" — знімає кап 1e308. */
+    @Column(name = "broken_infinity", nullable = false)
+    private boolean brokenInfinity;
+
+    /** Скільки разів гравець виконав "Колапс матерії" (для статистики). */
+    @Column(name = "matter_collapses", nullable = false)
+    private long matterCollapses;
+
+    /** Чи увімкнена автопокупка генераторів (UI-перемикач). За замовчуванням true. */
+    @Column(name = "autobuy_enabled", nullable = false)
+    private boolean autobuyEnabled = true;
 }

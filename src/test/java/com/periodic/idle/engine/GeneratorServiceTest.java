@@ -174,6 +174,71 @@ class GeneratorServiceTest {
     }
 
     @Test
+    @DisplayName("effectiveCostMultiplier(resources): нейтрони знижують множник на 0.005 за штуку")
+    void effectiveCostMultiplier_neutronReduction() {
+        Resource nRes = createResource(2L, "n");
+        PlayerResource neutrons = instantiate(PlayerResource.class);
+        neutrons.setResource(nRes);
+        neutrons.setNumber(2.0);
+        neutrons.setExponent(1L); // 20 нейтронів → знижка 20 * 0.005 = 0.1
+
+        // baseMult=1.5, без апгрейдів → 1.5 - 0.1 = 1.4
+        double effective = generatorService.effectiveCostMultiplier(1.5,
+                new ArrayList<>(), List.of(neutrons));
+        assertEquals(1.4, effective, 1e-9);
+    }
+
+    @Test
+    @DisplayName("effectiveCostMultiplier(resources): нейтрони + COST_SCALE_REDUCE сумуються; підлога 1.03")
+    void effectiveCostMultiplier_neutronPlusUpgrade_floor() {
+        Upgrade u = instantiate(Upgrade.class);
+        ReflectionTestUtils.setField(u, "effectType", "COST_SCALE_REDUCE");
+        ReflectionTestUtils.setField(u, "effectValue", 0.1);
+        PlayerUpgrade pu = new PlayerUpgrade();
+        pu.setUpgrade(u);
+        pu.setLevel(50); // reduce від апгрейду = 5.0
+
+        Resource nRes = createResource(2L, "n");
+        PlayerResource neutrons = instantiate(PlayerResource.class);
+        neutrons.setResource(nRes);
+        neutrons.setNumber(1.0);
+        neutrons.setExponent(2L); // 100 → -0.5
+
+        double effective = generatorService.effectiveCostMultiplier(1.5,
+                List.of(pu), List.of(neutrons));
+        assertEquals(1.03, effective, 1e-9);
+    }
+
+    @Test
+    @DisplayName("buyBulk(amount=-1): коли ресурсів не вистачає — повертає 0, НЕ кидає")
+    void buyBulkMax_insufficient_returnsZero() {
+        playerEnergy.setNumber(1.0);
+        playerEnergy.setExponent(0); // 1 енергії — менше за base cost (10)
+
+        when(generatorRepository.findById(1L)).thenReturn(Optional.of(voidGen));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+
+        int bought = assertDoesNotThrow(() -> generatorService.buyBulk(1L, 1L, -1));
+        assertEquals(0, bought);
+    }
+
+    @Test
+    @DisplayName("buyBulk(amount=5): коли ресурсів не вистачає на жоден рівень — кидає")
+    void buyBulkExact_insufficient_throws() {
+        playerEnergy.setNumber(1.0);
+        playerEnergy.setExponent(0);
+
+        when(generatorRepository.findById(1L)).thenReturn(Optional.of(voidGen));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+
+        assertThrows(RuntimeException.class, () -> generatorService.buyBulk(1L, 1L, 5));
+    }
+
+    @Test
     @DisplayName("Генератор не знайдено — exception")
     void buyNotFound() {
         when(generatorRepository.findById(999L)).thenReturn(Optional.empty());

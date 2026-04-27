@@ -4,7 +4,9 @@
 var buyMult = 1;
 
 function _setupMultButtons() {
-  var btns = document.querySelectorAll('.gen-mult-btn');
+  var page = document.getElementById('page-generators');
+  if (!page) return;
+  var btns = page.querySelectorAll('.gen-mult-btn');
   btns.forEach(function(btn) {
     btn.addEventListener('click', function() {
       btns.forEach(function(b) { b.classList.remove('active'); });
@@ -73,17 +75,15 @@ function _currentEnergy() {
 function _buttonLabel(g) {
   var mult = g.effectiveCostMultiplier || g.costMultiplier;
   if (buyMult > 0) {
-    // Фіксована кількість (може не вистачити — сервер купить скільки зможе, але тут показуємо ціль)
     var c = bulkCost(g.baseCostNumber, g.baseCostExponent, mult, g.level, buyMult);
-    return 'x' + buyMult + ' · ' + fmtBig(c.num, c.exp) + ' E';
+    return fmtBig(c.num, c.exp) + ' E';
   }
-  // Max — скільки реально можна купити зараз
   var en = _currentEnergy();
   var n = maxAffordable(g.baseCostNumber, g.baseCostExponent, mult, g.level,
                          en.num, en.exp, 100000);
   if (n <= 0) return 'Max · —';
   var c2 = bulkCost(g.baseCostNumber, g.baseCostExponent, mult, g.level, n);
-  return 'Max (x' + n + ') · ' + fmtBig(c2.num, c2.exp) + ' E';
+  return 'Max · ' + fmtBig(c2.num, c2.exp) + ' E · x' + n;
 }
 
 // fmtBig: нормалізоване відображення (num, exp) як наукова нотація.
@@ -98,6 +98,7 @@ function fmtBig(num, exp) {
   return num.toFixed(2) + 'e' + exp;
 }
 
+var generatorsState = { list: [] };
 var generatorsFetchInFlight = false;
 
 async function fetchGenerators() {
@@ -106,6 +107,7 @@ async function fetchGenerators() {
   try {
   var res = await fetch('/api/generators/' + SAVE_ID);
   var data = await res.json();
+  generatorsState.list = data.slice();
   var list = document.getElementById('generators-list');
   if (!list) return;
 
@@ -162,6 +164,8 @@ async function fetchGenerators() {
       '</button>' +
     '</div>';
   }).join('');
+  if (typeof renderStatsPage === 'function' && isPageActive('stats')) renderStatsPage();
+  if (typeof renderAutobuyToggle === 'function') renderAutobuyToggle();
   } finally {
     generatorsFetchInFlight = false;
   }
@@ -175,6 +179,64 @@ async function buyGenerator(id) {
   });
   fetchState();
   fetchGenerators();
+}
+
+function _autobuyUpgradeLevel() {
+  if (typeof upgradesState === 'undefined' || !upgradesState.byCode) return 0;
+  for (var code in upgradesState.byCode) {
+    var u = upgradesState.byCode[code];
+    if (u && u.effectType === 'AUTOBUY' && u.currentLevel > 0) return u.currentLevel;
+  }
+  return 0;
+}
+
+function renderAutobuyToggle() {
+  var row = document.getElementById('autobuy-toggle-row');
+  var btn = document.getElementById('autobuy-toggle-btn');
+  if (!row || !btn) return;
+  var lvl = _autobuyUpgradeLevel();
+
+  // Поки апгрейд AUTOBUY не куплений — нічого не показуємо.
+  if (lvl <= 0) {
+    row.style.display = 'none';
+    return;
+  }
+
+  var enabled = (typeof matterState !== 'undefined') ? !!matterState.autobuyEnabled : true;
+  row.style.display = '';
+  btn.disabled = false;
+  btn.classList.toggle('on', enabled);
+  btn.classList.toggle('off', !enabled);
+  btn.textContent = (enabled ? 'Авто: УВІМК' : 'Авто: ВИМК') + ' · x' + lvl;
+  btn.title = enabled
+    ? 'Автокупівля перших ' + lvl + ' генераторів кожні 250мс. Натисни щоб вимкнути.'
+    : 'Автокупівля вимкнена. Натисни щоб увімкнути.';
+}
+
+async function toggleAutobuy() {
+  var btn = document.getElementById('autobuy-toggle-btn');
+  if (!btn || btn.disabled) return;
+  var enabled = (typeof matterState !== 'undefined') ? !!matterState.autobuyEnabled : true;
+  var next = !enabled;
+  // Оптимістичне оновлення UI.
+  if (typeof matterState !== 'undefined') matterState.autobuyEnabled = next;
+  renderAutobuyToggle();
+  try {
+    var res = await fetch('/api/autobuy-toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saveId: SAVE_ID, enabled: next })
+    });
+    if (!res.ok) throw new Error('toggle failed');
+    var data = await res.json();
+    if (typeof matterState !== 'undefined') matterState.autobuyEnabled = !!data.autobuyEnabled;
+    renderAutobuyToggle();
+  } catch (err) {
+    console.error('toggleAutobuy failed', err);
+    // Відкат
+    if (typeof matterState !== 'undefined') matterState.autobuyEnabled = enabled;
+    renderAutobuyToggle();
+  }
 }
 
 async function buyAllGenerators() {

@@ -34,6 +34,8 @@ class GameControllerTest {
     @MockitoBean private GameEngine gameEngine;
     @MockitoBean private PrestigeService prestigeService;
     @MockitoBean private ExchangeService exchangeService;
+    @MockitoBean private MatterService matterService;
+    @MockitoBean private SaveRepository saveRepository;
 
     @Test
     @DisplayName("GET /api/state/1 повертає 200 і JSON масив")
@@ -158,5 +160,124 @@ class GameControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.number").value(5.0))
                 .andExpect(jsonPath("$.exponent").value(3));
+    }
+
+    // === Тір 1: Колапс матерії, зламана нескінченність, статистика, автобай-тоггл ===
+
+    @Test
+    @DisplayName("GET /api/matter-info/1 — повертає прапори тіру і кількість частинок")
+    void matterInfo_returnsState() throws Exception {
+        Save save = newSave(1L);
+        save.setBrokenInfinity(false);
+        save.setMatterCollapses(3L);
+        save.setAutobuyEnabled(true);
+
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        mockMvc.perform(get("/api/matter-info/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.brokenInfinity").value(false))
+                .andExpect(jsonPath("$.matterCollapses").value(3))
+                .andExpect(jsonPath("$.autobuyEnabled").value(true))
+                .andExpect(jsonPath("$.energyCapLog10").value(308))
+                .andExpect(jsonPath("$.particles.p").value(0))
+                .andExpect(jsonPath("$.particles.n").value(0))
+                .andExpect(jsonPath("$.particles.e").value(0));
+    }
+
+    @Test
+    @DisplayName("POST /api/matter-collapse — успішний колапс із вибором частинки")
+    void matterCollapse_success() throws Exception {
+        mockMvc.perform(post("/api/matter-collapse")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"particle\":\"p\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"))
+                .andExpect(jsonPath("$.particle").value("p"));
+
+        verify(matterService).collapse(1L, "p");
+    }
+
+    @Test
+    @DisplayName("POST /api/matter-collapse — недостатньо енергії → 400")
+    void matterCollapse_notReady_returns400() throws Exception {
+        doThrow(new RuntimeException("Потрібно 1e308 енергії"))
+                .when(matterService).collapse(1L, "p");
+
+        mockMvc.perform(post("/api/matter-collapse")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"particle\":\"p\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Потрібно 1e308 енергії"));
+    }
+
+    @Test
+    @DisplayName("POST /api/break-infinity — викликає MatterService")
+    void breakInfinity_success() throws Exception {
+        mockMvc.perform(post("/api/break-infinity")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"));
+
+        verify(matterService).breakInfinity(1L);
+    }
+
+    @Test
+    @DisplayName("POST /api/autobuy-toggle — перемикає прапор і повертає новий стан")
+    void autobuyToggle_setsFlagFromBody() throws Exception {
+        Save save = newSave(1L);
+        save.setAutobuyEnabled(true);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(saveRepository.save(save)).thenReturn(save);
+
+        mockMvc.perform(post("/api/autobuy-toggle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"enabled\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autobuyEnabled").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /api/autobuy-toggle без enabled — інвертує поточне значення")
+    void autobuyToggle_noBody_inverts() throws Exception {
+        Save save = newSave(1L);
+        save.setAutobuyEnabled(true);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+
+        mockMvc.perform(post("/api/autobuy-toggle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autobuyEnabled").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /api/stats/1 — повертає JSON, делегує GameEngine.calculateStats")
+    void stats_returnsBreakdown() throws Exception {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("multipliers", List.of());
+        payload.put("generators", List.of());
+        payload.put("totalEnergyPerSec", 0.0);
+        when(gameEngine.calculateStats(1L)).thenReturn(payload);
+
+        mockMvc.perform(get("/api/stats/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.multipliers").isArray())
+                .andExpect(jsonPath("$.generators").isArray())
+                .andExpect(jsonPath("$.totalEnergyPerSec").value(0.0));
+    }
+
+    private Save newSave(Long id) {
+        try {
+            var c = Save.class.getDeclaredConstructor();
+            c.setAccessible(true);
+            Save s = c.newInstance();
+            org.springframework.test.util.ReflectionTestUtils.setField(s, "id", id);
+            return s;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

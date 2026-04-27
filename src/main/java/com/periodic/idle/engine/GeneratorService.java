@@ -46,9 +46,9 @@ public class GeneratorService {
         int currentLevel = pg != null ? pg.getLevel() : 0;
 
         List<PlayerUpgrade> playerUpgrades = playerUpgradeRepository.findBySaveId(saveId);
-        double effectiveMultiplier = effectiveCostMultiplier(generator.getCostMultiplier(), playerUpgrades);
-
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
+        double effectiveMultiplier = effectiveCostMultiplier(generator.getCostMultiplier(), playerUpgrades, resources);
+
         PlayerResource pr = resources.stream()
                 .filter(r -> r.getResource().getId().equals(generator.getCostResource().getId()))
                 .findFirst()
@@ -70,6 +70,8 @@ public class GeneratorService {
         }
 
         if (bought == 0) {
+            // Для max-режиму це нормальна ситуація (просто не вистачає): не псуємо транзакцію.
+            if (amount < 0) return 0;
             throw new RuntimeException("Not enough resources");
         }
 
@@ -124,15 +126,16 @@ public class GeneratorService {
 
         int currentLevel = pg != null ? pg.getLevel() : 0;
 
-        // Вартість = baseCost * effectiveMultiplier^currentLevel, де effectiveMultiplier враховує COST_SCALE_REDUCE
+        // Вартість = baseCost * effectiveMultiplier^currentLevel,
+        // де effectiveMultiplier враховує COST_SCALE_REDUCE та бонус нейтронів.
         List<PlayerUpgrade> playerUpgrades = playerUpgradeRepository.findBySaveId(saveId);
-        double effectiveMultiplier = effectiveCostMultiplier(generator.getCostMultiplier(), playerUpgrades);
+        List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
+        double effectiveMultiplier = effectiveCostMultiplier(generator.getCostMultiplier(), playerUpgrades, resources);
         double costNum = generator.getBaseCostNumber() * Math.pow(effectiveMultiplier, currentLevel);
         long costExp = generator.getBaseCostExponent();
         BigNum cost = new BigNum(costNum, costExp);
 
         // Перевіряємо ресурси
-        List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
         PlayerResource pr = resources.stream()
                 .filter(r -> r.getResource().getId().equals(generator.getCostResource().getId()))
                 .findFirst()
@@ -167,12 +170,25 @@ public class GeneratorService {
      * Зниження обмежене нижньою межею MIN_COST_MULTIPLIER.
      */
     public double effectiveCostMultiplier(double baseMultiplier, List<PlayerUpgrade> upgrades) {
+        return effectiveCostMultiplier(baseMultiplier, upgrades, null);
+    }
+
+    /**
+     * Розширена версія: окрім COST_SCALE_REDUCE враховує бонус нейтронів
+     * (кожен n знижує множник на NEUTRON_COST_PER), якщо передано resources.
+     */
+    public double effectiveCostMultiplier(double baseMultiplier,
+                                           List<PlayerUpgrade> upgrades,
+                                           List<PlayerResource> resources) {
         double totalReduce = 0.0;
         for (PlayerUpgrade pu : upgrades) {
             if (pu.getLevel() <= 0) continue;
             if ("COST_SCALE_REDUCE".equals(pu.getUpgrade().getEffectType())) {
                 totalReduce += pu.getUpgrade().getEffectValue() * pu.getLevel();
             }
+        }
+        if (resources != null) {
+            totalReduce += ParticleBonus.neutronCostReduction(resources);
         }
         return Math.max(MIN_COST_MULTIPLIER, baseMultiplier - totalReduce);
     }

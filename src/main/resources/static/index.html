@@ -11,9 +11,15 @@
   <link rel="preload" as="image" href="/img/Generator1Tier1.png" fetchpriority="high">
   <link rel="icon" href="/img/VoidVortexTir1.png" type="image/png">
   <title>Periodic Idle</title>
-  <link rel="stylesheet" href="/css/styles.css?v=6">
+  <link rel="stylesheet" href="/css/styles.css?v=11">
 </head>
 <body>
+
+<!-- Кнопка для висувної панелі (мобільний режим) -->
+<button class="nav-toggle" id="nav-toggle" type="button" aria-label="Меню етапів" onclick="toggleTierDrawer()">
+  <span></span><span></span><span></span>
+</button>
+<div class="nav-scrim" onclick="closeTierDrawer()"></div>
 
 <!-- Сайдбар: етапи -->
 <div class="sidebar">
@@ -66,6 +72,10 @@
         <button class="gen-buy-all-btn" onclick="buyAllGenerators()">Купити все (max)</button>
       </div>
       <div id="generators-list"></div>
+      <div class="autobuy-toggle-row" id="autobuy-toggle-row" style="display:none">
+        <button class="autobuy-toggle-btn" id="autobuy-toggle-btn"
+                onclick="toggleAutobuy()" type="button">…</button>
+      </div>
     </div>
   </div>
 
@@ -124,40 +134,39 @@
   <div id="page-stats" class="page">
     <div class="panel">
       <div class="panel-title">Статистика</div>
-      <div style="color:#666;font-size:13px;">Тік працює щосекунди на сервері.</div>
+      <div id="stats-content" class="stats-content">
+        <div class="empty-hint">Завантаження…</div>
+      </div>
     </div>
   </div>
 
-  <!-- Тір 1: Обмін кристалів на субатомні частинки -->
+  <!-- Тір 1: Колапс матерії — енергія 1e308 → +1 базова частинка + повний скид Тіру 0 -->
   <div id="page-exchange" class="page">
     <div class="panel">
-      <div class="panel-title">Обмін</div>
-      <div class="exchange-intro">
-        Розщеплюючи <strong>Кристал Пустоти</strong>, ви отримуєте субатомну трійцю:
-        <span class="ex-p">1&nbsp;протон</span> + <span class="ex-n">1&nbsp;нейтрон</span> + <span class="ex-e">1&nbsp;електрон</span> за кожен кристал.
+      <div class="panel-title">Колапс матерії</div>
+      <div class="matter-intro" id="matter-intro">
+        Завантаження…
       </div>
 
-      <div class="exchange-row">
-        <img class="exchange-icon" data-src="/img/VoidCrystal.png" alt="VC" loading="lazy" decoding="async" width="72" height="72">
-        <div class="exchange-arrow">→</div>
-        <div class="exchange-triad">
-          <img data-src="/img/Proton.png"   alt="p" title="Протон" loading="lazy" decoding="async" width="48" height="48">
-          <img data-src="/img/Neutron.png"  alt="n" title="Нейтрон" loading="lazy" decoding="async" width="48" height="48">
-          <img data-src="/img/Electron.png" alt="e" title="Електрон" loading="lazy" decoding="async" width="48" height="48">
-        </div>
+      <div class="matter-particles" id="matter-particles"></div>
+
+      <div class="matter-actions">
+        <button class="gen-buy-all-btn matter-collapse-btn" id="matter-collapse-btn" disabled
+                onclick="doMatterCollapse()">Сколапсувати</button>
       </div>
 
-      <div class="exchange-toolbar">
-        <div class="gen-mult-group" role="group" aria-label="Множник розщеплення">
-          <button class="gen-mult-btn active" data-mult="1">x1</button>
-          <button class="gen-mult-btn" data-mult="10">x10</button>
-          <button class="gen-mult-btn" data-mult="100">x100</button>
-          <button class="gen-mult-btn" data-mult="-1">Max</button>
-        </div>
-        <button class="gen-buy-all-btn" onclick="splitCrystals()">Розщепити</button>
-      </div>
+      <div id="matter-msg" class="exchange-msg"></div>
+    </div>
+  </div>
 
-      <div id="exchange-msg" class="exchange-msg"></div>
+  <!-- Тір 1: Грейди — поки одна головна ціль — Зламати нескінченність -->
+  <div id="page-upgrades_t1" class="page">
+    <div class="panel">
+      <div class="panel-title">Грейди матерії</div>
+      <div class="matter-upgrades" id="matter-upgrades">
+        <div class="empty-hint">Завантаження…</div>
+      </div>
+      <div id="matter-upg-msg" class="exchange-msg"></div>
     </div>
   </div>
 
@@ -260,15 +269,16 @@
 </main>
 
 <!-- JS модулі (порядок важливий: залежності спочатку) -->
-<script src="/js/config.js?v=6"></script>
-<script src="/js/utils.js?v=6"></script>
-<script src="/js/nav.js?v=6"></script>
-<script src="/js/resources.js?v=6"></script>
-<script src="/js/generators.js?v=6"></script>
-<script src="/js/upgrades.js?v=6"></script>
-<script src="/js/dev.js?v=6"></script>
-<script src="/js/upgrade-info.js?v=6"></script>
-<script src="/js/exchange.js?v=6"></script>
-<script src="/js/main.js?v=6"></script>
+<script src="/js/config.js?v=11"></script>
+<script src="/js/utils.js?v=11"></script>
+<script src="/js/nav.js?v=11"></script>
+<script src="/js/resources.js?v=11"></script>
+<script src="/js/generators.js?v=11"></script>
+<script src="/js/upgrades.js?v=11"></script>
+<script src="/js/dev.js?v=11"></script>
+<script src="/js/upgrade-info.js?v=11"></script>
+<script src="/js/matter.js?v=11"></script>
+<script src="/js/stats.js?v=11"></script>
+<script src="/js/main.js?v=11"></script>
 </body>
 </html>

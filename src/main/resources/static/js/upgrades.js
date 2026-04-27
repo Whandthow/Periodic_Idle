@@ -91,6 +91,7 @@ async function fetchUpgrades() {
     upgradesState.byCode = {};
     data.forEach(function(u) { upgradesState.byCode[u.code] = u; });
     renderCompass();
+    if (typeof renderAutobuyToggle === 'function') renderAutobuyToggle();
   } catch (e) {
     console.error('fetchUpgrades failed', e);
   } finally {

@@ -61,7 +61,7 @@ class AutoBuyServiceTest {
     }
 
     @Test
-    @DisplayName("AUTOBUY level 2: намагається купити перші 2 генератори")
+    @DisplayName("AUTOBUY level 2: намагається купити перші 2 генератори у режимі Max")
     void autoBuy_buysFirstN() {
         when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(autobuy(2)));
         when(playerGeneratorRepository.findBySaveId(1L))
@@ -69,24 +69,57 @@ class AutoBuyServiceTest {
 
         autoBuyService.processSave(1L);
 
-        verify(generatorService).buy(eq(1L), eq(1L));
-        verify(generatorService).buy(eq(1L), eq(2L));
-        verify(generatorService, never()).buy(eq(1L), eq(3L));
+        verify(generatorService).buyBulk(eq(1L), eq(1L), eq(-1));
+        verify(generatorService).buyBulk(eq(1L), eq(2L), eq(-1));
+        verify(generatorService, never()).buyBulk(eq(1L), eq(3L), anyInt());
     }
 
     @Test
-    @DisplayName("AUTOBUY: якщо buy кидає — наступні все одно виконуються")
+    @DisplayName("AUTOBUY: якщо buyBulk кидає — наступні все одно виконуються")
     void autoBuy_continuesOnError() {
         when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(autobuy(3)));
         when(playerGeneratorRepository.findBySaveId(1L))
                 .thenReturn(List.of(gen(1L), gen(2L), gen(3L)));
-        doThrow(new RuntimeException("not enough")).when(generatorService).buy(1L, 1L);
+        doThrow(new RuntimeException("not enough")).when(generatorService).buyBulk(1L, 1L, -1);
 
         autoBuyService.processSave(1L);
 
-        verify(generatorService).buy(1L, 1L);
-        verify(generatorService).buy(1L, 2L);
-        verify(generatorService).buy(1L, 3L);
+        verify(generatorService).buyBulk(1L, 1L, -1);
+        verify(generatorService).buyBulk(1L, 2L, -1);
+        verify(generatorService).buyBulk(1L, 3L, -1);
+    }
+
+    @Test
+    @DisplayName("tickAutoBuy: пропускає save з autobuyEnabled=false")
+    void tickAutoBuy_skipsDisabledSave() {
+        Save disabled = instantiate(Save.class);
+        ReflectionTestUtils.setField(disabled, "id", 99L);
+        disabled.setAutobuyEnabled(false);
+
+        when(saveRepository.findAll()).thenReturn(List.of(disabled));
+
+        autoBuyService.tickAutoBuy();
+
+        verifyNoInteractions(generatorService);
+        // Repos для апгрейдів/генераторів навіть не запитуються.
+        verifyNoInteractions(playerUpgradeRepository);
+        verifyNoInteractions(playerGeneratorRepository);
+    }
+
+    @Test
+    @DisplayName("tickAutoBuy: для save з autobuyEnabled=true викликає processSave")
+    void tickAutoBuy_runsForEnabledSave() {
+        Save enabled = instantiate(Save.class);
+        ReflectionTestUtils.setField(enabled, "id", 7L);
+        enabled.setAutobuyEnabled(true);
+
+        when(saveRepository.findAll()).thenReturn(List.of(enabled));
+        when(playerUpgradeRepository.findBySaveId(7L)).thenReturn(List.of(autobuy(1)));
+        when(playerGeneratorRepository.findBySaveId(7L)).thenReturn(List.of(gen(1L)));
+
+        autoBuyService.tickAutoBuy();
+
+        verify(generatorService).buyBulk(eq(7L), eq(1L), eq(-1));
     }
 
     @SuppressWarnings("unchecked")

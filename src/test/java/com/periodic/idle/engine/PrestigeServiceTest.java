@@ -26,6 +26,7 @@ class PrestigeServiceTest {
     @Mock private PlayerResourceRepository playerResourceRepository;
     @Mock private PlayerGeneratorRepository playerGeneratorRepository;
     @Mock private PlayerUpgradeRepository playerUpgradeRepository;
+    @Mock private SaveRepository saveRepository;
 
     @InjectMocks
     private PrestigeService prestigeService;
@@ -214,6 +215,71 @@ class PrestigeServiceTest {
         when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(crystals));
 
         assertThrows(RuntimeException.class, () -> prestigeService.hardReset(1L));
+    }
+
+    @Test
+    @DisplayName("hardReset: p/n/e обнуляються; brokenInfinity і matterCollapses скидаються на save")
+    void hardReset_resetsMatterState() {
+        Resource pRes = instantiate(Resource.class);
+        ReflectionTestUtils.setField(pRes, "id", 3L);
+        ReflectionTestUtils.setField(pRes, "code", "p");
+        PlayerResource protons = instantiate(PlayerResource.class);
+        protons.setResource(pRes);
+        protons.setNumber(3.0);
+        protons.setExponent(2); // 300 протонів
+
+        Resource nRes = instantiate(Resource.class);
+        ReflectionTestUtils.setField(nRes, "code", "n");
+        PlayerResource neutrons = instantiate(PlayerResource.class);
+        neutrons.setResource(nRes);
+        neutrons.setNumber(1.0);
+        neutrons.setExponent(0);
+
+        Save save = instantiate(Save.class);
+        ReflectionTestUtils.setField(save, "id", 1L);
+        save.setBrokenInfinity(true);
+        save.setMatterCollapses(7L);
+
+        when(playerResourceRepository.findBySaveId(1L))
+                .thenReturn(List.of(energy, crystals, protons, neutrons));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(saveRepository.findById(1L)).thenReturn(java.util.Optional.of(save));
+
+        prestigeService.hardReset(1L);
+
+        assertEquals(0.0, protons.getNumber(), 0.0001);
+        assertEquals(0L, protons.getExponent());
+        assertEquals(0.0, neutrons.getNumber(), 0.0001);
+        assertEquals(0L, neutrons.getExponent());
+        assertFalse(save.isBrokenInfinity());
+        assertEquals(0L, save.getMatterCollapses());
+        // Енергія повертається до стартової — старий тест уже це покриває, але швидка перевірка:
+        assertEquals(PrestigeService.STARTER_ENERGY_NUMBER, energy.getNumber(), 0.001);
+    }
+
+    @Test
+    @DisplayName("Електрони бустять crystalGain (electronCrystalMult)")
+    void calcPotentialGain_electronBoost() {
+        energy.setNumber(1.0);
+        energy.setExponent(9); // base = 10 кристалів
+
+        Resource eRes = instantiate(Resource.class);
+        ReflectionTestUtils.setField(eRes, "code", "e");
+        PlayerResource electrons = instantiate(PlayerResource.class);
+        electrons.setResource(eRes);
+        electrons.setNumber(2.0);
+        electrons.setExponent(1); // 20 електронів → +100% (mult=2.0)
+
+        when(playerResourceRepository.findBySaveId(1L))
+                .thenReturn(List.of(energy, crystals, electrons));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        BigNum gain = prestigeService.calcPotentialGain(1L);
+
+        // Очікуємо ~20 кристалів (10 base × 2.0 електрон-мульт).
+        double total = gain.getNumber() * Math.pow(10, gain.getExponent());
+        assertEquals(20.0, total, 0.5);
     }
 
     @SuppressWarnings("unchecked")

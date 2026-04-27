@@ -689,6 +689,158 @@ class GameEngineTest {
         assertEquals(expected.getNumber(), playerEnergy.getNumber(), 0.001);
     }
 
+    // === Енергетичний кап і brokenInfinity ===
+
+    @Test
+    @DisplayName("processSave: енергія капується на 1e308 коли brokenInfinity=false")
+    void processSave_energyCappedAt1e308() {
+        // Наближаємось до капу: 9e307 + 1e307 (через рейт у тіку) → 1e308.
+        ReflectionTestUtils.setField(voidGenOutput, "ratePerLevel", 1e308);
+        playerEnergy.setNumber(9.0);
+        playerEnergy.setExponent(307);
+        playerVoidGen.setLevel(1); // rate = 1e308/sec → +1e307 за тік
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        gameEngine.tick();
+
+        // Кап: число=1.0, експонент=308.
+        assertEquals(GameEngine.ENERGY_CAP_EXPONENT, playerEnergy.getExponent());
+        assertEquals(1.0, playerEnergy.getNumber(), 1e-9);
+    }
+
+    @Test
+    @DisplayName("processSave: brokenInfinity=true дозволяє енергії перевищувати 1e308")
+    void processSave_brokenInfinity_skipsCap() {
+        save.setBrokenInfinity(true);
+        // Старт уже на капі — наступний тік має дати щось понад 1e308.
+        playerEnergy.setNumber(1.0);
+        playerEnergy.setExponent(GameEngine.ENERGY_CAP_EXPONENT);
+        playerVoidGen.setLevel(1_000_000); // 5e5/sec
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        gameEngine.tick();
+
+        // Енергія залишилась >= 1e308 (а кап знятий → можна піднятися ще, але приріст крихітний на масштабі 1e308).
+        assertTrue(playerEnergy.getExponent() >= GameEngine.ENERGY_CAP_EXPONENT,
+                "експонент має бути >= 308 при знятому капі");
+    }
+
+    @Test
+    @DisplayName("processSave: енергія, що вже на капі без brokenInfinity — більше не росте")
+    void processSave_atCap_doesNotGrow() {
+        playerEnergy.setNumber(1.0);
+        playerEnergy.setExponent(GameEngine.ENERGY_CAP_EXPONENT);
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        gameEngine.tick();
+
+        assertEquals(GameEngine.ENERGY_CAP_EXPONENT, playerEnergy.getExponent());
+        assertEquals(1.0, playerEnergy.getNumber(), 1e-9);
+    }
+
+    // === Бонус протонів ===
+
+    @Test
+    @DisplayName("processSave: 5 протонів дає +50% до енергії (mult=1.5)")
+    void processSave_protonBonus_appliedToEnergy() {
+        Resource pRes = createResource(3L, "p", "Протон", 1);
+        PlayerResource pp = instantiate(PlayerResource.class);
+        pp.setResource(pRes);
+        pp.setNumber(5.0);
+        pp.setExponent(0L);
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy, pp));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        gameEngine.tick();
+
+        // 0.5 (rate) * 1.5 (proton mult) = 0.75/сек, tick (0.1с) → 0.075 енергії.
+        // BigNum нормалізує мантису до [1,10) → (7.5, -2). Перевіряємо total.
+        double total = playerEnergy.getNumber() * Math.pow(10, playerEnergy.getExponent());
+        assertEquals(0.075, total, 1e-9);
+    }
+
+    @Test
+    @DisplayName("calculateGeneratorBreakdown: protonMult множить energyPerSec")
+    void breakdown_protonBonus_appliedToBreakdown() {
+        Resource pRes = createResource(3L, "p", "Протон", 1);
+        PlayerResource pp = instantiate(PlayerResource.class);
+        pp.setResource(pRes);
+        pp.setNumber(2.0);
+        pp.setExponent(0L); // 2 protons → mult 1.2
+
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy, pp));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        Map<Long, GameEngine.GenBreakdown> result = gameEngine.calculateGeneratorBreakdown(1L);
+
+        assertEquals(0.5 * 1.2, result.get(1L).energyPerSec(), 1e-6);
+    }
+
+    // === calculateStats ===
+
+    @Test
+    @DisplayName("calculateStats: повертає список множників і per-generator розбивку")
+    void calculateStats_basicShape() {
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        Map<String, Object> stats = gameEngine.calculateStats(1L);
+
+        assertNotNull(stats.get("multipliers"));
+        assertNotNull(stats.get("generators"));
+        assertNotNull(stats.get("totalEnergyPerSec"));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> mults = (List<Map<String, Object>>) stats.get("multipliers");
+        // Очікуємо щонайменше 7 рядків (energyMult, genMult, core, p, n, e, energyPow).
+        assertTrue(mults.size() >= 7, "повинно бути ≥7 множників, отримали " + mults.size());
+        assertTrue(mults.stream().anyMatch(m -> "Протони → енергія".equals(m.get("name"))));
+        assertTrue(mults.stream().anyMatch(m -> "Нейтрони → ціна".equals(m.get("name"))));
+        assertTrue(mults.stream().anyMatch(m -> "Електрони → VC".equals(m.get("name"))));
+    }
+
+    @Test
+    @DisplayName("calculateStats: рівень рядка для протонів = кількості протонів")
+    void calculateStats_particleLevelEqualsCount() {
+        Resource pRes = createResource(3L, "p", "Протон", 1);
+        PlayerResource pp = instantiate(PlayerResource.class);
+        pp.setResource(pRes);
+        pp.setNumber(7.0);
+        pp.setExponent(0L);
+
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy, pp));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        Map<String, Object> stats = gameEngine.calculateStats(1L);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> mults = (List<Map<String, Object>>) stats.get("multipliers");
+
+        Map<String, Object> protonRow = mults.stream()
+                .filter(m -> "Протони → енергія".equals(m.get("name")))
+                .findFirst().orElseThrow();
+        assertEquals(7, ((Number) protonRow.get("level")).intValue());
+        // value = 1 + 7 * 0.10 = 1.70
+        assertEquals(1.70, ((Number) protonRow.get("value")).doubleValue(), 1e-6);
+    }
+
     @Test
     @DisplayName("processSave пропускає ресурс з non-finite rate (не викликає BigNum Infinity)")
     void processSave_nonFiniteRate_skipped() {

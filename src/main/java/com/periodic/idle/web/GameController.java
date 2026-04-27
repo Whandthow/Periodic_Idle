@@ -7,6 +7,7 @@ import com.periodic.idle.content.UpgradeRepository;
 import com.periodic.idle.engine.ExchangeService;
 import com.periodic.idle.engine.GameEngine;
 import com.periodic.idle.engine.GeneratorService;
+import com.periodic.idle.engine.MatterService;
 import com.periodic.idle.engine.PrestigeService;
 import com.periodic.idle.engine.UpgradeService;
 import com.periodic.idle.player.*;
@@ -30,6 +31,8 @@ public class GameController {
     private final GameEngine gameEngine;
     private final PrestigeService prestigeService;
     private final ExchangeService exchangeService;
+    private final MatterService matterService;
+    private final SaveRepository saveRepository;
 
     @GetMapping("/state/{saveId}")
     public List<Map<String, Object>> getState(@PathVariable Long saveId) {
@@ -91,6 +94,7 @@ public class GameController {
                 .sorted(java.util.Comparator.comparing(Generator::getId))
                 .toList();
         List<PlayerUpgrade> playerUpgrades = playerUpgradeRepository.findBySaveId(saveId);
+        List<PlayerResource> playerResources = playerResourceRepository.findBySaveId(saveId);
         Map<Long, GameEngine.GenBreakdown> breakdown = gameEngine.calculateGeneratorBreakdown(saveId);
         double totalEnergy = breakdown.values().stream()
                 .mapToDouble(GameEngine.GenBreakdown::energyPerSec)
@@ -124,7 +128,7 @@ public class GameController {
             map.put("baseCostExponent", g.getBaseCostExponent());
             map.put("costMultiplier", g.getCostMultiplier());
             map.put("effectiveCostMultiplier",
-                    generatorService.effectiveCostMultiplier(g.getCostMultiplier(), playerUpgrades));
+                    generatorService.effectiveCostMultiplier(g.getCostMultiplier(), playerUpgrades, playerResources));
             // нові поля для UI
             map.put("iconIndex", idx);                 // 1..N — індекс іконки Generator{N}Tier1.png
             map.put("energyPerSec", br.energyPerSec()); // з усіма бустами
@@ -185,6 +189,82 @@ public class GameController {
         long amount = amt == null ? 1 : ((Number) amt).longValue(); // -1 = max
         long split = exchangeService.splitCrystals(saveId, amount);
         return Map.of("status", "ok", "split", split);
+    }
+
+    @GetMapping("/matter-info/{saveId}")
+    public Map<String, Object> matterInfo(@PathVariable Long saveId) {
+        Save save = saveRepository.findById(saveId)
+                .orElseThrow(() -> new RuntimeException("Save not found"));
+        List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
+
+        Map<String, Long> particles = new LinkedHashMap<>();
+        for (String code : new String[] { "p", "n", "e" }) {
+            long count = 0L;
+            for (PlayerResource pr : resources) {
+                if (pr.getResource() != null && code.equals(pr.getResource().getCode())) {
+                    double mantissa = pr.getNumber();
+                    long exp = pr.getExponent();
+                    if (Double.isFinite(mantissa) && mantissa > 0 && exp >= 0 && exp <= 18) {
+                        count = (long) Math.floor(mantissa * Math.pow(10, exp));
+                    }
+                    break;
+                }
+            }
+            particles.put(code, count);
+        }
+
+        double log10Energy = 0.0;
+        for (PlayerResource pr : resources) {
+            if (pr.getResource() != null && "E".equals(pr.getResource().getCode())) {
+                if (pr.getNumber() > 0) {
+                    log10Energy = Math.log10(pr.getNumber()) + pr.getExponent();
+                }
+                break;
+            }
+        }
+
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("brokenInfinity", save.isBrokenInfinity());
+        map.put("matterCollapses", save.getMatterCollapses());
+        map.put("particles", particles);
+        map.put("energyLog10", log10Energy);
+        map.put("energyCapLog10", GameEngine.ENERGY_CAP_EXPONENT);
+        map.put("breakInfinityRequired", MatterService.BREAK_INFINITY_REQUIRED);
+        map.put("collapseReady", save.isBrokenInfinity()
+                || log10Energy >= GameEngine.ENERGY_CAP_EXPONENT);
+        map.put("autobuyEnabled", save.isAutobuyEnabled());
+        return map;
+    }
+
+    @PostMapping("/autobuy-toggle")
+    public Map<String, Object> autobuyToggle(@RequestBody Map<String, Object> request) {
+        Long saveId = ((Number) request.get("saveId")).longValue();
+        Save save = saveRepository.findById(saveId)
+                .orElseThrow(() -> new RuntimeException("Save not found"));
+        Object enabled = request.get("enabled");
+        boolean next = enabled == null ? !save.isAutobuyEnabled() : Boolean.TRUE.equals(enabled);
+        save.setAutobuyEnabled(next);
+        saveRepository.save(save);
+        return Map.of("status", "ok", "autobuyEnabled", next);
+    }
+
+    @PostMapping("/matter-collapse")
+    public Map<String, String> matterCollapse(@RequestBody Map<String, Object> request) {
+        Long saveId = ((Number) request.get("saveId")).longValue();
+        String particle = String.valueOf(request.get("particle"));
+        matterService.collapse(saveId, particle);
+        return Map.of("status", "ok", "particle", particle);
+    }
+
+    @PostMapping("/break-infinity")
+    public Map<String, String> breakInfinity(@RequestBody Map<String, Long> request) {
+        matterService.breakInfinity(request.get("saveId"));
+        return Map.of("status", "ok");
+    }
+
+    @GetMapping("/stats/{saveId}")
+    public Map<String, Object> stats(@PathVariable Long saveId) {
+        return gameEngine.calculateStats(saveId);
     }
 
     @PostMapping("/buy-upgrade")

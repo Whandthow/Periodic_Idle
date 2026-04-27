@@ -30,6 +30,7 @@ public class PrestigeService {
     private final PlayerResourceRepository playerResourceRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
     private final PlayerUpgradeRepository playerUpgradeRepository;
+    private final SaveRepository saveRepository;
 
     public BigNum calcPotentialGain(Long saveId) {
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
@@ -40,7 +41,8 @@ public class PrestigeService {
         if (log10Energy < PRESTIGE_MIN_LOG10_ENERGY) return new BigNum(0, 0);
 
         List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
-        double crystalMult = calcCrystalGainMultiplier(upgrades);
+        double crystalMult = calcCrystalGainMultiplier(upgrades)
+                * ParticleBonus.electronCrystalMult(resources);
 
         double baseLog10 = (log10Energy - PRESTIGE_MIN_LOG10_ENERGY) / PRESTIGE_DIVISOR + 1.0;
         double finalLog10 = baseLog10 + Math.log10(crystalMult);
@@ -120,6 +122,22 @@ public class PrestigeService {
             pu.setLevel(0);
         }
         playerUpgradeRepository.saveAll(upgrades);
+
+        // Скидаємо матерію (p/n/e) і прапори Тіру 1.
+        for (PlayerResource pr : resources) {
+            if (pr.getResource() == null) continue;
+            String code = pr.getResource().getCode();
+            if ("p".equals(code) || "n".equals(code) || "e".equals(code)) {
+                pr.setNumber(0);
+                pr.setExponent(0);
+                playerResourceRepository.save(pr);
+            }
+        }
+        saveRepository.findById(saveId).ifPresent(save -> {
+            save.setBrokenInfinity(false);
+            save.setMatterCollapses(0L);
+            saveRepository.save(save);
+        });
     }
 
     private double calcCrystalGainMultiplier(List<PlayerUpgrade> upgrades) {

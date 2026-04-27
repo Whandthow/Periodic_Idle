@@ -9,8 +9,16 @@ var stateFetchInFlight = false;
 var TIER_RESOURCES = { 1: ['p', 'n', 'e'] };
 
 function _isTierUnlocked(tier) {
+  if (typeof _tierUnlocked === 'function') return _tierUnlocked(tier);
   var btn = document.getElementById('tier-btn-' + tier);
   return btn && !btn.classList.contains('locked');
+}
+
+function _isEnergyCapped(code, currExp) {
+  if (code !== 'E') return false;
+  if (typeof matterState !== 'undefined' && matterState.brokenInfinity) return false;
+  if (typeof ENERGY_CAP_LOG10 === 'undefined') return false;
+  return currExp >= ENERGY_CAP_LOG10;
 }
 
 function buildResourceBar() {
@@ -95,7 +103,15 @@ function renderLoop() {
     }
 
     var dom = resourceDom[code];
-    if (dom && dom.valEl) dom.valEl.textContent = fmt(dispNum, dispExp);
+    if (dom && dom.valEl) {
+      if (_isEnergyCapped(code, dispExp)) {
+        dom.valEl.textContent = '\u221e';
+        dom.valEl.classList.add('res-value-inf');
+      } else {
+        dom.valEl.textContent = fmt(dispNum, dispExp);
+        dom.valEl.classList.remove('res-value-inf');
+      }
+    }
   });
 }
 

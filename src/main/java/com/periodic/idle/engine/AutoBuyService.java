@@ -18,7 +18,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AutoBuyService {
 
-    private static final long AUTOBUY_INTERVAL_MS = 1000;
+    /** 4 рази на секунду — щоб устигати за швидко зростаючою енергією. */
+    private static final long AUTOBUY_INTERVAL_MS = 250;
 
     private final SaveRepository saveRepository;
     private final PlayerUpgradeRepository playerUpgradeRepository;
@@ -30,6 +31,7 @@ public class AutoBuyService {
     @Transactional
     public void tickAutoBuy() {
         for (Save save : saveRepository.findAll()) {
+            if (!save.isAutobuyEnabled()) continue;
             processSave(save.getId());
         }
     }
@@ -42,10 +44,11 @@ public class AutoBuyService {
                 .sorted(Comparator.comparing(pg -> pg.getGenerator().getId()))
                 .toList();
 
+        // На кожен покритий генератор намагаємось купити максимум рівнів за раз.
         for (int i = 0; i < sorted.size() && i < autoBuyLevel; i++) {
             Long genId = sorted.get(i).getGenerator().getId();
             try {
-                generatorService.buy(saveId, genId);
+                generatorService.buyBulk(saveId, genId, -1);
             } catch (RuntimeException ignored) {
                 // недостатньо ресурсів або інша причина — пропускаємо
             }

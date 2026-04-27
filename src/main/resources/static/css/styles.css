@@ -35,8 +35,7 @@ body {
 }
 .tier-btn:hover { background: rgba(60, 60, 90, 0.25); }
 .tier-btn.active { background: rgba(125, 211, 252, 0.15); box-shadow: 0 0 12px #7dd3fc33; }
-.tier-btn.locked { opacity: 0.3; cursor: not-allowed; }
-.tier-btn.locked:hover { background: transparent; }
+.tier-btn.locked { display: none; }
 .tier-btn img { width: 42px; height: 42px; image-rendering: pixelated; }
 .tier-btn span { display: none; }
 
@@ -693,3 +692,296 @@ body.settings-open .sub-nav { display: none; }
 /* === Сторінки ================================================= */
 .page { display: none; }
 .page.active { display: block; }
+
+/* === Висувна панель (мобільний режим) ========================= */
+.nav-toggle {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    width: 42px;
+    height: 42px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    background: rgba(13, 13, 20, 0.85);
+    border: 1px solid rgba(125, 211, 252, 0.25);
+    border-radius: 10px;
+    cursor: pointer;
+    padding: 0;
+    z-index: 30;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+.nav-toggle span {
+    width: 18px;
+    height: 2px;
+    background: #bae6fd;
+    border-radius: 2px;
+    transition: transform 0.2s, opacity 0.2s;
+}
+body.tier-drawer-open .nav-toggle span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+body.tier-drawer-open .nav-toggle span:nth-child(2) { opacity: 0; }
+body.tier-drawer-open .nav-toggle span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+.nav-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 18;
+}
+body.tier-drawer-open .nav-scrim {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (max-width: 900px) {
+    .nav-toggle { display: flex; }
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 22;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        padding-top: 64px;
+    }
+    .sub-nav {
+        position: fixed;
+        top: 0;
+        left: 80px;
+        height: 100vh;
+        z-index: 21;
+        transform: translateX(-150%);
+        transition: transform 0.25s ease;
+        padding-top: 64px;
+    }
+    body.tier-drawer-open .sidebar { transform: translateX(0); }
+    body.tier-drawer-open .sub-nav  { transform: translateX(0); }
+    body.settings-open .sub-nav { transform: translateX(-150%); }
+    .main { padding: 64px 14px 24px; }
+    .resources-bar { gap: 6px; }
+    .res-card { min-width: 0; padding: 8px 10px; gap: 6px; }
+    .res-icon { width: 30px; height: 30px; }
+    .res-value { font-size: 18px; }
+    .res-rate { font-size: 10px; }
+    .upg-info {
+        position: static;
+        transform: none;
+        width: auto;
+        margin-top: 18px;
+        min-height: auto;
+    }
+    .upg-info.always-on { transform: none; }
+    .upgrade-compass { position: relative; left: auto; top: auto; transform: none; margin: 0 auto; }
+}
+
+/* === Колапс матерії =========================================== */
+.matter-intro {
+    color: #cbd5e1;
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 18px;
+}
+.matter-intro-sub {
+    margin-top: 6px;
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.matter-particles {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.matter-particle {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(125, 211, 252, 0.18);
+    border-radius: 12px;
+    padding: 14px 18px;
+    cursor: pointer;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 140px;
+    min-width: 120px;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.matter-particle:hover {
+    background: rgba(125, 211, 252, 0.08);
+    border-color: rgba(125, 211, 252, 0.4);
+}
+.matter-particle.selected {
+    background: rgba(12, 48, 72, 0.85);
+    border-color: rgba(125, 211, 252, 0.7);
+    box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.45), 0 0 18px rgba(125, 211, 252, 0.15);
+}
+.matter-particle img { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6)); }
+.matter-particle-name { font-size: 13px; font-weight: 600; }
+.matter-particle-count {
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+    color: #e0e0e0;
+}
+.matter-actions { display: flex; justify-content: flex-end; }
+.matter-collapse-btn:disabled {
+    background: rgba(40, 40, 48, 0.7);
+    color: #6b7280;
+    border-color: rgba(255,255,255,0.05);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* === Грейди матерії =========================================== */
+.matter-upg-card {
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(125, 211, 252, 0.18);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.matter-upg-card.done {
+    border-color: rgba(134, 239, 172, 0.45);
+    box-shadow: 0 0 18px rgba(134, 239, 172, 0.12) inset;
+}
+.matter-upg-title { font-size: 16px; font-weight: 600; color: #c4b5fd; letter-spacing: 0.4px; }
+.matter-upg-desc { font-size: 13px; color: #cbd5e1; line-height: 1.5; }
+.matter-upg-status { font-size: 12px; color: #94a3b8; }
+.matter-cost-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.matter-cost-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(125, 211, 252, 0.12);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+.matter-cost-row.done {
+    border-color: rgba(134, 239, 172, 0.5);
+    color: #bbf7d0;
+}
+.matter-cost-count { font-variant-numeric: tabular-nums; color: #e0e0e0; }
+.matter-break-btn {
+    align-self: flex-end;
+    background: linear-gradient(135deg, rgba(88,28,135,0.85), rgba(12,48,72,0.85));
+    border-color: rgba(196, 181, 253, 0.35);
+    color: #e9d5ff;
+}
+.matter-break-btn:disabled {
+    background: rgba(40, 40, 48, 0.7);
+    color: #6b7280;
+    border-color: rgba(255,255,255,0.05);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.ok-text { color: #86efac; }
+
+/* === Статистика =============================================== */
+.stats-content { display: flex; flex-direction: column; gap: 10px; }
+.stats-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #7dd3fc;
+    margin: 12px 0 6px;
+}
+.stats-list, .stats-gens { display: flex; flex-direction: column; gap: 6px; }
+.stats-row, .stats-gen {
+    display: grid;
+    grid-template-columns: 1.4fr 0.8fr 2fr;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(125, 211, 252, 0.1);
+    border-radius: 8px;
+}
+.stats-row-name { color: #e0e0e0; font-size: 13px; }
+.stats-row-value { color: #7dd3fc; font-variant-numeric: tabular-nums; font-size: 14px; }
+.stats-row-meta { color: #94a3b8; font-size: 11px; line-height: 1.4; }
+.stats-row-level {
+    display: inline-block;
+    background: rgba(12, 48, 72, 0.9);
+    color: #7dd3fc;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-right: 6px;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+}
+.stats-gen-name { color: #e0e0e0; font-size: 13px; }
+.stats-gen-rate { color: #7dd3fc; font-variant-numeric: tabular-nums; font-size: 13px; }
+.stats-gen-meta { color: #94a3b8; font-size: 11px; }
+.stats-total {
+    color: #cbd5e1;
+    font-size: 13px;
+    margin: 4px 0 8px;
+}
+.stats-total strong { color: #86efac; font-variant-numeric: tabular-nums; }
+.stats-particles { display: flex; gap: 10px; flex-wrap: wrap; }
+.stats-particle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.32);
+    border: 1px solid rgba(125, 211, 252, 0.12);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+.stats-particle.done { border-color: rgba(134, 239, 172, 0.5); }
+.stats-particle-count { font-variant-numeric: tabular-nums; color: #e0e0e0; margin-left: auto; }
+.stats-note { color: #94a3b8; font-size: 12px; margin-top: 6px; }
+
+/* === Енергія ∞ ================================================ */
+.res-value-inf { color: #f0abfc; font-size: 26px; }
+
+/* === Автопокупка: компактний тоггл ============================ */
+.autobuy-toggle-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+.autobuy-toggle-btn {
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(40, 40, 48, 0.7);
+    color: #94a3b8;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.2s, transform 0.1s;
+}
+.autobuy-toggle-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.autobuy-toggle-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.autobuy-toggle-btn.on {
+    background: linear-gradient(135deg, rgba(14, 72, 48, 0.85), rgba(12, 48, 72, 0.85));
+    color: #bbf7d0;
+    border-color: rgba(134, 239, 172, 0.4);
+    box-shadow: 0 0 10px rgba(134, 239, 172, 0.15);
+}
+.autobuy-toggle-btn.off {
+    background: rgba(40, 18, 24, 0.7);
+    color: #fca5a5;
+    border-color: rgba(248, 113, 113, 0.35);
+}
+
+/* === Бонус частинок під лічильником =========================== */
+.matter-particle-bonus {
+    font-size: 11px;
+    color: #86efac;
+    margin-top: 2px;
+}
