@@ -2,7 +2,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
     font-family: system-ui, sans-serif;
-    background: #0a0a0f url('/img/BackgraundUpdateStage1-optimized.jpg') center center / cover no-repeat;
+    background: #0a0a0f url('/img/BackgraundUpdateStage1.png') center center / cover no-repeat;
     color: #e0e0e0;
     display: flex;
     height: 100vh;

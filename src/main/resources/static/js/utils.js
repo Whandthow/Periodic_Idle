@@ -40,7 +40,7 @@ function fmtCost(num, exp, mult, level) {
  };
 
  function pngPath(name) {
-   return '/img/' + name + (OPTIMIZED_PNGS[name] ? '-optimized' : '') + '.png';
+   return '/img/' + name + '.png';
  }
 
  function hydrateDeferredMedia(root) {
