@@ -122,7 +122,10 @@ async function fetchGenerators() {
 
   list.innerHTML = visible.map(function(g) {
     var iconIdx = g.iconIndex || g.id || 1;
-    var iconSrc = '/img/Generator' + iconIdx + 'Tier1.png';
+    var iconSrc = '/img/Generator' + iconIdx + 'Tier1-optimized.png';
+    var isLikelyLcp = g.id === 1 || iconIdx === 1;
+    var loadingAttr = isLikelyLcp ? 'eager' : 'lazy';
+    var fetchPriorityAttr = isLikelyLcp ? 'high' : 'low';
 
     // Рівень + фантомні копії
     var phantom = Math.round(g.phantomBonus || 0);
@@ -149,7 +152,7 @@ async function fetchGenerators() {
       : (g.ratePerLevel + ' E/с за рівень');
 
     return '<div class="gen-row">' +
-      '<img class="gen-icon" src="' + iconSrc + '" alt="" loading="lazy" decoding="async" onerror="this.style.visibility=\'hidden\'">' +
+      '<img class="gen-icon" src="' + iconSrc + '" alt="" loading="' + loadingAttr + '" fetchpriority="' + fetchPriorityAttr + '" decoding="async" width="70" height="70" onerror="this.style.visibility=\'hidden\'">' +
       '<div class="gen-left">' +
         '<div class="gen-name">' + g.name + '  <span class="gen-count">' + levelText + '</span></div>' +
         '<div class="gen-level">' + rateLine + '</div>' +
