@@ -93,10 +93,17 @@ function fmtBig(num, exp) {
   while (num >= 10) { num /= 10; exp++; }
   while (num < 1 && exp > 0) { num *= 10; exp--; }
   if (exp === 0) return num.toFixed(2);
+  if (exp === 1) return (num * 10).toFixed(1);
+  if (exp === 2) return (num * 100).toFixed(0);
   return num.toFixed(2) + 'e' + exp;
 }
 
+var generatorsFetchInFlight = false;
+
 async function fetchGenerators() {
+  if (generatorsFetchInFlight) return;
+  generatorsFetchInFlight = true;
+  try {
   var res = await fetch('/api/generators/' + SAVE_ID);
   var data = await res.json();
   var list = document.getElementById('generators-list');
@@ -142,7 +149,7 @@ async function fetchGenerators() {
       : (g.ratePerLevel + ' E/с за рівень');
 
     return '<div class="gen-row">' +
-      '<img class="gen-icon" src="' + iconSrc + '" alt="" onerror="this.style.visibility=\'hidden\'">' +
+      '<img class="gen-icon" src="' + iconSrc + '" alt="" loading="lazy" decoding="async" onerror="this.style.visibility=\'hidden\'">' +
       '<div class="gen-left">' +
         '<div class="gen-name">' + g.name + '  <span class="gen-count">' + levelText + '</span></div>' +
         '<div class="gen-level">' + rateLine + '</div>' +
@@ -152,6 +159,9 @@ async function fetchGenerators() {
       '</button>' +
     '</div>';
   }).join('');
+  } finally {
+    generatorsFetchInFlight = false;
+  }
 }
 
 async function buyGenerator(id) {

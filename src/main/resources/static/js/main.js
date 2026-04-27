@@ -1,13 +1,14 @@
 // Точка входу: перший fetch + періодична синхронізація
 
 fetchState().then(function() {
-  requestAnimationFrame(renderLoop);
+  renderLoop();
 });
 fetchGenerators();
 fetchUpgrades();
 
-setInterval(fetchState, 1000);
-setInterval(fetchGenerators, 2000);
-setInterval(fetchUpgrades, 2000);
-setInterval(refreshPrestigeInfo, 2000);
+setInterval(renderLoop, 250);
+setInterval(fetchState, 1500);
+setInterval(fetchGenerators, 5000);
+setInterval(fetchUpgrades, 5000);
+setInterval(refreshPrestigeInfo, 5000);
 refreshPrestigeInfo();

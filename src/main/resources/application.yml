@@ -11,9 +11,19 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          max-age: 365d
+          cache-public: true
 
 server:
   port: ${PORT:8080}
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,image/svg+xml
   error:
     include-message: always
     include-binding-errors: always

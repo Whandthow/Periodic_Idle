@@ -2,6 +2,7 @@
 // заповнює data-* атрибути, які читає upgrade-info.js.
 
 var upgradesState = { list: [], byCode: {} };
+var upgradesFetchInFlight = false;
 
 function _coreLevel() {
   var c = upgradesState.byCode['core'];
@@ -80,6 +81,8 @@ function renderCompass() {
 }
 
 async function fetchUpgrades() {
+  if (upgradesFetchInFlight) return;
+  upgradesFetchInFlight = true;
   try {
     var res = await fetch('/api/upgrades/' + SAVE_ID);
     if (!res.ok) return;
@@ -90,6 +93,8 @@ async function fetchUpgrades() {
     renderCompass();
   } catch (e) {
     console.error('fetchUpgrades failed', e);
+  } finally {
+    upgradesFetchInFlight = false;
   }
 }
 

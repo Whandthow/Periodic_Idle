@@ -2,6 +2,8 @@
 
 // Локальний стан: { E: { number, exponent, ratePerSec, lastSync } }
 var resourceState = {};
+var resourceDom = {};
+var stateFetchInFlight = false;
 
 // Ресурси, які показуються лише коли відповідний тір розблокований.
 var TIER_RESOURCES = { 1: ['p', 'n', 'e'] };
@@ -23,17 +25,28 @@ function buildResourceBar() {
   bar.innerHTML = codes.map(function(code) {
     var icon = ICONS[code] || 'Energy';
     return '<div class="res-card">' +
-      '<img class="res-icon" src="/img/' + icon + '.png" alt="' + code + '">' +
+      '<img class="res-icon" src="/img/' + icon + '.png" alt="' + code + '" loading="lazy" decoding="async">' +
       '<div>' +
         '<div class="res-value" id="res-val-' + code + '">0</div>' +
         '<div class="res-rate" id="res-rate-' + code + '">+0/с</div>' +
       '</div>' +
     '</div>';
   }).join('');
+
+  resourceDom = {};
+  codes.forEach(function(code) {
+    resourceDom[code] = {
+      valEl: document.getElementById('res-val-' + code),
+      rateEl: document.getElementById('res-rate-' + code)
+    };
+  });
 }
 
 // Синхронізація з сервером (викликається раз на секунду)
 async function fetchState() {
+  if (stateFetchInFlight) return;
+  stateFetchInFlight = true;
+  try {
   var res = await fetch('/api/state/' + SAVE_ID);
   var data = await res.json();
   var now = performance.now();
@@ -51,7 +64,14 @@ async function fetchState() {
   });
 
   if (newCodes !== oldCodes) buildResourceBar();
+  data.forEach(function(r) {
+    var dom = resourceDom[r.resource];
+    if (dom && dom.rateEl) dom.rateEl.textContent = (r.ratePerSec >= 0 ? '+' : '') + fmtRate(r.ratePerSec || 0);
+  });
   if (typeof refreshTierLocks === 'function') refreshTierLocks();
+  } finally {
+    stateFetchInFlight = false;
+  }
 }
 
 // Плавне оновлення значень між синхронізаціями (60fps)
@@ -73,10 +93,8 @@ function renderLoop() {
       dispNum = curr / Math.pow(10, dispExp);
     }
 
-    var valEl = document.getElementById('res-val-' + code);
-    var rateEl = document.getElementById('res-rate-' + code);
-    if (valEl) valEl.textContent = fmt(dispNum, dispExp);
-    if (rateEl) rateEl.textContent = (r.ratePerSec >= 0 ? '+' : '') + fmtRate(r.ratePerSec);
+    var dom = resourceDom[code];
+    if (dom && dom.valEl) dom.valEl.textContent = fmt(dispNum, dispExp);
   });
-  requestAnimationFrame(renderLoop);
 }
+

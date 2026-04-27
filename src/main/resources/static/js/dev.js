@@ -1,5 +1,7 @@
 // Dev-інструменти (швидкі тіки, накидання експоненти ресурсам).
 
+var prestigeInfoInFlight = false;
+
 async function toggleFastTick(el) {
   var mult = el.checked ? 10 : 1;
   try {
@@ -16,7 +18,8 @@ async function toggleFastTick(el) {
 async function refreshPrestigeInfo() {
   var hint = document.getElementById('prestige-hint');
   var btn = document.getElementById('prestige-btn');
-  if (!hint || !btn) return;
+  if (!hint || !btn || prestigeInfoInFlight) return;
+  prestigeInfoInFlight = true;
   try {
     var res = await fetch('/api/prestige-info/' + SAVE_ID);
     if (!res.ok) return;
@@ -35,6 +38,8 @@ async function refreshPrestigeInfo() {
     }
   } catch (e) {
     console.error('refreshPrestigeInfo', e);
+  } finally {
+    prestigeInfoInFlight = false;
   }
 }
 
