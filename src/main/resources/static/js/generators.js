@@ -122,7 +122,7 @@ async function fetchGenerators() {
 
   list.innerHTML = visible.map(function(g) {
     var iconIdx = g.iconIndex || g.id || 1;
-    var iconSrc = '/img/Generator' + iconIdx + 'Tier1-optimized.png';
+    var iconSrc = '/img/Generator' + iconIdx + 'Tier1.png';
     var isLikelyLcp = g.id === 1 || iconIdx === 1;
     var loadingAttr = isLikelyLcp ? 'eager' : 'lazy';
     var fetchPriorityAttr = isLikelyLcp ? 'high' : 'low';

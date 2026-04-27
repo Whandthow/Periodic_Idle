@@ -3,11 +3,11 @@ var SAVE_ID = 1;
 
 // Відповідність коду ресурсу та файла іконки
 var ICONS = {
-  E: 'Energy-optimized',
-  p: 'Proton-optimized',
-  n: 'Neutron-optimized',
-  e: 'Electron-optimized',
-  VC: 'VoidCrystal-optimized'
+  E: 'Energy',
+  p: 'Proton',
+  n: 'Neutron',
+  e: 'Electron',
+  VC: 'VoidCrystal'
 };
 
 // Конфігурація вкладок для кожного етапу
