@@ -1,17 +1,20 @@
 // Точка входу: перший fetch + періодична синхронізація
 
-fetchState()
-  .then(function() {
-    renderLoop();
-    return fetchGenerators();
-  })
-  .then(function() {
-    setTimeout(fetchUpgrades, 250);
-    setTimeout(refreshPrestigeInfo, 500);
-  });
+renderLoop();
+
+Promise.all([
+  fetchState(),
+  fetchGenerators()
+]);
 
 setInterval(renderLoop, 250);
 setInterval(fetchState, 1500);
-setInterval(fetchGenerators, 5000);
-setInterval(fetchUpgrades, 5000);
-setInterval(refreshPrestigeInfo, 5000);
+setInterval(function() {
+  if (isPageActive('generators')) fetchGenerators();
+}, 5000);
+setInterval(function() {
+  if (isPageActive('upgrades')) fetchUpgrades();
+}, 5000);
+setInterval(function() {
+  if (isPageActive('settings')) refreshPrestigeInfo();
+}, 5000);

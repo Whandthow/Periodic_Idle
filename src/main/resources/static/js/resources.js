@@ -25,7 +25,7 @@ function buildResourceBar() {
   bar.innerHTML = codes.map(function(code) {
     var icon = ICONS[code] || 'Energy';
     return '<div class="res-card">' +
-      '<img class="res-icon" src="/img/' + icon + '.png" alt="' + code + '" loading="lazy" decoding="async">' +
+      '<img class="res-icon" src="' + pngPath(icon) + '" alt="' + code + '" loading="eager" decoding="async" width="36" height="36">' +
       '<div>' +
         '<div class="res-value" id="res-val-' + code + '">0</div>' +
         '<div class="res-rate" id="res-rate-' + code + '">+0/с</div>' +
@@ -69,6 +69,7 @@ async function fetchState() {
     if (dom && dom.rateEl) dom.rateEl.textContent = (r.ratePerSec >= 0 ? '+' : '') + fmtRate(r.ratePerSec || 0);
   });
   if (typeof refreshTierLocks === 'function') refreshTierLocks();
+  if (typeof renderCompass === 'function' && typeof upgradesState !== 'undefined' && upgradesState.list && upgradesState.list.length && isPageActive('upgrades')) renderCompass();
   } finally {
     stateFetchInFlight = false;
   }

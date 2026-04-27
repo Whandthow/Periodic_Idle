@@ -26,6 +26,14 @@ function refreshTierLocks() {
   if (changed && typeof buildResourceBar === 'function') buildResourceBar();
 }
 
+function activatePage(name) {
+  var page = document.getElementById('page-' + name);
+  if (page) hydrateDeferredMedia(page);
+  if (name === 'generators' && typeof fetchGenerators === 'function') fetchGenerators();
+  if (name === 'upgrades' && typeof fetchUpgrades === 'function') fetchUpgrades();
+  if (name === 'settings' && typeof refreshPrestigeInfo === 'function') refreshPrestigeInfo();
+}
+
 function selectTier(tier, el) {
   if (el && el.classList.contains('locked')) return;
   // Виходимо з режиму налаштувань (повертаємо другу панель)
@@ -49,6 +57,7 @@ function selectTier(tier, el) {
     document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
     var page = document.getElementById('page-' + firstUnlocked.id);
     if (page) page.classList.add('active');
+    activatePage(firstUnlocked.id);
   }
 }
 
@@ -58,6 +67,7 @@ function showPage(name, el) {
   var page = document.getElementById('page-' + name);
   if (page) page.classList.add('active');
   if (el) el.classList.add('active');
+  activatePage(name);
 }
 
 // Відкриття налаштувань: ховаємо другу панель + показуємо сторінку налаштувань
@@ -69,6 +79,7 @@ function openSettings(el) {
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   var page = document.getElementById('page-settings');
   if (page) page.classList.add('active');
+  activatePage('settings');
 }
 
 // Скидання збереження: POST /api/reset — обнуляє ресурси, генератори та апгрейди.

@@ -22,3 +22,37 @@ function fmtCost(num, exp, mult, level) {
   var extraExp = Math.floor(Math.log10(scaled));
   return fmt(scaled / Math.pow(10, extraExp), exp + extraExp);
 }
+
+ var OPTIMIZED_PNGS = {
+   AtomTear2: true,
+   Electron: true,
+   Energy: true,
+   Generator1Tier1: true,
+   Generator2Tier1: true,
+   Generator3Tier1: true,
+   Generator4Tier1: true,
+   Generator5Tier1: true,
+   Generator6Tier1: true,
+   Neutron: true,
+   Proton: true,
+   VoidCrystal: true,
+   VoidVortexTir1: true
+ };
+
+ function pngPath(name) {
+   return '/img/' + name + (OPTIMIZED_PNGS[name] ? '-optimized' : '') + '.png';
+ }
+
+ function hydrateDeferredMedia(root) {
+   if (!root || !root.querySelectorAll) return;
+   root.querySelectorAll('img[data-src]').forEach(function(img) {
+     var dataSrc = img.getAttribute('data-src');
+     if (dataSrc && !img.getAttribute('src')) img.setAttribute('src', dataSrc);
+     img.removeAttribute('data-src');
+   });
+ }
+
+ function isPageActive(name) {
+   var page = document.getElementById('page-' + name);
+   return !!(page && page.classList.contains('active'));
+ }
