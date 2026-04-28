@@ -1,5 +1,7 @@
 // Глобальні константи гри
-var SAVE_ID = 1;
+// SAVE_ID підставляється у main.js після /api/save/init на основі localStorage 'pidleToken'.
+// Залишаємо null до bootstrap-у — всі fetch-функції чекають на bootstrapPromise.
+var SAVE_ID = null;
 
 // Відповідність коду ресурсу та файла іконки
 var ICONS = {
@@ -18,7 +20,7 @@ var TIERS = {
   0: { name: 'Пустота', tabs: [
     { id: 'generators', label: 'Генератори' },
     { id: 'upgrades', label: 'Апгрейди' },
-    { id: 'prestige', label: 'Престиж', locked: true },
+    { id: 'prestige', label: 'Престиж' },
     { id: 'stats', label: 'Статистика' }
   ]},
   1: { name: 'Матерія', tabs: [

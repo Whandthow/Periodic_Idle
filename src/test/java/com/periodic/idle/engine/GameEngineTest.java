@@ -842,22 +842,50 @@ class GameEngineTest {
     }
 
     @Test
-    @DisplayName("processSave пропускає ресурс з non-finite rate (не викликає BigNum Infinity)")
-    void processSave_nonFiniteRate_skipped() {
-        // Налаштовуємо ген який перевищить Infinity через ENERGY_POW при великій базі.
-        playerVoidGen.setLevel(1_000_000); // rate = 0.5 * 1e6 = 5e5
+    @DisplayName("processSave: ENERGY_POW overflow → rate стає Infinity → енергія одразу на капі (1.0, 308)")
+    void processSave_energyPowOverflow_clampsEnergyDirectlyToCap() {
+        // 5e5^101 ≈ 1e5757 → Double Infinity. Замість пропуску тіку, processSave одразу
+        // ставить енергію на (1.0, 308) — щоб ∞ показалось і Тір 1 розблокувався природно.
+        playerVoidGen.setLevel(1_000_000); // base rate = 0.5 * 1e6 = 5e5
         PlayerUpgrade pow = createPlayerUpgrade(save,
-                createUpgradeContent(40L, "ENERGY_POW", 1.0), 100); // pow = 1 + 100 = 101
+                createUpgradeContent(40L, "ENERGY_POW", 1.0), 100); // pow = 101
 
         when(saveRepository.findAll()).thenReturn(List.of(save));
         when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
         when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
         when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(pow));
 
-        // 5e5^101 ≈ 1e5757 → Infinity як double. Engine має пропустити це без падіння.
         assertDoesNotThrow(() -> gameEngine.tick());
-        // Енергія не зіпсована (0 залишилось 0).
-        assertEquals(0, playerEnergy.getNumber(), 0.001);
+        // Енергія на капі: (1.0, 308). resourceLog10 = 308 → Тір 1 unlock.
+        assertEquals(1.0, playerEnergy.getNumber(), 1e-9);
+        assertEquals(GameEngine.ENERGY_CAP_EXPONENT, playerEnergy.getExponent());
+    }
+
+    @Test
+    @DisplayName("processSave: Infinity rate з brokenInfinity=false для p (не E) → пропускається без падіння")
+    void processSave_infinityRate_nonEnergy_skipped() {
+        // Не-енергетичний ресурс з Infinity rate просто пропускається (без cap-clamp).
+        Resource pRes = createResource(3L, "p", "Протон", 1);
+        PlayerResource pp = instantiate(PlayerResource.class);
+        pp.setResource(pRes);
+        pp.setNumber(0);
+        pp.setExponent(0L);
+
+        // Створимо генератор з виходом p, з Infinity rate через величезний level.
+        GeneratorOutput pOutput = instantiate(GeneratorOutput.class);
+        ReflectionTestUtils.setField(pOutput, "resource", pRes);
+        ReflectionTestUtils.setField(pOutput, "ratePerLevel", Double.MAX_VALUE);
+        ReflectionTestUtils.setField(voidGen, "outputs", List.of(pOutput));
+        playerVoidGen.setLevel(10);
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy, pp));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        assertDoesNotThrow(() -> gameEngine.tick());
+        // p залишився на 0 (Infinity rate пропущено, бо це не energy).
+        assertEquals(0, pp.getNumber(), 1e-9);
     }
 
     // === Helper методи ===

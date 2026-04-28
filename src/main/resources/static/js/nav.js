@@ -71,7 +71,7 @@ function activatePage(name) {
   if (name === 'generators' && typeof fetchGenerators === 'function') fetchGenerators();
   if (name === 'upgrades' && typeof fetchUpgrades === 'function') fetchUpgrades();
   if ((name === 'exchange' || name === 'upgrades_t1' || name === 'stats') && typeof fetchUpgrades === 'function') fetchUpgrades();
-  if (name === 'settings' && typeof refreshPrestigeInfo === 'function') refreshPrestigeInfo();
+  if (name === 'prestige' && typeof refreshPrestigeInfo === 'function') refreshPrestigeInfo();
   if ((name === 'exchange' || name === 'upgrades_t1') && typeof fetchMatterInfo === 'function') fetchMatterInfo();
   if (name === 'exchange' && typeof renderMatterPage === 'function') renderMatterPage();
   if (name === 'upgrades_t1' && typeof renderMatterUpgrades === 'function') renderMatterUpgrades();
@@ -107,7 +107,13 @@ function selectTier(tier, el) {
     showPage(targetPage, activeTab, true);
   }
 
-  if (isCompactNav()) openTierDrawer();
+  if (isCompactNav()) {
+    openTierDrawer();
+  } else {
+    // Десктоп: фіксуємо панель видимою після кліку на іконку етапу.
+    // Знімається кліком поза .sidebar/.sub-nav або відкриттям налаштувань.
+    document.body.classList.add('subnav-pinned');
+  }
 }
 
 function showPage(name, el, keepDrawerOpen) {
@@ -123,6 +129,7 @@ function showPage(name, el, keepDrawerOpen) {
 // Відкриття налаштувань: ховаємо другу панель + показуємо сторінку налаштувань
 function openSettings(el) {
   document.body.classList.add('settings-open');
+  document.body.classList.remove('subnav-pinned');
   closeTierDrawer();
   document.querySelectorAll('.tier-btn').forEach(function(b) { b.classList.remove('active'); });
   if (el) el.classList.add('active');
@@ -162,4 +169,15 @@ async function resetSave() {
 
  window.addEventListener('resize', function() {
    if (!isCompactNav()) closeTierDrawer();
+ });
+
+ // Десктоп: клік поза .sidebar та .sub-nav знімає закріплення панелі.
+ document.addEventListener('click', function(e) {
+   if (isCompactNav()) return;
+   if (!document.body.classList.contains('subnav-pinned')) return;
+   var sidebar = document.querySelector('.sidebar');
+   var subNav = document.getElementById('sub-nav');
+   if (sidebar && sidebar.contains(e.target)) return;
+   if (subNav && subNav.contains(e.target)) return;
+   document.body.classList.remove('subnav-pinned');
  });

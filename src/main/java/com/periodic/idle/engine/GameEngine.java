@@ -64,18 +64,32 @@ public class GameEngine {
             PlayerResource pr = findResource(resources, entry.getKey());
             if (pr == null) continue;
 
-            double rate = entry.getValue();
-            if (!Double.isFinite(rate) || rate <= 0) continue; // захист від NaN/Infinity
-            double addPerTick = rate * TICK_INTERVAL_SEC * tickSpeedMultiplier;
-            if (!Double.isFinite(addPerTick) || addPerTick <= 0) continue;
-
             boolean isEnergy = pr.getResource() != null && "E".equals(pr.getResource().getCode());
-            // Якщо енергія вже на капі — ігноруємо подальший приріст.
+
+            // Cap-clamp ПЕРЕД перевіркою rate: інакше Infinity-rate (overflow в ENERGY_POW)
+            // блокує оновлення енергії, і вона "застигає" нижче капу — Тір 1 не відкривається.
             if (capEnergy && isEnergy && pr.getExponent() >= ENERGY_CAP_EXPONENT) {
                 pr.setNumber(1.0);
                 pr.setExponent(ENERGY_CAP_EXPONENT);
                 continue;
             }
+
+            double rate = entry.getValue();
+            // Energy + Infinity rate → одразу clamp до капу (інакше нескінченно "застрягне").
+            if (capEnergy && isEnergy && Double.isInfinite(rate) && rate > 0) {
+                pr.setNumber(1.0);
+                pr.setExponent(ENERGY_CAP_EXPONENT);
+                continue;
+            }
+            if (!Double.isFinite(rate) || rate <= 0) continue; // захист від NaN/Infinity
+
+            double addPerTick = rate * TICK_INTERVAL_SEC * tickSpeedMultiplier;
+            if (capEnergy && isEnergy && Double.isInfinite(addPerTick) && addPerTick > 0) {
+                pr.setNumber(1.0);
+                pr.setExponent(ENERGY_CAP_EXPONENT);
+                continue;
+            }
+            if (!Double.isFinite(addPerTick) || addPerTick <= 0) continue;
 
             BigNum current = new BigNum(pr.getNumber(), pr.getExponent());
             BigNum addition = new BigNum(addPerTick, 0);

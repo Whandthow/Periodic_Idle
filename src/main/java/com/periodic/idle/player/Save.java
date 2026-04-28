@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "saves")
 @Getter @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class Save {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,4 +26,11 @@ public class Save {
     /** Чи увімкнена автопокупка генераторів (UI-перемикач). За замовчуванням true. */
     @Column(name = "autobuy_enabled", nullable = false)
     private boolean autobuyEnabled = true;
+
+    /**
+     * Стабільний UUID, який клієнт зберігає в localStorage. Дає мульти-юзер: кожен
+     * браузер ідентифікує "свій" save без логіна. NULL = legacy/dev save.
+     */
+    @Column(name = "client_token", unique = true)
+    private String clientToken;
 }

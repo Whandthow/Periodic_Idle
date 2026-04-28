@@ -9,6 +9,7 @@ import com.periodic.idle.engine.GameEngine;
 import com.periodic.idle.engine.GeneratorService;
 import com.periodic.idle.engine.MatterService;
 import com.periodic.idle.engine.PrestigeService;
+import com.periodic.idle.engine.SaveService;
 import com.periodic.idle.engine.UpgradeService;
 import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class GameController {
     private final ExchangeService exchangeService;
     private final MatterService matterService;
     private final SaveRepository saveRepository;
+    private final SaveService saveService;
 
     @GetMapping("/state/{saveId}")
     public List<Map<String, Object>> getState(@PathVariable Long saveId) {
@@ -52,7 +54,11 @@ public class GameController {
                     map.put("resource", pr.getResource().getCode());
                     map.put("number", pr.getNumber());
                     map.put("exponent", pr.getExponent());
-                    map.put("ratePerSec", production.getOrDefault(pr.getResource().getId(), 0.0));
+                    double rate = production.getOrDefault(pr.getResource().getId(), 0.0);
+                    // JSON не дозволяє Infinity/NaN — обнуляємо для серіалізації;
+                    // в логіці processSave такий rate уже скеймпив енергію до 1e308.
+                    if (!Double.isFinite(rate)) rate = 0.0;
+                    map.put("ratePerSec", rate);
                     return map;
                 })
                 .toList();
@@ -275,6 +281,20 @@ public class GameController {
         int amount = amt == null ? 1 : ((Number) amt).intValue(); // -1 = max
         int bought = upgradeService.buyBulk(saveId, upgId, amount);
         return Map.of("status", "ok", "bought", bought);
+    }
+
+    /**
+     * Per-browser save resolution. Клієнт зберігає UUID у localStorage під ключем 'pidleToken'
+     * і викликає цей endpoint при першому завантаженні. Сервер повертає saveId, який далі
+     * використовується у всіх API. Це і є мульти-юзер без логіна.
+     */
+    @PostMapping("/save/init")
+    public Map<String, Object> initSave(@RequestBody Map<String, String> request) {
+        String token = request == null ? null : request.get("token");
+        Save save = saveService.findOrCreateByToken(token);
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("saveId", save.getId());
+        return map;
     }
 
     // Обробка бізнес-помилок (недостатньо ресурсів, locked, max level тощо):

@@ -300,6 +300,32 @@ body {
 /* Коли відкриті налаштування — другу панель ховаємо */
 body.settings-open .sub-nav { display: none; }
 
+/* Десктоп: sub-nav-панель показується тільки при ховері на сайдбар/панель або
+   після кліку на іконку етапу (body.subnav-pinned). На мобільному залишаємо
+   існуючий drawer-механізм через @media(max-width:900px). */
+@media (min-width: 901px) {
+    body { position: relative; }
+    .sub-nav {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 80px; /* ширина .sidebar */
+        z-index: 30;
+        transform: translateX(-110%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.18s ease, opacity 0.18s ease;
+        box-shadow: 4px 0 18px rgba(0, 0, 0, 0.45);
+    }
+    .sidebar:hover ~ .sub-nav,
+    .sub-nav:hover,
+    body.subnav-pinned .sub-nav {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
 /* === Сторінка налаштувань ===================================== */
 .settings-panel { max-width: 640px; }
 .settings-row {

@@ -11,7 +11,7 @@
   <link rel="preload" as="image" href="/img/Generator1Tier1.png" fetchpriority="high">
   <link rel="icon" href="/img/VoidVortexTir1.png" type="image/png">
   <title>Periodic Idle</title>
-  <link rel="stylesheet" href="/css/styles.css?v=11">
+  <link rel="stylesheet" href="/css/styles.css?v=15">
 </head>
 <body>
 
@@ -51,7 +51,7 @@
   <div class="sub-nav-title">Пустота</div>
   <div class="sub-nav-item active" onclick="showPage('generators', this)">Генератори</div>
   <div class="sub-nav-item" onclick="showPage('upgrades', this)">Апгрейди</div>
-  <div class="sub-nav-item locked">Престиж</div>
+  <div class="sub-nav-item" onclick="showPage('prestige', this)">Престиж</div>
   <div class="sub-nav-item" onclick="showPage('stats', this)">Статистика</div>
 </div>
 
@@ -140,6 +140,24 @@
     </div>
   </div>
 
+  <!-- Тір 0: Престиж (реінкарнація) — обмін енергії на кристали пустоти -->
+  <div id="page-prestige" class="page">
+    <div class="panel settings-panel">
+      <div class="panel-title">Реінкарнація</div>
+
+      <div class="settings-row">
+        <div class="settings-label">Скинути прогрес за кристали пустоти
+          <div class="settings-hint" id="prestige-hint">Потрібно щонайменше 1e10 енергії</div>
+        </div>
+        <div class="settings-ctrl">
+          <button class="btn-danger" id="prestige-btn"
+                  style="background:rgba(88,28,135,0.9);color:#e9d5ff"
+                  onclick="doPrestige()">Реінкарнація</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Тір 1: Колапс матерії — енергія 1e308 → +1 базова частинка + повний скид Тіру 0 -->
   <div id="page-exchange" class="page">
     <div class="panel">
@@ -173,21 +191,6 @@
   <div id="page-settings" class="page">
     <div class="panel settings-panel">
       <div class="panel-title">Налаштування</div>
-
-      <div class="panel-title" style="margin-top:4px;color:#c4b5fd">Реінкарнація</div>
-
-      <div class="settings-row">
-        <div class="settings-label">Скинути прогрес за кристали пустоти
-          <div class="settings-hint" id="prestige-hint">Потрібно щонайменше 1e10 енергії</div>
-        </div>
-        <div class="settings-ctrl">
-          <button class="btn-danger" id="prestige-btn"
-                  style="background:rgba(88,28,135,0.9);color:#e9d5ff"
-                  onclick="doPrestige()">Реінкарнація</button>
-        </div>
-      </div>
-
-      <div class="settings-divider"></div>
 
       <div class="settings-row">
         <div class="settings-label">Звук</div>
@@ -269,16 +272,16 @@
 </main>
 
 <!-- JS модулі (порядок важливий: залежності спочатку) -->
-<script src="/js/config.js?v=11"></script>
-<script src="/js/utils.js?v=11"></script>
-<script src="/js/nav.js?v=11"></script>
-<script src="/js/resources.js?v=11"></script>
-<script src="/js/generators.js?v=11"></script>
-<script src="/js/upgrades.js?v=11"></script>
-<script src="/js/dev.js?v=11"></script>
-<script src="/js/upgrade-info.js?v=11"></script>
-<script src="/js/matter.js?v=11"></script>
-<script src="/js/stats.js?v=11"></script>
-<script src="/js/main.js?v=11"></script>
+<script src="/js/config.js?v=15"></script>
+<script src="/js/utils.js?v=15"></script>
+<script src="/js/nav.js?v=15"></script>
+<script src="/js/resources.js?v=15"></script>
+<script src="/js/generators.js?v=15"></script>
+<script src="/js/upgrades.js?v=15"></script>
+<script src="/js/dev.js?v=15"></script>
+<script src="/js/upgrade-info.js?v=15"></script>
+<script src="/js/matter.js?v=15"></script>
+<script src="/js/stats.js?v=15"></script>
+<script src="/js/main.js?v=15"></script>
 </body>
 </html>

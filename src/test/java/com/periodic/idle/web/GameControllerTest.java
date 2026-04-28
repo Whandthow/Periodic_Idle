@@ -36,6 +36,7 @@ class GameControllerTest {
     @MockitoBean private ExchangeService exchangeService;
     @MockitoBean private MatterService matterService;
     @MockitoBean private SaveRepository saveRepository;
+    @MockitoBean private SaveService saveService;
 
     @Test
     @DisplayName("GET /api/state/1 повертає 200 і JSON масив")
@@ -267,6 +268,33 @@ class GameControllerTest {
                 .andExpect(jsonPath("$.multipliers").isArray())
                 .andExpect(jsonPath("$.generators").isArray())
                 .andExpect(jsonPath("$.totalEnergyPerSec").value(0.0));
+    }
+
+    @Test
+    @DisplayName("POST /api/save/init — token у body → повертає saveId з SaveService")
+    void initSave_returnsSaveId() throws Exception {
+        Save save = newSave(42L);
+        when(saveService.findOrCreateByToken("uuid-abc")).thenReturn(save);
+
+        mockMvc.perform(post("/api/save/init")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"uuid-abc\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saveId").value(42));
+
+        verify(saveService).findOrCreateByToken("uuid-abc");
+    }
+
+    @Test
+    @DisplayName("POST /api/save/init — порожній token → 400")
+    void initSave_blankToken_returns400() throws Exception {
+        when(saveService.findOrCreateByToken(""))
+                .thenThrow(new IllegalArgumentException("clientToken required"));
+
+        mockMvc.perform(post("/api/save/init")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     private Save newSave(Long id) {
