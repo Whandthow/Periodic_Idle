@@ -23,22 +23,6 @@ function fmtCost(num, exp, mult, level) {
   return fmt(scaled / Math.pow(10, extraExp), exp + extraExp);
 }
 
- var OPTIMIZED_PNGS = {
-   AtomTear2: true,
-   Electron: true,
-   Energy: true,
-   Generator1Tier1: true,
-   Generator2Tier1: true,
-   Generator3Tier1: true,
-   Generator4Tier1: true,
-   Generator5Tier1: true,
-   Generator6Tier1: true,
-   Neutron: true,
-   Proton: true,
-   VoidCrystal: true,
-   VoidVortexTir1: true
- };
-
  function pngPath(name) {
    return '/img/' + name + '.png';
  }

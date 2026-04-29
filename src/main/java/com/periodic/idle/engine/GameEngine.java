@@ -25,6 +25,13 @@ public class GameEngine {
     /** Поріг, після якого ENERGY_MULT переходить у softcap (sqrt-ріст). */
     private static final int ENERGY_MULT_SOFTCAP_THRESHOLD = 20;
 
+    /**
+     * Softcap для експоненти Core-бусту: при сирій експоненті &gt; цього порогу
+     * далі росте як sqrt(excess), щоб <code>Math.pow(10, ...)</code> ніколи
+     * не overflow-ив у Infinity і гравець не падав у cliff (буст ставав 1.0).
+     */
+    private static final double CORE_EXP_SOFTCAP = 200.0;
+
     /** Кап енергії: 1e308. Знімається флагом save.brokenInfinity. */
     public static final long ENERGY_CAP_EXPONENT = 308L;
 
@@ -361,7 +368,16 @@ public class GameEngine {
             }
         }
         if (!Double.isFinite(crystalsLog10) || crystalsLog10 <= 0) return 1.0;
-        double result = Math.pow(10, coreLevel * coreCoeff * crystalsLog10);
+        double rawExponent = coreLevel * coreCoeff * crystalsLog10;
+        if (!Double.isFinite(rawExponent) || rawExponent <= 0) return 1.0;
+        // Softcap на експоненту: до порогу — лінійно, після — sqrt(надлишок).
+        // Це не дає Math.pow(10, ...) overflow-нути в Infinity і прибирає cliff,
+        // де при сирій експоненті > 308 буст падав з ~1e300 до 1.0.
+        double effectiveExponent = rawExponent;
+        if (rawExponent > CORE_EXP_SOFTCAP) {
+            effectiveExponent = CORE_EXP_SOFTCAP + Math.sqrt(rawExponent - CORE_EXP_SOFTCAP);
+        }
+        double result = Math.pow(10, effectiveExponent);
         return Double.isFinite(result) ? result : 1.0;
     }
 

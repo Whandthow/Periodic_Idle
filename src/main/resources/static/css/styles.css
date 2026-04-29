@@ -317,12 +317,20 @@ body.settings-open .sub-nav { display: none; }
         transition: transform 0.18s ease, opacity 0.18s ease;
         box-shadow: 4px 0 18px rgba(0, 0, 0, 0.45);
     }
-    .sidebar:hover ~ .sub-nav,
-    .sub-nav:hover,
     body.subnav-pinned .sub-nav {
         transform: translateX(0);
         opacity: 1;
         pointer-events: auto;
+    }
+    /* Зсуваємо контент вправо тільки коли панель закріплена кліком. */
+    .main { transition: padding-left 0.18s ease; }
+    body.subnav-pinned .main {
+        padding-left: calc(24px + 160px);
+    }
+    /* У режимі налаштувань sub-nav схована (display:none) — контент НЕ зсуваємо,
+       навіть коли курсор на сайдбарі (бо хтось може просто наводити шестерню). */
+    body.settings-open .main {
+        padding-left: 24px;
     }
 }
 
@@ -683,12 +691,7 @@ body.settings-open .sub-nav { display: none; }
     filter: drop-shadow(0 0 8px rgba(134, 239, 172, 0.55))
             drop-shadow(0 2px 5px rgba(0,0,0,0.7));
 }
-.upg.can-buy.pinned img,
-.upg.pinned.can-buy img {
-    /* pinned має пріоритет нижче — нижче переопрацьовано */
-}
-
-/* Закріплений апгрейд — постійна пульсація і свічення */
+/* Закріплений апгрейд — постійна пульсація і свічення (override .upg.can-buy img). */
 .upg.pinned img {
     animation: upg-pulse 1.4s ease-in-out infinite;
     filter: drop-shadow(0 0 10px rgba(125, 211, 252, 0.42))

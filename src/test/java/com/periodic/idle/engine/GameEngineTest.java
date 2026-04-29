@@ -565,6 +565,43 @@ class GameEngineTest {
     }
 
     @Test
+    @DisplayName("Ядро softcap: rawExp > 308 не падає у cliff (boost залишається великим скінченним числом)")
+    void coreBoost_largeExponent_softcappedNoCliff() {
+        // Сценарій з відгуку гравця: lvl 400, coeff 0.15, VC=1e6 → rawExp = 360.
+        // Без softcap Math.pow(10, 360) = Infinity → guard повертав 1.0 (cliff).
+        // Із softcap (поріг 200): effective = 200 + sqrt(160) ≈ 212.65 → boost ≈ 4.45e212.
+        Resource crystals = createResource(2L, "VC", "Кристал пустоти", 0);
+        PlayerResource playerCrystals = instantiate(PlayerResource.class);
+        ReflectionTestUtils.setField(playerCrystals, "id", 2L);
+        playerCrystals.setSave(save);
+        playerCrystals.setResource(crystals);
+        playerCrystals.setNumber(1.0);
+        playerCrystals.setExponent(6); // 1e6, log10 = 6
+
+        PlayerUpgrade coreUpgrade = createPlayerUpgrade(save,
+                createUpgradeContent(20L, "CORE", 0.15), 400);
+
+        when(playerResourceRepository.findBySaveId(1L))
+                .thenReturn(List.of(playerEnergy, playerCrystals));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(coreUpgrade));
+
+        Map<String, Object> stats = gameEngine.calculateStats(1L);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> mults = (List<Map<String, Object>>) stats.get("multipliers");
+        Map<String, Object> coreRow = mults.stream()
+                .filter(m -> "Ядро (Core)".equals(m.get("name")))
+                .findFirst().orElseThrow();
+
+        double coreBoost = ((Number) coreRow.get("value")).doubleValue();
+        assertTrue(Double.isFinite(coreBoost), "coreBoost має бути скінченним");
+        assertTrue(coreBoost > 1e100,
+                "coreBoost має бути великим (без cliff до 1.0); отримали " + coreBoost);
+        assertTrue(coreBoost < 1e308,
+                "coreBoost має бути обмежений softcap (не Infinity); отримали " + coreBoost);
+    }
+
+    @Test
     @DisplayName("Ядро без кристалів не дає буст (boost=1)")
     void processSave_coreWithoutCrystals() {
         PlayerUpgrade coreUpgrade = createPlayerUpgrade(save,
@@ -753,7 +790,7 @@ class GameEngineTest {
     // === Бонус протонів ===
 
     @Test
-    @DisplayName("processSave: 5 протонів дає +50% до енергії (mult=1.5)")
+    @DisplayName("processSave: 5 протонів дає +125% до енергії (mult=2.25)")
     void processSave_protonBonus_appliedToEnergy() {
         Resource pRes = createResource(3L, "p", "Протон", 1);
         PlayerResource pp = instantiate(PlayerResource.class);
@@ -768,10 +805,9 @@ class GameEngineTest {
 
         gameEngine.tick();
 
-        // 0.5 (rate) * 1.5 (proton mult) = 0.75/сек, tick (0.1с) → 0.075 енергії.
-        // BigNum нормалізує мантису до [1,10) → (7.5, -2). Перевіряємо total.
+        // 0.5 (rate) * 2.25 (proton mult) = 1.125/сек, tick (0.1с) → 0.1125 енергії.
         double total = playerEnergy.getNumber() * Math.pow(10, playerEnergy.getExponent());
-        assertEquals(0.075, total, 1e-9);
+        assertEquals(0.1125, total, 1e-9);
     }
 
     @Test
@@ -781,7 +817,7 @@ class GameEngineTest {
         PlayerResource pp = instantiate(PlayerResource.class);
         pp.setResource(pRes);
         pp.setNumber(2.0);
-        pp.setExponent(0L); // 2 protons → mult 1.2
+        pp.setExponent(0L); // 2 protons → mult 1.5
 
         when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy, pp));
         when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
@@ -789,7 +825,7 @@ class GameEngineTest {
 
         Map<Long, GameEngine.GenBreakdown> result = gameEngine.calculateGeneratorBreakdown(1L);
 
-        assertEquals(0.5 * 1.2, result.get(1L).energyPerSec(), 1e-6);
+        assertEquals(0.5 * 1.5, result.get(1L).energyPerSec(), 1e-6);
     }
 
     // === calculateStats ===
@@ -837,8 +873,8 @@ class GameEngineTest {
                 .filter(m -> "Протони → енергія".equals(m.get("name")))
                 .findFirst().orElseThrow();
         assertEquals(7, ((Number) protonRow.get("level")).intValue());
-        // value = 1 + 7 * 0.10 = 1.70
-        assertEquals(1.70, ((Number) protonRow.get("value")).doubleValue(), 1e-6);
+        // value = 1 + 7 * 0.25 = 2.75
+        assertEquals(2.75, ((Number) protonRow.get("value")).doubleValue(), 1e-6);
     }
 
     @Test

@@ -174,18 +174,18 @@ class GeneratorServiceTest {
     }
 
     @Test
-    @DisplayName("effectiveCostMultiplier(resources): нейтрони знижують множник на 0.005 за штуку")
+    @DisplayName("effectiveCostMultiplier(resources): нейтрони знижують множник на 0.02 за штуку")
     void effectiveCostMultiplier_neutronReduction() {
         Resource nRes = createResource(2L, "n");
         PlayerResource neutrons = instantiate(PlayerResource.class);
         neutrons.setResource(nRes);
         neutrons.setNumber(2.0);
-        neutrons.setExponent(1L); // 20 нейтронів → знижка 20 * 0.005 = 0.1
+        neutrons.setExponent(1L); // 20 нейтронів → знижка 20 * 0.02 = 0.4
 
-        // baseMult=1.5, без апгрейдів → 1.5 - 0.1 = 1.4
+        // baseMult=1.5, без апгрейдів → 1.5 - 0.4 = 1.1
         double effective = generatorService.effectiveCostMultiplier(1.5,
                 new ArrayList<>(), List.of(neutrons));
-        assertEquals(1.4, effective, 1e-9);
+        assertEquals(1.1, effective, 1e-9);
     }
 
     @Test
@@ -202,7 +202,7 @@ class GeneratorServiceTest {
         PlayerResource neutrons = instantiate(PlayerResource.class);
         neutrons.setResource(nRes);
         neutrons.setNumber(1.0);
-        neutrons.setExponent(2L); // 100 → -0.5
+        neutrons.setExponent(2L); // 100 → -2.0
 
         double effective = generatorService.effectiveCostMultiplier(1.5,
                 List.of(pu), List.of(neutrons));

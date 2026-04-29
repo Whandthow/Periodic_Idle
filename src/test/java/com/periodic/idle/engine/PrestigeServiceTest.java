@@ -196,7 +196,7 @@ class PrestigeServiceTest {
 
     @Test
     @DisplayName("hardReset: без VC ресурсу в БД не падає (skip)")
-    void hardReset_noCrystals_ok() {
+    void hardReset_noCrystals_ok() {    
         energy.setNumber(1.0);
         energy.setExponent(20);
 
@@ -269,7 +269,7 @@ class PrestigeServiceTest {
         PlayerResource electrons = instantiate(PlayerResource.class);
         electrons.setResource(eRes);
         electrons.setNumber(2.0);
-        electrons.setExponent(1); // 20 електронів → +100% (mult=2.0)
+        electrons.setExponent(1); // 20 електронів → +300% (mult=4.0)
 
         when(playerResourceRepository.findBySaveId(1L))
                 .thenReturn(List.of(energy, crystals, electrons));
@@ -277,9 +277,9 @@ class PrestigeServiceTest {
 
         BigNum gain = prestigeService.calcPotentialGain(1L);
 
-        // Очікуємо ~20 кристалів (10 base × 2.0 електрон-мульт).
+        // Очікуємо ~40 кристалів (10 base × 4.0 електрон-мульт).
         double total = gain.getNumber() * Math.pow(10, gain.getExponent());
-        assertEquals(20.0, total, 0.5);
+        assertEquals(40.0, total, 0.5);
     }
 
     @SuppressWarnings("unchecked")
