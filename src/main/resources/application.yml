@@ -19,7 +19,7 @@ spring:
           cache-public: true
 
 server:
-  port: ${PORT:8080}
+  port: ${PORT:8090}
   compression:
     enabled: true
     min-response-size: 1024
