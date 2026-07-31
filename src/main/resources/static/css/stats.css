@@ -1,0 +1,56 @@
+/* === Статистика ================================================ */
+.stats-content { display: flex; flex-direction: column; gap: 10px; }
+.stats-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #7dd3fc;
+    margin: 12px 0 6px;
+}
+.stats-list, .stats-gens { display: flex; flex-direction: column; gap: 6px; }
+.stats-row, .stats-gen {
+    display: grid;
+    grid-template-columns: 1.4fr 0.8fr 2fr;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(125, 211, 252, 0.1);
+    border-radius: 8px;
+}
+.stats-row-name { color: #e0e0e0; font-size: 13px; }
+.stats-row-value { color: #7dd3fc; font-variant-numeric: tabular-nums; font-size: 14px; }
+.stats-row-meta { color: #94a3b8; font-size: 11px; line-height: 1.4; }
+.stats-row-level {
+    display: inline-block;
+    background: rgba(12, 48, 72, 0.9);
+    color: #7dd3fc;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-right: 6px;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+}
+.stats-gen-name { color: #e0e0e0; font-size: 13px; }
+.stats-gen-rate { color: #7dd3fc; font-variant-numeric: tabular-nums; font-size: 13px; }
+.stats-gen-meta { color: #94a3b8; font-size: 11px; }
+.stats-total {
+    color: #cbd5e1;
+    font-size: 13px;
+    margin: 4px 0 8px;
+}
+.stats-total strong { color: #86efac; font-variant-numeric: tabular-nums; }
+.stats-particles { display: flex; gap: 10px; flex-wrap: wrap; }
+.stats-particle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.32);
+    border: 1px solid rgba(125, 211, 252, 0.12);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+.stats-particle.done { border-color: rgba(134, 239, 172, 0.5); }
+.stats-particle-count { font-variant-numeric: tabular-nums; color: #e0e0e0; margin-left: auto; }
+.stats-note { color: #94a3b8; font-size: 12px; margin-top: 6px; }

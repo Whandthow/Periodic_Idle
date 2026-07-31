@@ -1,0 +1,295 @@
+/* === Компас покращень ========================================= */
+/* Fixed-позиціонування щоб центр компаса збігався з центром viewport
+   (= центр фонового вихору), не зміщуючись через сайдбари зліва */
+.upgrade-compass {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(640px, 85vmin);
+    height: min(640px, 85vmin);
+    z-index: 1;
+}
+
+.upg {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    transition: filter 0.25s;
+}
+.upg img {
+    width: 66px;
+    height: 66px;
+    display: block;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.7));
+    transition: transform 0.25s, filter 0.25s;
+}
+.upg-center img { width: 100px; height: 100px; }
+
+/* Легка пульсація + світіння при наведенні */
+.upg:hover img {
+    animation: upg-pulse 1.4s ease-in-out infinite;
+    filter: drop-shadow(0 0 8px rgba(125, 211, 252, 0.32))
+            drop-shadow(0 2px 6px rgba(0,0,0,0.8));
+}
+@keyframes upg-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.04); }
+}
+
+/* === Info-панель покращення =================================== */
+.upg-info {
+    position: fixed;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%) translateX(20px);
+    width: 300px;
+    min-height: 320px;
+    background: linear-gradient(135deg,
+        rgba(17, 17, 30, 0.92) 0%,
+        rgba(12, 12, 22, 0.94) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 12px;
+    padding: 22px 24px;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(125, 211, 252, 0.15) inset,
+        0 0 24px rgba(125, 211, 252, 0.08);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-bottom: 110px; /* місце для тулбара + кнопки внизу */
+}
+.upg-info.show {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+/* Завжди видима панель (always-on) */
+.upg-info.always-on {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) translateX(0);
+}
+
+/* Дефолтний стан: серце посередині */
+.upg-info-default {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex: 1;
+    padding: 20px 0;
+}
+.upg-info-heart {
+    font-size: 72px;
+    line-height: 1;
+    color: rgba(125, 211, 252, 0.55);
+    text-shadow:
+        0 0 16px rgba(125, 211, 252, 0.35),
+        0 2px 6px rgba(0,0,0,0.7);
+    animation: heart-pulse 2.2s ease-in-out infinite;
+}
+@keyframes heart-pulse {
+    0%, 100% { transform: scale(1); color: rgba(125, 211, 252, 0.55); }
+    50%      { transform: scale(1.08); color: rgba(191, 219, 254, 0.8); }
+}
+.upg-info-default-hint {
+    font-size: 12px;
+    color: #6b7280;
+    text-align: center;
+    line-height: 1.5;
+    letter-spacing: 0.3px;
+}
+
+/* Перемикання default/filled */
+.upg-info-filled { display: none; flex-direction: column; gap: 10px; flex: 1; }
+.upg-info.has-content .upg-info-default { display: none; }
+.upg-info.has-content .upg-info-filled  { display: flex; }
+
+.upg-info-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #7dd3fc;
+    letter-spacing: 0.5px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(125, 211, 252, 0.15);
+}
+.upg-info-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+}
+.upg-info-desc {
+    font-size: 13px;
+    color: #bbb;
+    line-height: 1.5;
+    flex: 1;
+}
+.upg-info-cost-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #666;
+    margin-top: auto;
+}
+.upg-info-cost {
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+    color: #7dd3fc;
+}
+
+/* Тулбар info-панелі: множник + hover-to-buy */
+.upg-info-toolbar {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 58px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+.upg-mult-group {
+    display: flex;
+    gap: 2px;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 3px;
+    border-radius: 6px;
+    border: 1px solid rgba(125, 211, 252, 0.15);
+}
+.upg-mult-btn {
+    background: transparent;
+    color: #94a3b8;
+    border: none;
+    padding: 4px 9px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    transition: background 0.15s, color 0.15s;
+    min-width: 32px;
+}
+.upg-mult-btn:hover { color: #bae6fd; background: rgba(125, 211, 252, 0.08); }
+.upg-mult-btn.active {
+    background: rgba(12, 48, 72, 0.9);
+    color: #7dd3fc;
+    box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.35);
+}
+.upg-hover-buy {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #94a3b8;
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: 0.3px;
+}
+.upg-hover-buy input { cursor: pointer; accent-color: #7dd3fc; }
+.upg-hover-buy:hover span { color: #bae6fd; }
+.upg-info.hover-buy-active {
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(134, 239, 172, 0.35) inset,
+        0 0 24px rgba(134, 239, 172, 0.15);
+}
+
+/* Кнопка "Купити" — завжди видима, закріплена в правому нижньому куті панелі */
+.upg-info-btn {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    background: rgba(12, 48, 72, 0.85);
+    color: #7dd3fc;
+    border: 1px solid rgba(125, 211, 252, 0.25);
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+.upg-info-btn:hover {
+    background: rgba(18, 70, 104, 0.95);
+    box-shadow: 0 4px 20px rgba(125, 211, 252, 0.35);
+}
+.upg-info-btn:active { transform: scale(0.96); }
+.upg-info-btn:disabled {
+    background: rgba(40, 40, 48, 0.7);
+    color: #6b7280;
+    cursor: not-allowed;
+    border-color: rgba(255,255,255,0.05);
+    box-shadow: none;
+}
+.upg-info-btn:disabled:hover { background: rgba(40, 40, 48, 0.7); box-shadow: none; }
+.upg-info-btn.cant-afford {
+    background: rgba(60, 30, 30, 0.85);
+    color: #fca5a5;
+    border-color: rgba(248, 113, 113, 0.3);
+}
+.upg-info-btn.cant-afford:hover { background: rgba(80, 30, 30, 0.95); }
+
+/* У дефолтному стані кнопка ненав'язлива */
+.upg-info:not(.has-content) .upg-info-btn {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.upg-info-level {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #94a3b8;
+    letter-spacing: 0.04em;
+}
+
+.upg-info-msg {
+    margin-top: 8px;
+    font-size: 12px;
+    min-height: 14px;
+    color: #7dd3fc;
+    transition: opacity 0.2s;
+}
+.upg-info-msg.error { color: #f87171; }
+.upg-info-msg.ok    { color: #86efac; }
+
+/* Flash-ефект після кліку "Купити" */
+.upg-info.flash {
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(125, 211, 252, 0.6) inset,
+        0 0 40px rgba(125, 211, 252, 0.4);
+}
+
+/* Апгрейд, який гравець може собі дозволити — м'який зелений хінт */
+.upg.can-buy img {
+    filter: drop-shadow(0 0 8px rgba(134, 239, 172, 0.55))
+            drop-shadow(0 2px 5px rgba(0,0,0,0.7));
+}
+/* Закріплений апгрейд — постійна пульсація і свічення (override .upg.can-buy img). */
+.upg.pinned img {
+    animation: upg-pulse 1.4s ease-in-out infinite;
+    filter: drop-shadow(0 0 10px rgba(125, 211, 252, 0.42))
+            drop-shadow(0 2px 6px rgba(0,0,0,0.8));
+}
+
+/* Позиції: центр + 8 променів (радіус ~40% від контейнера) */
+.upg-center { top: 50%; left: 50%; }
+.upg-n  { top: 10%; left: 50%; }
+.upg-s  { top: 90%; left: 50%; }
+.upg-w  { top: 50%; left: 10%; }
+.upg-e  { top: 50%; left: 90%; }
+.upg-nw { top: 22%; left: 22%; }
+.upg-ne { top: 22%; left: 78%; }
+.upg-sw { top: 78%; left: 22%; }
+.upg-se { top: 78%; left: 78%; }

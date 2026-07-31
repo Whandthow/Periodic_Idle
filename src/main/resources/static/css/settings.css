@@ -1,0 +1,78 @@
+/* === Сторінка налаштувань ===================================== */
+.settings-panel { max-width: 640px; }
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+}
+.settings-label {
+    font-size: 13px;
+    color: #ddd;
+}
+.settings-hint {
+    font-size: 11px;
+    color: #666;
+    margin-top: 3px;
+}
+.settings-row.danger .settings-label { color: #e0a0a0; }
+.settings-divider {
+    height: 1px;
+    background: #1e1e2a;
+    margin: 16px 0 4px;
+}
+
+.settings-ctrl select {
+    background: rgba(13, 13, 20, 0.9);
+    color: #ddd;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.btn-danger {
+    background: rgba(42, 12, 12, 0.9);
+    border: none;
+    color: #fca5a5;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.btn-danger:hover { background: #3a1212; }
+
+/* Toggle switch */
+.toggle {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: #1e1e2a;
+    border-radius: 22px;
+    transition: 0.2s;
+    cursor: pointer;
+}
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: #666;
+    border-radius: 50%;
+    transition: 0.2s;
+}
+.toggle input:checked + .toggle-slider { background: #0c3048; }
+.toggle input:checked + .toggle-slider::before {
+    transform: translateX(18px);
+    background: #7dd3fc;
+}

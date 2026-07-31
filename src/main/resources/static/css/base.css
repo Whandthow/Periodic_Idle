@@ -1,0 +1,38 @@
+/* === Глобальні =============================================== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: system-ui, sans-serif;
+    background: #0a0a0f url('/img/BackgraundUpdateStage1.png') center center / cover no-repeat;
+    color: #e0e0e0;
+    display: flex;
+    height: 100vh;
+}
+
+/* === Основна панель (розмітка спільна для всіх вкладок) ======= */
+.main { flex: 1; padding: 24px; overflow-y: auto; }
+
+.panel {
+    padding: 8px 4px 16px;
+    margin-bottom: 12px;
+}
+.panel-title {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+
+/* === Плейсхолдер для порожніх вкладок ========================= */
+.empty-hint {
+    color: #555;
+    font-size: 13px;
+    font-style: italic;
+    padding: 20px 0;
+    text-align: center;
+}
+
+/* === Сторінки (SPA-перемикання вкладок) ======================= */
+.page { display: none; }
+.page.active { display: block; }

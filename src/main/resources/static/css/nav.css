@@ -1,0 +1,198 @@
+/* === Сайдбар (етапи з іконками) =============================== */
+.sidebar {
+    width: 80px;
+    background: rgba(13, 13, 20, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.tier-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.tier-btn:hover { background: rgba(60, 60, 90, 0.25); }
+.tier-btn.active { background: rgba(125, 211, 252, 0.15); box-shadow: 0 0 12px #7dd3fc33; }
+.tier-btn.locked { display: none; }
+.tier-btn img { width: 42px; height: 42px; image-rendering: pixelated; }
+.tier-btn span { display: none; }
+
+/* === Друга панель (вкладки етапу) ============================= */
+.sub-nav {
+    width: 160px;
+    background: rgba(17, 17, 24, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 12px 0;
+    flex-shrink: 0;
+}
+.sub-nav-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #7dd3fc;
+    padding: 8px 14px 10px;
+    margin-bottom: 4px;
+}
+.sub-nav-item {
+    padding: 9px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #777;
+    transition: all 0.1s;
+}
+.sub-nav-item:hover { color: #bbb; background: rgba(22, 22, 31, 0.6); }
+.sub-nav-item.active { color: #e0e0e0; background: rgba(12, 26, 42, 0.9); }
+.sub-nav-item.locked { color: #333; cursor: not-allowed; }
+.sub-nav-item.locked:hover { color: #333; background: transparent; }
+
+/* === Spacer + кнопка налаштувань у сайдбарі =================== */
+.sidebar-spacer { flex: 1; }
+
+.settings-btn { color: #888; }
+.settings-btn:hover { color: #ddd; background: rgba(60, 60, 90, 0.25); }
+.settings-btn.active {
+    color: #7dd3fc;
+    background: rgba(125, 211, 252, 0.15);
+    box-shadow: 0 0 12px #7dd3fc33;
+}
+.settings-btn svg { width: 28px; height: 28px; transition: transform 0.4s; }
+.settings-btn:hover svg { transform: rotate(45deg); }
+
+/* Коли відкриті налаштування — другу панель ховаємо */
+body.settings-open .sub-nav { display: none; }
+
+/* Десктоп: sub-nav-панель показується тільки при ховері на сайдбар/панель або
+   після кліку на іконку етапу (body.subnav-pinned). На мобільному залишаємо
+   існуючий drawer-механізм через @media(max-width:900px). */
+@media (min-width: 901px) {
+    body { position: relative; }
+    .sub-nav {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 80px; /* ширина .sidebar */
+        z-index: 30;
+        transform: translateX(-110%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.18s ease, opacity 0.18s ease;
+        box-shadow: 4px 0 18px rgba(0, 0, 0, 0.45);
+    }
+    body.subnav-pinned .sub-nav {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+    /* Зсуваємо контент вправо тільки коли панель закріплена кліком. */
+    .main { transition: padding-left 0.18s ease; }
+    body.subnav-pinned .main {
+        padding-left: calc(24px + 160px);
+    }
+    /* У режимі налаштувань sub-nav схована (display:none) — контент НЕ зсуваємо,
+       навіть коли курсор на сайдбарі (бо хтось може просто наводити шестерню). */
+    body.settings-open .main {
+        padding-left: 24px;
+    }
+}
+
+/* === Висувна панель (мобільний режим) ========================= */
+.nav-toggle {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    width: 42px;
+    height: 42px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    background: rgba(13, 13, 20, 0.85);
+    border: 1px solid rgba(125, 211, 252, 0.25);
+    border-radius: 10px;
+    cursor: pointer;
+    padding: 0;
+    z-index: 30;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+.nav-toggle span {
+    width: 18px;
+    height: 2px;
+    background: #bae6fd;
+    border-radius: 2px;
+    transition: transform 0.2s, opacity 0.2s;
+}
+body.tier-drawer-open .nav-toggle span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+body.tier-drawer-open .nav-toggle span:nth-child(2) { opacity: 0; }
+body.tier-drawer-open .nav-toggle span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+.nav-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 18;
+}
+body.tier-drawer-open .nav-scrim {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Мобільний layout: sidebar/sub-nav стають drawer-ами. Тут-таки — компактні
+   розміри resources-bar і upg-info/upgrade-compass, бо вони теж мусять
+   стиснутись на вузькому екрані разом з навігацією. */
+@media (max-width: 900px) {
+    .nav-toggle { display: flex; }
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 22;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        padding-top: 64px;
+    }
+    .sub-nav {
+        position: fixed;
+        top: 0;
+        left: 80px;
+        height: 100vh;
+        z-index: 21;
+        transform: translateX(-150%);
+        transition: transform 0.25s ease;
+        padding-top: 64px;
+    }
+    body.tier-drawer-open .sidebar { transform: translateX(0); }
+    body.tier-drawer-open .sub-nav  { transform: translateX(0); }
+    body.settings-open .sub-nav { transform: translateX(-150%); }
+    .main { padding: 64px 14px 24px; }
+    .resources-bar { gap: 6px; }
+    .res-card { min-width: 0; padding: 8px 10px; gap: 6px; }
+    .res-icon { width: 30px; height: 30px; }
+    .res-value { font-size: 18px; }
+    .res-rate { font-size: 10px; }
+    .upg-info {
+        position: static;
+        transform: none;
+        width: auto;
+        margin-top: 18px;
+        min-height: auto;
+    }
+    .upg-info.always-on { transform: none; }
+    .upgrade-compass { position: relative; left: auto; top: auto; transform: none; margin: 0 auto; }
+}

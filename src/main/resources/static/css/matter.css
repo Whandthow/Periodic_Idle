@@ -1,0 +1,119 @@
+/* === Колапс матерії (Тір 1) ==================================== */
+.matter-intro {
+    color: #cbd5e1;
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 18px;
+}
+.matter-intro-sub {
+    margin-top: 6px;
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.matter-particles {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.matter-particle {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(125, 211, 252, 0.18);
+    border-radius: 12px;
+    padding: 14px 18px;
+    cursor: pointer;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 140px;
+    min-width: 120px;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.matter-particle:hover {
+    background: rgba(125, 211, 252, 0.08);
+    border-color: rgba(125, 211, 252, 0.4);
+}
+.matter-particle.selected {
+    background: rgba(12, 48, 72, 0.85);
+    border-color: rgba(125, 211, 252, 0.7);
+    box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.45), 0 0 18px rgba(125, 211, 252, 0.15);
+}
+.matter-particle img { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6)); }
+.matter-particle-name { font-size: 13px; font-weight: 600; }
+.matter-particle-count {
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+    color: #e0e0e0;
+}
+.matter-particle-bonus {
+    font-size: 11px;
+    color: #86efac;
+    margin-top: 2px;
+}
+.matter-actions { display: flex; justify-content: flex-end; }
+.matter-collapse-btn:disabled {
+    background: rgba(40, 40, 48, 0.7);
+    color: #6b7280;
+    border-color: rgba(255,255,255,0.05);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.exchange-msg {
+    margin-top: 14px;
+    min-height: 18px;
+    font-size: 13px;
+    text-align: center;
+}
+.exchange-msg.ok { color: #86efac; }
+.exchange-msg.error { color: #fca5a5; }
+
+/* === Грейди матерії / Break Infinity ============================ */
+.matter-upg-card {
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(125, 211, 252, 0.18);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.matter-upg-card.done {
+    border-color: rgba(134, 239, 172, 0.45);
+    box-shadow: 0 0 18px rgba(134, 239, 172, 0.12) inset;
+}
+.matter-upg-title { font-size: 16px; font-weight: 600; color: #c4b5fd; letter-spacing: 0.4px; }
+.matter-upg-desc { font-size: 13px; color: #cbd5e1; line-height: 1.5; }
+.matter-upg-status { font-size: 12px; color: #94a3b8; }
+.matter-cost-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.matter-cost-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(125, 211, 252, 0.12);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+.matter-cost-row.done {
+    border-color: rgba(134, 239, 172, 0.5);
+    color: #bbf7d0;
+}
+.matter-cost-count { font-variant-numeric: tabular-nums; color: #e0e0e0; }
+.matter-break-btn {
+    align-self: flex-end;
+    background: linear-gradient(135deg, rgba(88,28,135,0.85), rgba(12,48,72,0.85));
+    border-color: rgba(196, 181, 253, 0.35);
+    color: #e9d5ff;
+}
+.matter-break-btn:disabled {
+    background: rgba(40, 40, 48, 0.7);
+    color: #6b7280;
+    border-color: rgba(255,255,255,0.05);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.ok-text { color: #86efac; }

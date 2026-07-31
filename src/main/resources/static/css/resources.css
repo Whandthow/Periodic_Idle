@@ -1,0 +1,16 @@
+/* === Ресурсна панель (завжди видна зверху) ===================== */
+.resources-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.res-card {
+    padding: 10px 14px;
+    min-width: 150px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.res-icon { width: 36px; height: 36px; image-rendering: pixelated; filter: drop-shadow(0 0 4px rgba(0,0,0,0.8)); }
+.res-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+.res-value { font-size: 22px; font-variant-numeric: tabular-nums; color: #7dd3fc; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
+.res-rate { font-size: 11px; color: #5cb; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+
+/* Енергія на капі 1e308 показується як ∞ замість числа */
+.res-value-inf { color: #f0abfc; font-size: 26px; }

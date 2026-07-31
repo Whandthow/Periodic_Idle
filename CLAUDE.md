@@ -141,7 +141,16 @@ periodic-idle/
 │   │       ├── application.yml                # H2 config, Flyway, JPA validate
 │   │       ├── static/                        # фронтенд (Spring Boot роздає автоматично)
 │   │       │   ├── index.html
-│   │       │   ├── css/styles.css
+│   │       │   ├── css/                       # розділено по логічних частинах (не один файл)
+│   │       │   │   ├── base.css               # reset, .main/.panel, .page (спільна розмітка)
+│   │       │   │   ├── nav.css                # сайдбар, sub-nav, мобільний drawer + їх @media
+│   │       │   │   ├── resources.css          # ресурсна панель зверху, ∞-індикатор
+│   │       │   │   ├── generators.css         # список генераторів, тулбар, autobuy-тоггл
+│   │       │   │   ├── upgrades.css           # компас покращень + info-панель
+│   │       │   │   ├── settings.css           # сторінка налаштувань, toggle switch
+│   │       │   │   ├── matter.css             # Тір 1: колапс матерії + грейди/Break Infinity
+│   │       │   │   ├── stats.css              # вкладка "Статистика"
+│   │       │   │   └── periodic-table.css     # Тір 2: таблиця + анімація орбіт
 │   │       │   ├── js/
 │   │       │   │   ├── main.js                # точка входу: bootstrap токена, game loop
 │   │       │   │   ├── config.js              # SAVE_ID, TIERS, TIER_UNLOCKS, ICONS
