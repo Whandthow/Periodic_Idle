@@ -1132,7 +1132,22 @@ body.tier-drawer-open .nav-scrim {
 }
 .element-detail-orbits { width: 150px; height: 150px; color: var(--elem-accent); margin-top: 14px; }
 .orbit-ring { fill: none; stroke: currentColor; stroke-opacity: 0.3; stroke-width: 1; }
-.orbit-electron { fill: currentColor; }
+.orbit-electron { fill: currentColor; filter: drop-shadow(0 0 2px var(--elem-glow)); }
+.orbit-shell {
+    /* transform-box лишається за замовчуванням (view-box для SVG), тому origin у
+       координатах viewBox — обертання коректне навіть для оболонок з 1 електроном,
+       де bounding-box самого <g> не був би центрований. */
+    transform-origin: 100px 100px;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+.orbit-spin-cw { animation-name: orbit-spin-cw; }
+.orbit-spin-ccw { animation-name: orbit-spin-ccw; }
+@keyframes orbit-spin-cw { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes orbit-spin-ccw { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .orbit-shell { animation: none; }
+}
 .element-detail-symbol {
     position: absolute;
     top: 50%;

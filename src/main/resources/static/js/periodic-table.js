@@ -113,15 +113,21 @@ function _orbitsSvg(shells) {
   var out = '';
   for (var i = 0; i < n; i++) {
     var r = (i + 1) * (maxR / n);
-    out += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r.toFixed(1) +
-      '" class="orbit-ring"></circle>';
+    out += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r.toFixed(1) + '" class="orbit-ring"></circle>';
+
     var count = shells[i];
+    // Кожна оболонка обертається в своїй <g> навколо центру (CSS-анімація transform-origin).
+    // Внутрішні оболонки крутяться швидше — почергово за/проти годинникової стрілки.
+    var dur = (3 + i * 2.2).toFixed(2);
+    var dir = (i % 2 === 0) ? 'orbit-spin-cw' : 'orbit-spin-ccw';
+    var electrons = '';
     for (var k = 0; k < count; k++) {
       var angle = (2 * Math.PI * k / count) - Math.PI / 2;
       var ex = cx + r * Math.cos(angle);
       var ey = cy + r * Math.sin(angle);
-      out += '<circle cx="' + ex.toFixed(2) + '" cy="' + ey.toFixed(2) + '" r="2.6" class="orbit-electron"></circle>';
+      electrons += '<circle cx="' + ex.toFixed(2) + '" cy="' + ey.toFixed(2) + '" r="2.6" class="orbit-electron"></circle>';
     }
+    out += '<g class="orbit-shell ' + dir + '" style="animation-duration:' + dur + 's">' + electrons + '</g>';
   }
   return out;
 }
