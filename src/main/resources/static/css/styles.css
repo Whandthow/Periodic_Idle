@@ -152,6 +152,14 @@ body {
     box-shadow: 0 4px 18px rgba(134, 239, 172, 0.25);
 }
 .gen-buy-all-btn:active { transform: scale(0.97); }
+.gen-buy-all-btn:disabled {
+    background: rgba(40, 40, 48, 0.7);
+    color: #6b7280;
+    border-color: rgba(255, 255, 255, 0.05);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.gen-buy-all-btn:disabled:hover { background: rgba(40, 40, 48, 0.7); box-shadow: none; }
 
 /* === Обмін (Тір 1) ============================================ */
 .exchange-intro {
