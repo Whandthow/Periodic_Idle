@@ -40,6 +40,7 @@ class GameControllerTest {
     @MockitoBean private ElementRepository elementRepository;
     @MockitoBean private PlayerElementRepository playerElementRepository;
     @MockitoBean private SynthesisService synthesisService;
+    @MockitoBean private SaveTransferService saveTransferService;
 
     @Test
     @DisplayName("GET /api/state/1 повертає 200 і JSON масив")
@@ -337,6 +338,39 @@ class GameControllerTest {
                         .content("{\"saveId\":1,\"elementId\":2,\"amount\":1}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Спочатку синтезуйте попередній елемент у таблиці"));
+    }
+
+    // === Мануальне збереження ===
+
+    @Test
+    @DisplayName("GET /api/save-export/1 — повертає JSON із даними збереження")
+    void exportSave_returnsJson() throws Exception {
+        when(saveTransferService.exportSave(1L)).thenReturn(Map.of("version", 1));
+
+        mockMvc.perform(get("/api/save-export/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(1));
+    }
+
+    @Test
+    @DisplayName("POST /api/save-import — успішне відновлення")
+    void importSave_success() throws Exception {
+        mockMvc.perform(post("/api/save-import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"data\":{\"resources\":[]}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"));
+
+        verify(saveTransferService).importSave(eq(1L), anyMap());
+    }
+
+    @Test
+    @DisplayName("POST /api/save-import — некоректні дані → 400")
+    void importSave_invalidData_returns400() throws Exception {
+        mockMvc.perform(post("/api/save-import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"data\":\"not-an-object\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     private Save newSave(Long id) {
