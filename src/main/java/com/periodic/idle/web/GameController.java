@@ -12,6 +12,7 @@ import com.periodic.idle.engine.GeneratorService;
 import com.periodic.idle.engine.MatterService;
 import com.periodic.idle.engine.PrestigeService;
 import com.periodic.idle.engine.SaveService;
+import com.periodic.idle.engine.SaveTransferService;
 import com.periodic.idle.engine.SynthesisService;
 import com.periodic.idle.engine.UpgradeService;
 import com.periodic.idle.player.*;
@@ -41,6 +42,7 @@ public class GameController {
     private final SynthesisService synthesisService;
     private final SaveRepository saveRepository;
     private final SaveService saveService;
+    private final SaveTransferService saveTransferService;
 
     @GetMapping("/state/{saveId}")
     public List<Map<String, Object>> getState(@PathVariable Long saveId) {
@@ -355,6 +357,26 @@ public class GameController {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("saveId", save.getId());
         return map;
+    }
+
+    // === Мануальне збереження (експорт/імпорт у текстовий файл) ===
+
+    @GetMapping("/save-export/{saveId}")
+    public Map<String, Object> exportSave(@PathVariable Long saveId) {
+        return saveTransferService.exportSave(saveId);
+    }
+
+    @PostMapping("/save-import")
+    public Map<String, String> importSave(@RequestBody Map<String, Object> request) {
+        Long saveId = ((Number) request.get("saveId")).longValue();
+        Object data = request.get("data");
+        if (!(data instanceof Map)) {
+            throw new RuntimeException("Invalid save data");
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> dataMap = (Map<String, Object>) data;
+        saveTransferService.importSave(saveId, dataMap);
+        return Map.of("status", "ok");
     }
 
     // Обробка бізнес-помилок (недостатньо ресурсів, locked, max level тощо):
