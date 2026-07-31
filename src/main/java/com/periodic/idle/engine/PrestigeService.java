@@ -21,8 +21,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PrestigeService {
 
-    public static final double PRESTIGE_MIN_LOG10_ENERGY = 9.0;
-    public static final double PRESTIGE_DIVISOR = 2.0;
+    // V12 long-game rebalance: перша реінкарнація за години активної/idle гри, не за 5-10хв.
+    // Було 9.0 / 2.0 — див. docs/balance.md.
+    public static final double PRESTIGE_MIN_LOG10_ENERGY = 25.0;
+    public static final double PRESTIGE_DIVISOR = 3.0;
     /** Стартова енергія після resetу, щоб можна було одразу купити 1-й генератор. */
     public static final double STARTER_ENERGY_NUMBER = 1.0;
     public static final long   STARTER_ENERGY_EXPONENT = 1L; // 10 E
