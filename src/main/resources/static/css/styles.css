@@ -1014,3 +1014,159 @@ body.tier-drawer-open .nav-scrim {
     color: #86efac;
     margin-top: 2px;
 }
+
+/* === Тір 2: Періодична таблиця ================================= */
+:root {
+    --elem-accent: #ff6b52;
+    --elem-accent-soft: rgba(255, 107, 82, 0.35);
+    --elem-glow: rgba(255, 107, 82, 0.25);
+}
+
+.periodic-panel { overflow-x: auto; }
+.periodic-intro {
+    color: #cbd5e1;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.periodic-table-grid {
+    display: grid;
+    grid-template-columns: repeat(18, minmax(52px, 1fr));
+    gap: 5px;
+    min-width: 980px;
+}
+
+.element-card {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border: 1px solid var(--elem-accent-soft);
+    border-radius: 8px;
+    background: rgba(10, 6, 6, 0.55);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 4px 2px;
+    cursor: pointer;
+    color: var(--elem-accent);
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.element-card:hover, .element-card.discovered {
+    border-color: var(--elem-accent);
+    box-shadow: 0 0 10px var(--elem-glow);
+}
+.element-card:hover { transform: translateY(-1px); }
+.element-card.locked {
+    opacity: 0.35;
+    filter: grayscale(0.4);
+}
+.element-card-number {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    font-size: 9px;
+    color: #c99;
+}
+.element-card-symbol {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 0 8px var(--elem-glow);
+}
+.element-card-name {
+    font-size: 8px;
+    color: #d4a89a;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.element-card-weight {
+    font-size: 8px;
+    color: #8a6a62;
+}
+.element-card-badge {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 8px;
+    color: #86efac;
+}
+
+/* Деталі елемента (модель Бора) — плаваюча картка при наведенні/кліку */
+.element-detail {
+    position: fixed;
+    z-index: 50;
+    width: 220px;
+    background: rgba(8, 5, 5, 0.92);
+    border: 2px solid var(--elem-accent);
+    border-radius: 12px;
+    box-shadow: 0 0 26px var(--elem-glow), 0 8px 24px rgba(0, 0, 0, 0.5);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--elem-accent);
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.96);
+    transition: opacity 0.12s, transform 0.12s;
+}
+.element-detail.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
+.element-detail-card { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; }
+.element-detail-number {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 13px;
+}
+.element-detail-shells {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 12px;
+    text-align: right;
+    line-height: 1.3;
+}
+.element-detail-orbits { width: 150px; height: 150px; color: var(--elem-accent); margin-top: 14px; }
+.orbit-ring { fill: none; stroke: currentColor; stroke-opacity: 0.3; stroke-width: 1; }
+.orbit-electron { fill: currentColor; }
+.element-detail-symbol {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 42px;
+    font-weight: 700;
+    text-shadow: 0 0 12px var(--elem-glow);
+}
+.element-detail-name { margin-top: 8px; font-size: 14px; }
+.element-detail-weight { font-size: 13px; color: #d4a89a; margin-top: 2px; }
+.element-detail-cost {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #cbd5e1;
+}
+.element-detail-btn {
+    margin-top: 10px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--elem-accent);
+    background: rgba(255, 107, 82, 0.12);
+    color: var(--elem-accent);
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s;
+}
+.element-detail-btn:hover:not(:disabled) { background: rgba(255, 107, 82, 0.25); }
+.element-detail-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.element-detail-msg { margin-top: 6px; font-size: 11px; color: #94a3b8; min-height: 14px; }
+
+@media (max-width: 900px) {
+    .periodic-table-grid { min-width: 720px; grid-template-columns: repeat(18, minmax(38px, 1fr)); }
+    .element-card-name { display: none; }
+}

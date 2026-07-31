@@ -1,5 +1,7 @@
 package com.periodic.idle.web;
 
+import com.periodic.idle.content.Element;
+import com.periodic.idle.content.ElementRepository;
 import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorRepository;
 import com.periodic.idle.content.Upgrade;
@@ -10,6 +12,7 @@ import com.periodic.idle.engine.GeneratorService;
 import com.periodic.idle.engine.MatterService;
 import com.periodic.idle.engine.PrestigeService;
 import com.periodic.idle.engine.SaveService;
+import com.periodic.idle.engine.SynthesisService;
 import com.periodic.idle.engine.UpgradeService;
 import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
@@ -25,14 +28,17 @@ public class GameController {
     private final PlayerResourceRepository playerResourceRepository;
     private final PlayerUpgradeRepository playerUpgradeRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
+    private final PlayerElementRepository playerElementRepository;
     private final UpgradeRepository upgradeRepository;
     private final GeneratorRepository generatorRepository;
+    private final ElementRepository elementRepository;
     private final UpgradeService upgradeService;
     private final GeneratorService generatorService;
     private final GameEngine gameEngine;
     private final PrestigeService prestigeService;
     private final ExchangeService exchangeService;
     private final MatterService matterService;
+    private final SynthesisService synthesisService;
     private final SaveRepository saveRepository;
     private final SaveService saveService;
 
@@ -271,6 +277,60 @@ public class GameController {
     @GetMapping("/stats/{saveId}")
     public Map<String, Object> stats(@PathVariable Long saveId) {
         return gameEngine.calculateStats(saveId);
+    }
+
+    // === Тір 2: Періодична таблиця ===
+
+    @GetMapping("/elements/{saveId}")
+    public List<Map<String, Object>> getElements(@PathVariable Long saveId) {
+        List<PlayerElement> playerElements = playerElementRepository.findBySaveId(saveId);
+        List<Element> allElements = elementRepository.findAll().stream()
+                .sorted(Comparator.comparingInt(Element::getAtomicNumber))
+                .toList();
+
+        int maxDiscovered = 0;
+        for (PlayerElement pe : playerElements) {
+            if (pe.getCount() > 0) {
+                maxDiscovered = Math.max(maxDiscovered, pe.getElement().getAtomicNumber());
+            }
+        }
+
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Element el : allElements) {
+            long count = playerElements.stream()
+                    .filter(pe -> pe.getElement().getId().equals(el.getId()))
+                    .findFirst()
+                    .map(PlayerElement::getCount)
+                    .orElse(0L);
+
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", el.getId());
+            map.put("atomicNumber", el.getAtomicNumber());
+            map.put("symbol", el.getSymbol());
+            map.put("name", el.getName());
+            map.put("atomicWeight", el.getAtomicWeight());
+            map.put("period", el.getPeriod());
+            map.put("groupNumber", el.getGroupNumber());
+            map.put("shellConfig", el.getShellConfig());
+            map.put("costProtons", el.getCostProtons());
+            map.put("costNeutrons", el.getCostNeutrons());
+            map.put("costElectrons", el.getCostElectrons());
+            map.put("count", count);
+            // Розблоковано для спроби синтезу: перший елемент завжди, інші — коли попередній вже відкритий.
+            map.put("unlocked", el.getAtomicNumber() == 1 || el.getAtomicNumber() <= maxDiscovered + 1);
+            out.add(map);
+        }
+        return out;
+    }
+
+    @PostMapping("/synthesize")
+    public Map<String, Object> synthesize(@RequestBody Map<String, Object> request) {
+        Long saveId = ((Number) request.get("saveId")).longValue();
+        Long elementId = ((Number) request.get("elementId")).longValue();
+        Object amt = request.get("amount");
+        long amount = amt == null ? 1 : ((Number) amt).longValue(); // -1 = max
+        long synthesized = synthesisService.synthesizeBulk(saveId, elementId, amount);
+        return Map.of("status", "ok", "synthesized", synthesized);
     }
 
     @PostMapping("/buy-upgrade")

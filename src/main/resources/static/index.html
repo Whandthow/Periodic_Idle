@@ -11,7 +11,7 @@
   <link rel="preload" as="image" href="/img/Generator1Tier1.png" fetchpriority="high">
   <link rel="icon" href="/img/VoidVortexTir1.png" type="image/png">
   <title>Periodic Idle</title>
-  <link rel="stylesheet" href="/css/styles.css?v=18">
+  <link rel="stylesheet" href="/css/styles.css?v=20">
 </head>
 <body>
 
@@ -188,6 +188,30 @@
     </div>
   </div>
 
+  <!-- Тір 2: Періодична таблиця — синтез атомів з p+n+e -->
+  <div id="page-periodic_table" class="page">
+    <div class="panel periodic-panel">
+      <div class="panel-title">Періодична таблиця</div>
+      <div class="periodic-intro" id="periodic-intro">Завантаження…</div>
+      <div class="periodic-table-grid" id="periodic-table-grid"></div>
+    </div>
+  </div>
+
+  <!-- Деталі елемента при наведенні/фокусі (модель Бора: оболонки + електрони) -->
+  <div class="element-detail" id="element-detail">
+    <div class="element-detail-card">
+      <div class="element-detail-number" id="element-detail-number"></div>
+      <div class="element-detail-shells" id="element-detail-shells"></div>
+      <svg class="element-detail-orbits" id="element-detail-orbits" viewBox="0 0 200 200"></svg>
+      <div class="element-detail-symbol" id="element-detail-symbol"></div>
+      <div class="element-detail-name" id="element-detail-name"></div>
+      <div class="element-detail-weight" id="element-detail-weight"></div>
+      <div class="element-detail-cost" id="element-detail-cost"></div>
+      <button class="element-detail-btn" id="element-detail-btn" onclick="synthesizeSelected()">Синтезувати</button>
+      <div class="element-detail-msg" id="element-detail-msg"></div>
+    </div>
+  </div>
+
   <div id="page-settings" class="page">
     <div class="panel settings-panel">
       <div class="panel-title">Налаштування</div>
@@ -272,16 +296,17 @@
 </main>
 
 <!-- JS модулі (порядок важливий: залежності спочатку) -->
-<script src="/js/config.js?v=18"></script>
-<script src="/js/utils.js?v=18"></script>
-<script src="/js/nav.js?v=18"></script>
-<script src="/js/resources.js?v=18"></script>
-<script src="/js/generators.js?v=18"></script>
-<script src="/js/upgrades.js?v=18"></script>
-<script src="/js/dev.js?v=18"></script>
-<script src="/js/upgrade-info.js?v=18"></script>
-<script src="/js/matter.js?v=18"></script>
-<script src="/js/stats.js?v=18"></script>
-<script src="/js/main.js?v=18"></script>
+<script src="/js/config.js?v=20"></script>
+<script src="/js/utils.js?v=20"></script>
+<script src="/js/nav.js?v=20"></script>
+<script src="/js/resources.js?v=20"></script>
+<script src="/js/generators.js?v=20"></script>
+<script src="/js/upgrades.js?v=20"></script>
+<script src="/js/dev.js?v=20"></script>
+<script src="/js/upgrade-info.js?v=20"></script>
+<script src="/js/matter.js?v=20"></script>
+<script src="/js/stats.js?v=20"></script>
+<script src="/js/periodic-table.js?v=20"></script>
+<script src="/js/main.js?v=20"></script>
 </body>
 </html>

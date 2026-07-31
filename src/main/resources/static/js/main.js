@@ -27,12 +27,9 @@ renderLoop();
 setInterval(renderLoop, 250);
 
 bootstrapSave().then(function() {
-  return Promise.all([
-    fetchState(),
-    fetchGenerators(),
-    fetchMatterInfo(),
-    fetchUpgrades()
-  ]);
+  var tasks = [fetchState(), fetchGenerators(), fetchUpgrades()];
+  if (typeof fetchMatterInfo === 'function') tasks.push(fetchMatterInfo());
+  return Promise.all(tasks);
 }).then(function() {
   if (typeof refreshTierLocks === 'function') refreshTierLocks();
 
@@ -48,14 +45,15 @@ bootstrapSave().then(function() {
     if (isPageActive('prestige')) refreshPrestigeInfo();
   }, 5000);
   setInterval(function() {
+    if (typeof fetchMatterInfo !== 'function') return;
     if (isPageActive('exchange') || isPageActive('upgrades_t1') || isPageActive('stats')) {
       fetchMatterInfo();
     }
   }, 3000);
   // Повільний поллінг для розблокування Тіру 1.
-  setInterval(fetchMatterInfo, 8000);
+  if (typeof fetchMatterInfo === 'function') setInterval(fetchMatterInfo, 8000);
   setInterval(function() {
-    if (isPageActive('stats')) fetchStats();
+    if (isPageActive('stats') && typeof fetchStats === 'function') fetchStats();
   }, 4000);
 }).catch(function(err) {
   console.error('bootstrap failed', err);

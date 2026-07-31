@@ -37,6 +37,9 @@ class GameControllerTest {
     @MockitoBean private MatterService matterService;
     @MockitoBean private SaveRepository saveRepository;
     @MockitoBean private SaveService saveService;
+    @MockitoBean private ElementRepository elementRepository;
+    @MockitoBean private PlayerElementRepository playerElementRepository;
+    @MockitoBean private SynthesisService synthesisService;
 
     @Test
     @DisplayName("GET /api/state/1 повертає 200 і JSON масив")
@@ -295,6 +298,45 @@ class GameControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    // === Тір 2: Періодична таблиця ===
+
+    @Test
+    @DisplayName("GET /api/elements/1 — повертає JSON масив із прапором unlocked")
+    void getElements_returnsJson() throws Exception {
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(elementRepository.findAll()).thenReturn(new ArrayList<>());
+
+        mockMvc.perform(get("/api/elements/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    @DisplayName("POST /api/synthesize — успішний синтез")
+    void synthesize_success() throws Exception {
+        when(synthesisService.synthesizeBulk(1L, 1L, 1)).thenReturn(1L);
+
+        mockMvc.perform(post("/api/synthesize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"elementId\":1,\"amount\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"))
+                .andExpect(jsonPath("$.synthesized").value(1));
+    }
+
+    @Test
+    @DisplayName("POST /api/synthesize — попередній елемент не відкрито → 400")
+    void synthesize_previousNotUnlocked_returns400() throws Exception {
+        doThrow(new RuntimeException("Спочатку синтезуйте попередній елемент у таблиці"))
+                .when(synthesisService).synthesizeBulk(1L, 2L, 1);
+
+        mockMvc.perform(post("/api/synthesize")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"elementId\":2,\"amount\":1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Спочатку синтезуйте попередній елемент у таблиці"));
     }
 
     private Save newSave(Long id) {

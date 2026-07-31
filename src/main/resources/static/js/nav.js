@@ -77,6 +77,7 @@ function activatePage(name) {
   if (name === 'upgrades_t1' && typeof renderMatterUpgrades === 'function') renderMatterUpgrades();
   if (name === 'stats' && typeof fetchStats === 'function') fetchStats();
   if (name === 'stats' && typeof renderStatsPage === 'function') renderStatsPage();
+  if (name === 'periodic_table' && typeof fetchElements === 'function') fetchElements();
 }
 
 function toggleTierDrawer() {

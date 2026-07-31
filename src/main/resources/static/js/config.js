@@ -28,8 +28,7 @@ var TIERS = {
     { id: 'upgrades_t1', label: 'Грейди' }
   ]},
   2: { name: 'Атоми', tabs: [
-    { id: 'periodic_table', label: 'Таблиця', locked: true },
-    { id: 'synthesis', label: 'Синтез', locked: true }
+    { id: 'periodic_table', label: 'Таблиця' }
   ]}
 };
 
