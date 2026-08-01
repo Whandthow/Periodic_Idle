@@ -23,6 +23,7 @@ async function fetchMatterInfo() {
     matterState = await res.json();
     if (typeof refreshTierLocks === 'function') refreshTierLocks();
     if (typeof renderAutobuyToggle === 'function') renderAutobuyToggle();
+    if (typeof renderAutoSynthesizeToggle === 'function') renderAutoSynthesizeToggle();
     if (isPageActive('exchange')) renderMatterPage();
     if (isPageActive('upgrades_t1')) renderMatterUpgrades();
   } finally {

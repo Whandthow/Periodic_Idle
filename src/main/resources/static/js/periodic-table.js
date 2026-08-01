@@ -176,3 +176,48 @@ document.addEventListener('click', function(e) {
   if (e.target.closest && e.target.closest('.element-card')) return;
   detail.classList.remove('pinned', 'visible');
 });
+
+// === Автосинтез (Тір 2 елементи + Тір 3 молекули, спільний прапор save.autoSynthesizeEnabled) ===
+// Тоглиться однією дією на обох сторінках — не потребує окремого апгрейду,
+// щоб гравець не заїбувався клікати кожен синтез вручну (наукова концепція
+// не про це, а про реалізм механік; ручний контроль лишається доступним завжди).
+
+var _autoSynthesizeToggleIds = ['autosynthesize-toggle-row-elements', 'autosynthesize-toggle-row-molecules'];
+var _autoSynthesizeBtnIds = ['autosynthesize-toggle-btn-elements', 'autosynthesize-toggle-btn-molecules'];
+
+function renderAutoSynthesizeToggle() {
+  if (typeof matterState === 'undefined') return;
+  var enabled = !!matterState.autoSynthesizeEnabled;
+  _autoSynthesizeToggleIds.forEach(function(id) {
+    var row = document.getElementById(id);
+    if (row) row.style.display = '';
+  });
+  _autoSynthesizeBtnIds.forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.classList.toggle('on', enabled);
+    btn.classList.toggle('off', !enabled);
+    btn.textContent = enabled ? 'Автосинтез: увімкнено' : 'Автосинтез: вимкнено';
+  });
+}
+
+async function toggleAutoSynthesize() {
+  var current = typeof matterState !== 'undefined' && !!matterState.autoSynthesizeEnabled;
+  var next = !current;
+  if (typeof matterState !== 'undefined') matterState.autoSynthesizeEnabled = next;
+  renderAutoSynthesizeToggle();
+  try {
+    var res = await fetch('/api/autosynthesize-toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saveId: SAVE_ID, enabled: next })
+    });
+    var data = await res.json();
+    if (typeof matterState !== 'undefined') matterState.autoSynthesizeEnabled = !!data.autoSynthesizeEnabled;
+    renderAutoSynthesizeToggle();
+  } catch (err) {
+    console.error('toggleAutoSynthesize failed', err);
+    if (typeof matterState !== 'undefined') matterState.autoSynthesizeEnabled = current;
+    renderAutoSynthesizeToggle();
+  }
+}

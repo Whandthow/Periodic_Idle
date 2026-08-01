@@ -27,6 +27,10 @@ public class Save {
     @Column(name = "autobuy_enabled", nullable = false)
     private boolean autobuyEnabled = true;
 
+    /** Чи увімкнений автосинтез елементів (Тір 2) і молекул (Тір 3). За замовчуванням вимкнено. */
+    @Column(name = "auto_synthesize_enabled", nullable = false)
+    private boolean autoSynthesizeEnabled = false;
+
     /**
      * Стабільний UUID, який клієнт зберігає в localStorage. Дає мульти-юзер: кожен
      * браузер ідентифікує "свій" save без логіна. NULL = legacy/dev save.

@@ -264,6 +264,48 @@ class GameControllerTest {
     }
 
     @Test
+    @DisplayName("POST /api/autosynthesize-toggle — перемикає прапор і повертає новий стан")
+    void autoSynthesizeToggle_setsFlagFromBody() throws Exception {
+        Save save = newSave(1L);
+        save.setAutoSynthesizeEnabled(false);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(saveRepository.save(save)).thenReturn(save);
+
+        mockMvc.perform(post("/api/autosynthesize-toggle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"enabled\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autoSynthesizeEnabled").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /api/autosynthesize-toggle без enabled — інвертує поточне значення")
+    void autoSynthesizeToggle_noBody_inverts() throws Exception {
+        Save save = newSave(1L);
+        save.setAutoSynthesizeEnabled(true);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+
+        mockMvc.perform(post("/api/autosynthesize-toggle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autoSynthesizeEnabled").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /api/matter-info/1 — включає autoSynthesizeEnabled")
+    void matterInfo_includesAutoSynthesizeFlag() throws Exception {
+        Save save = newSave(1L);
+        save.setAutoSynthesizeEnabled(true);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        mockMvc.perform(get("/api/matter-info/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autoSynthesizeEnabled").value(true));
+    }
+
+    @Test
     @DisplayName("GET /api/stats/1 — повертає JSON, делегує GameEngine.calculateStats")
     void stats_returnsBreakdown() throws Exception {
         Map<String, Object> payload = new LinkedHashMap<>();
