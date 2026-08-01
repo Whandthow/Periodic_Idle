@@ -114,7 +114,9 @@ periodic-idle/
 │   │   │   │   └── PlayerElementRepository.java
 │   │   │   │
 │   │   │   ├── engine/                        # ігрова логіка
-│   │   │   │   ├── GameEngine.java            # @Scheduled tick, computeProduction, множники
+│   │   │   │   ├── GameEngine.java            # @Scheduled tick, computeProduction, множники,
+│   │   │   │   │                              # applyOfflineProgress (наздоганяючий прогрес)
+│   │   │   │   ├── OfflineProgressRunner.java # ApplicationRunner: applyOfflineProgress на старті
 │   │   │   │   ├── GeneratorService.java      # buy, buyBulk, buyAllMax, costMultiplier
 │   │   │   │   ├── UpgradeService.java        # buy, buyBulk з валідацією
 │   │   │   │   ├── PrestigeService.java       # prestige, hardReset, calcPotentialGain
@@ -422,7 +424,19 @@ logs/
 5. Кап енергії на `1e308` (`GameEngine.ENERGY_CAP_EXPONENT`), знімається прапором `save.brokenInfinity`
 6. Захист від NaN/Infinity — пропустити, не зламати стан
 
-### 7.3 Престиж (PrestigeService)
+### 7.3 Офлайн-прогрес (GameEngine.applyOfflineProgress)
+
+Сервер тікає для всіх saves у БД безперервно, поки процес живий — тому "офлайн" тут означає не закриту вкладку браузера (сервер все одно продовжує рахувати), а час, поки був вимкнений сам сервер (деплой, рестарт, крах).
+
+`OfflineProgressRunner` (`ApplicationRunner`) викликає `applyOfflineProgress()` один раз одразу при старті застосунку:
+1. Для кожного `Save` рахує `dt = now - lastTick` (реальний, не фіксований 100мс)
+2. Якщо `dt < OFFLINE_MIN_SECONDS` (2с) — пропускає (це не простій, а звичайний рестарт у межах тіку)
+3. Інакше — `dt` обрізається до `OFFLINE_MAX_SECONDS` (24 години), і викликається та сама формула виробництва, що й у звичайному тіку, але з реальним `dt` замість `TICK_INTERVAL_SEC`
+4. `lastTick` виставляється на `now`
+
+Звичайний `@Scheduled` тік (7.2) і далі завжди рахує фіксовані 100мс — офлайн-прогрес це окремий одноразовий виклик, який не змінює поведінку регулярного тіку.
+
+### 7.4 Престиж (PrestigeService)
 
 Формула кристалів пустоти (константи в `PrestigeService`, з V12 — довга гра):
 ```
@@ -434,16 +448,16 @@ crystals = 10^(base_log10 + log10(crystalGainMult * electronCrystalMult))
 
 При престижі: енергія → стартова (10), кристали додаються, генератори скидаються до 0, апгрейди залишаються.
 
-### 7.4 Обмін (ExchangeService)
+### 7.5 Обмін (ExchangeService)
 
 Розщеплення кристалів: 1 VC → 1p + 1n + 1e. Дискретна дія, не генерація. Hard cap 1M за раз.
 
-### 7.5 Колапс матерії і Break Infinity (MatterService)
+### 7.6 Колапс матерії і Break Infinity (MatterService)
 
 - **Колапс матерії:** вимагає енергію на капі (`1e308`); скидає Тір 0 (енергію й рівні генераторів) і дає +1 обраної частинки (p/n/e). Повторювана дія, інкрементує `save.matterCollapses`.
 - **Break Infinity:** одноразова дія, доступна коли `matterCollapses >= MatterService.BREAK_INFINITY_REQUIRED` (10). Знімає кап `1e308` (`save.brokenInfinity = true`).
 
-### 7.6 Синтез атомів (SynthesisService)
+### 7.7 Синтез атомів (SynthesisService)
 
 Рецепт: `cost_protons = Z`, `cost_electrons = Z`, `cost_neutrons = mass_number(найпоширенішого ізотопу) - Z`. Приклади: H = 1p+0n+1e, He = 2p+2n+2e. Прогресія послідовна — елемент Z доступний для синтезу лише якщо елемент Z-1 вже синтезовано хоча б раз. `synthesizeBulk(amount=-1)` синтезує максимум за наявні частинки.
 
@@ -574,6 +588,7 @@ spring:
 - Content entities: Resource, Generator, GeneratorInput/Output, Upgrade, Element (+ репозиторії)
 - Player entities: Save (multi-account, client_token), PlayerResource, PlayerGenerator, PlayerUpgrade, PlayerElement
 - GameEngine з @Scheduled tick (100ms): ENERGY_MULT, GENERATOR_MULT, CORE, GEN_SPECIFIC_MULT, GEN_STACK, ENERGY_POW, PHANTOM_GEN, ParticleBonus
+- OfflineProgressRunner: наздоганяючий прогрес на старті сервера (реальний dt від lastTick, кап 24h)
 - GeneratorService, UpgradeService, PrestigeService, ExchangeService, AutoBuyService
 - MatterService: колапс матерії + Break Infinity (Тір 1)
 - SynthesisService: синтез атомів 1-36 з послідовною прогресією (Тір 2)
@@ -606,7 +621,7 @@ spring:
 | ~~10~~ | ~~Tier 1: обмін VC → частинки з повним UI (колапс + грейди)~~ | ✅ |
 | ~~11~~ | ~~Tier 2: періодична таблиця, синтез атомів~~ | ✅ |
 | 12 | Баланс Tier 0 — перший прохід під довгу гру зроблено (V12), потрібне живе тестування | 🔶 |
-| 13 | Offline progress (обрахунок dt при поверненні) | ⏳ |
+| ~~13~~ | ~~Offline progress (наздоганяючий прогрес на старті сервера)~~ | ✅ |
 | 14 | Досягнення (achievements system) | ⏳ |
 | 15 | Unlock conditions (data-driven progressive disclosure) | ⏳ |
 | ~~16~~ | ~~Збереження/завантаження (multiple saves за client_token)~~ | ✅ |
