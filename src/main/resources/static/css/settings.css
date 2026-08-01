@@ -44,6 +44,35 @@
 }
 .btn-danger:hover { background: #3a1212; }
 
+.btn-primary {
+    background: rgba(12, 48, 72, 0.9);
+    border: none;
+    color: #7dd3fc;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.btn-primary:hover { background: #0e3d5c; }
+
+.settings-row.column { flex-direction: column; align-items: stretch; gap: 8px; }
+.save-transfer-actions { display: flex; gap: 8px; }
+.save-transfer-textarea {
+    width: 100%;
+    min-height: 90px;
+    resize: vertical;
+    background: rgba(13, 13, 20, 0.9);
+    color: #ddd;
+    border: 1px solid #1e1e2a;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    font-family: ui-monospace, monospace;
+}
+.save-transfer-status { font-size: 11px; color: #666; min-height: 14px; }
+.save-transfer-status.ok { color: #7dd3fc; }
+.save-transfer-status.err { color: #fca5a5; }
+
 /* Toggle switch */
 .toggle {
     position: relative;

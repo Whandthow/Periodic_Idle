@@ -77,3 +77,51 @@ async function addResourceExp(code, delta) {
     console.error('addResourceExp failed', e);
   }
 }
+
+function setSaveTransferStatus(text, ok) {
+  var el = document.getElementById('save-transfer-status');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'save-transfer-status' + (ok === true ? ' ok' : ok === false ? ' err' : '');
+}
+
+async function exportSaveToTextarea() {
+  var textarea = document.getElementById('save-transfer-text');
+  try {
+    var res = await fetch('/api/save-export/' + SAVE_ID);
+    if (!res.ok) throw new Error(await res.text());
+    var data = await res.json();
+    textarea.value = JSON.stringify(data, null, 2);
+    setSaveTransferStatus('Готово. Скопіюй текст вище.', true);
+  } catch (e) {
+    console.error('exportSaveToTextarea failed', e);
+    setSaveTransferStatus('Не вийшло експортувати збереження', false);
+  }
+}
+
+async function importSaveFromTextarea() {
+  var textarea = document.getElementById('save-transfer-text');
+  var parsed;
+  try {
+    parsed = JSON.parse(textarea.value);
+  } catch (e) {
+    setSaveTransferStatus('Невалідний JSON', false);
+    return;
+  }
+  if (!confirm('Замінити поточний прогрес даними з textarea?')) return;
+  try {
+    var res = await fetch('/api/save-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saveId: SAVE_ID, data: parsed })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    setSaveTransferStatus('Імпортовано успішно.', true);
+    await fetchState();
+    await fetchGenerators();
+    await fetchUpgrades();
+  } catch (e) {
+    console.error('importSaveFromTextarea failed', e);
+    setSaveTransferStatus('Не вийшло імпортувати: ' + e.message, false);
+  }
+}

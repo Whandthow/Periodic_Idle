@@ -163,7 +163,7 @@ periodic-idle/
 │   │       │   │   ├── stats.js                # вкладка "Статистика" (/api/stats)
 │   │       │   │   ├── periodic-table.js      # Тір 2: періодична таблиця + синтез
 │   │       │   │   ├── nav.js                 # сайдбар/tier-навігація
-│   │       │   │   └── dev.js                 # dev-інструменти (tick speed, add exp)
+│   │       │   │   └── dev.js                 # dev-інструменти (tick speed, add exp) + save export/import
 │   │       │   └── img/                       # іконки ресурсів і генераторів
 │   │       │
 │   │       └── db/migration/                  # Flyway SQL
@@ -586,7 +586,6 @@ spring:
 - Тести: 176+ passed
 
 **Відомі прогалини:**
-- SaveTransferService (export/import) не має UI-кнопок у Settings — тільки backend
 - Баланс V12 — перший прохід, не грано наживо; можливе подальше тонке налаштування (`docs/balance.md`)
 
 ---
@@ -611,7 +610,7 @@ spring:
 | 14 | Досягнення (achievements system) | ⏳ |
 | 15 | Unlock conditions (data-driven progressive disclosure) | ⏳ |
 | ~~16~~ | ~~Збереження/завантаження (multiple saves за client_token)~~ | ✅ |
-| 16b | Мануальний save export/import — UI-кнопки в Settings (backend готовий) | ⏳ |
+| ~~16b~~ | ~~Мануальний save export/import — UI-кнопки в Settings~~ | ✅ |
 | 17 | Production PostgreSQL profile | ⏳ |
 | 18 | Статистика гри (час гри, кількість престижів, тощо — частково є через /api/stats) | 🔶 |
 | 19 | Tier 3+: зорі, нуклеосинтез | ⏳ |

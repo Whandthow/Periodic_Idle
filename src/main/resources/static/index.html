@@ -290,6 +290,23 @@
 
       <div class="settings-divider"></div>
 
+      <div class="panel-title" style="margin-top:8px">Збереження</div>
+
+      <div class="settings-row column">
+        <div class="settings-label">
+          Мануальний export/import
+          <div class="settings-hint">Скопіюй JSON, щоб перенести прогрес на інший пристрій, або встав раніше збережений</div>
+        </div>
+        <textarea id="save-transfer-text" class="save-transfer-textarea" placeholder="JSON збереження з'явиться тут після експорту"></textarea>
+        <div class="save-transfer-actions">
+          <button class="btn-primary" onclick="exportSaveToTextarea()">Експортувати</button>
+          <button class="btn-primary" onclick="importSaveFromTextarea()">Імпортувати</button>
+        </div>
+        <div id="save-transfer-status" class="save-transfer-status"></div>
+      </div>
+
+      <div class="settings-divider"></div>
+
       <div class="settings-row danger">
         <div class="settings-label">
           Скинути збереження
@@ -304,17 +321,17 @@
 </main>
 
 <!-- JS модулі (порядок важливий: залежності спочатку) -->
-<script src="/js/config.js?v=22"></script>
-<script src="/js/utils.js?v=22"></script>
-<script src="/js/nav.js?v=22"></script>
-<script src="/js/resources.js?v=22"></script>
-<script src="/js/generators.js?v=22"></script>
-<script src="/js/upgrades.js?v=22"></script>
-<script src="/js/dev.js?v=22"></script>
-<script src="/js/upgrade-info.js?v=22"></script>
-<script src="/js/matter.js?v=22"></script>
-<script src="/js/stats.js?v=22"></script>
-<script src="/js/periodic-table.js?v=22"></script>
-<script src="/js/main.js?v=22"></script>
+<script src="/js/config.js?v=23"></script>
+<script src="/js/utils.js?v=23"></script>
+<script src="/js/nav.js?v=23"></script>
+<script src="/js/resources.js?v=23"></script>
+<script src="/js/generators.js?v=23"></script>
+<script src="/js/upgrades.js?v=23"></script>
+<script src="/js/dev.js?v=23"></script>
+<script src="/js/upgrade-info.js?v=23"></script>
+<script src="/js/matter.js?v=23"></script>
+<script src="/js/stats.js?v=23"></script>
+<script src="/js/periodic-table.js?v=23"></script>
+<script src="/js/main.js?v=23"></script>
 </body>
 </html>
