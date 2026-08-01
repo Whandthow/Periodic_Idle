@@ -56,13 +56,13 @@ graph TD
     web --> content
     web --> player
 
-    engine["engine<br/>GameEngine, GeneratorService, UpgradeService,<br/>PrestigeService, ExchangeService, AutoBuyService,<br/>MatterService, SynthesisService, ParticleBonus,<br/>SaveService, SaveTransferService"] --> common
+    engine["engine<br/>GameEngine, GeneratorService, UpgradeService,<br/>PrestigeService, ExchangeService, AutoBuyService,<br/>MatterService, SynthesisService, ParticleBonus,<br/>SaveService, SaveTransferService, AchievementService"] --> common
     engine --> content
     engine --> player
 
-    player["player<br/>Save, PlayerResource, PlayerGenerator,<br/>PlayerUpgrade, PlayerElement + repositories"] --> content
+    player["player<br/>Save, PlayerResource, PlayerGenerator,<br/>PlayerUpgrade, PlayerElement, PlayerAchievement + repositories"] --> content
 
-    content["content<br/>Resource, Generator, GeneratorInput/Output,<br/>Upgrade, Element + repositories"]
+    content["content<br/>Resource, Generator, GeneratorInput/Output,<br/>Upgrade, Element, Achievement + repositories"]
 
     common["common<br/>BigNum"] --> exception
     exception["exception<br/>canNotSubtractBigNumException,<br/>dividedByZeroException,<br/>negativeNumberInBigNumException"]
@@ -100,7 +100,9 @@ periodic-idle/
 │   │   │   │   ├── Element.java               # Тір 2: атомний номер, символ, оболонки, рецепт p/n/e
 │   │   │   │   ├── ElementRepository.java
 │   │   │   │   ├── TierUnlockCondition.java   # tier → resource, minLog10 (OR-умова розблокування)
-│   │   │   │   └── TierUnlockConditionRepository.java
+│   │   │   │   ├── TierUnlockConditionRepository.java
+│   │   │   │   ├── Achievement.java           # code, conditionType, resource, threshold (data-driven)
+│   │   │   │   └── AchievementRepository.java
 │   │   │   │
 │   │   │   ├── player/                        # мутабельний стан гравця
 │   │   │   │   ├── Save.java                  # id, playerName, lastTick, brokenInfinity,
@@ -113,7 +115,9 @@ periodic-idle/
 │   │   │   │   ├── PlayerUpgrade.java         # save → upgrade, level
 │   │   │   │   ├── PlayerUpgradeRepository.java
 │   │   │   │   ├── PlayerElement.java         # save → element, count (скільки синтезовано)
-│   │   │   │   └── PlayerElementRepository.java
+│   │   │   │   ├── PlayerElementRepository.java
+│   │   │   │   ├── PlayerAchievement.java     # save → achievement, unlockedAt
+│   │   │   │   └── PlayerAchievementRepository.java
 │   │   │   │
 │   │   │   ├── engine/                        # ігрова логіка
 │   │   │   │   ├── GameEngine.java            # @Scheduled tick, computeProduction, множники,
@@ -128,13 +132,14 @@ periodic-idle/
 │   │   │   │   ├── MatterService.java         # Тір 1: колапс матерії, Break Infinity
 │   │   │   │   ├── SynthesisService.java      # Тір 2: синтез атомів з p/n/e
 │   │   │   │   ├── SaveService.java           # findOrCreateByToken (ізольований save на браузер)
-│   │   │   │   └── SaveTransferService.java   # мануальний export/import save як JSON
+│   │   │   │   ├── SaveTransferService.java   # мануальний export/import save як JSON
+│   │   │   │   └── AchievementService.java    # checkAndUnlock (на кожен /api/state), listWithStatus
 │   │   │   │
 │   │   │   ├── web/                           # REST API
 │   │   │   │   ├── GameController.java        # /api/state, /api/buy-*, /api/prestige, /api/exchange,
 │   │   │   │   │                              # /api/matter-*, /api/break-infinity, /api/stats,
 │   │   │   │   │                              # /api/elements, /api/synthesize, /api/save-*,
-│   │   │   │   │                              # /api/tier-unlocks
+│   │   │   │   │                              # /api/tier-unlocks, /api/achievements
 │   │   │   │   └── DevController.java         # /api/dev/tick-speed, /api/dev/add-exp
 │   │   │   │
 │   │   │   └── exception/                     # кастомні винятки
@@ -155,7 +160,8 @@ periodic-idle/
 │   │       │   │   ├── settings.css           # сторінка налаштувань, toggle switch
 │   │       │   │   ├── matter.css             # Тір 1: колапс матерії + грейди/Break Infinity
 │   │       │   │   ├── stats.css              # вкладка "Статистика"
-│   │       │   │   └── periodic-table.css     # Тір 2: таблиця + анімація орбіт
+│   │       │   │   ├── periodic-table.css     # Тір 2: таблиця + анімація орбіт
+│   │       │   │   └── achievements.css       # сторінка досягнень (картки locked/unlocked)
 │   │       │   ├── js/
 │   │       │   │   ├── main.js                # точка входу: bootstrap токена, game loop
 │   │       │   │   ├── config.js              # SAVE_ID, TIERS, TIER_UNLOCK_CONDITIONS, ICONS
@@ -167,7 +173,8 @@ periodic-idle/
 │   │       │   │   ├── matter.js              # Тір 1: колапс матерії + Break Infinity
 │   │       │   │   ├── stats.js                # вкладка "Статистика" (/api/stats)
 │   │       │   │   ├── periodic-table.js      # Тір 2: періодична таблиця + синтез
-│   │       │   │   ├── nav.js                 # сайдбар/tier-навігація, fetchTierUnlocks
+│   │       │   │   ├── achievements.js        # сторінка досягнень, /api/achievements
+│   │       │   │   ├── nav.js                 # сайдбар/tier-навігація, fetchTierUnlocks, openAchievements
 │   │       │   │   └── dev.js                 # dev-інструменти (tick speed, add exp) + save export/import
 │   │       │   └── img/                       # іконки ресурсів і генераторів
 │   │       │
@@ -184,7 +191,8 @@ periodic-idle/
 │   │           ├── V10__save_matter_flags.sql
 │   │           ├── V11__periodic_table.sql
 │   │           ├── V12__long_game_balance.sql
-│   │           └── V13__tier_unlock_conditions.sql
+│   │           ├── V13__tier_unlock_conditions.sql
+│   │           └── V14__achievements.sql
 │   │
 │   └── test/java/com/periodic/idle/
 │       ├── BigNumTest.java
@@ -465,6 +473,19 @@ crystals = 10^(base_log10 + log10(crystalGainMult * electronCrystalMult))
 
 Рецепт: `cost_protons = Z`, `cost_electrons = Z`, `cost_neutrons = mass_number(найпоширенішого ізотопу) - Z`. Приклади: H = 1p+0n+1e, He = 2p+2n+2e. Прогресія послідовна — елемент Z доступний для синтезу лише якщо елемент Z-1 вже синтезовано хоча б раз. `synthesizeBulk(amount=-1)` синтезує максимум за наявні частинки.
 
+### 7.7 Досягнення (AchievementService)
+
+Data-driven, одноразові умови над станом save (таблиця `achievements`, посіяна Flyway). `condition_type` визначає інтерпретацію `resource_id`/`threshold`:
+
+| condition_type | Умова |
+|-----------------|-------|
+| `RESOURCE_LOG10` | `log10(number) + exponent >= threshold` для вказаного `resource_id` |
+| `MATTER_COLLAPSES` | `save.matterCollapses >= threshold` |
+| `ELEMENTS_SYNTHESIZED` | кількість елементів з `player_elements.count > 0` `>= threshold` |
+| `BROKEN_INFINITY` | `save.brokenInfinity == true` (threshold ігнорується) |
+
+`checkAndUnlock(saveId)` перевіряє лише ще не розблоковані досягнення й вставляє рядок у `player_achievements` (унікальний по `save_id + achievement_id`, дата фіксується). Викликається на кожному `/api/state` (кожні ~1.5с незалежно від активної вкладки) — це навмисно: короткочасний пік (напр. енергія прямо перед престижем) інакше міг би не встигнути зафіксуватись, якби перевірка була лише при відкритій вкладці "Досягнення". Окремий `GET /api/achievements/{saveId}` теж викликає перевірку і повертає повний список з прапором `unlocked`/`unlockedAt` для UI.
+
 ---
 
 ## 8. Тіри гри (ігровий дизайн)
@@ -505,6 +526,7 @@ crystals = 10^(base_log10 + log10(crystalGainMult * electronCrystalMult))
 | GET | `/api/stats/{saveId}` | Множники й per-generator розбивка |
 | GET | `/api/elements/{saveId}` | Періодична таблиця з прапором `unlocked`/`count` |
 | GET | `/api/tier-unlocks` | Data-driven умови розблокування тірів (без saveId — однакові для всіх) |
+| GET | `/api/achievements/{saveId}` | Перевіряє і повертає список досягнень з прапором `unlocked`/`unlockedAt` |
 
 ### Дії гравця
 | Method | Path | Body | Опис |
@@ -599,12 +621,13 @@ spring:
 - MatterService: колапс матерії + Break Infinity (Тір 1)
 - SynthesisService: синтез атомів 1-36 з послідовною прогресією (Тір 2)
 - TierUnlockCondition: data-driven умови розблокування тірів (OR за рядками), фронтенд без хардкоду
+- AchievementService: 15 data-driven досягнень (RESOURCE_LOG10, MATTER_COLLAPSES, ELEMENTS_SYNTHESIZED, BROKEN_INFINITY), перевірка на кожен /api/state
 - SaveService: ізольований save на кожен client_token (справжній multi-account)
-- SaveTransferService: мануальний export/import save як JSON (тільки backend — UI кнопки ще не підключені)
+- SaveTransferService: мануальний export/import save як JSON, з UI-кнопками в Settings
 - GameController: повний REST API (стан, купівлі, престиж, обмін, матерія, статистика, елементи, save-transfer)
 - DevController: tick-speed, add-exp
 - Фронтенд: сайдбар/тіри, ресурси, генератори, апгрейди, престиж, колапс матерії, грейди/Break Infinity, статистика, періодична таблиця з анімованою моделлю Бора
-- Flyway міграції V1-V13 (включно з довгограйним ребалансом і data-driven unlock conditions)
+- Flyway міграції V1-V14 (включно з довгограйним ребалансом, data-driven unlock conditions і досягненнями)
 - Тести: 176+ passed
 
 **Відомі прогалини:**
@@ -629,7 +652,7 @@ spring:
 | ~~11~~ | ~~Tier 2: періодична таблиця, синтез атомів~~ | ✅ |
 | 12 | Баланс Tier 0 — перший прохід під довгу гру зроблено (V12), потрібне живе тестування | 🔶 |
 | ~~13~~ | ~~Offline progress (наздоганяючий прогрес на старті сервера)~~ | ✅ |
-| 14 | Досягнення (achievements system) | ⏳ |
+| ~~14~~ | ~~Досягнення (achievements system)~~ | ✅ |
 | ~~15~~ | ~~Unlock conditions (data-driven progressive disclosure)~~ | ✅ |
 | ~~16~~ | ~~Збереження/завантаження (multiple saves за client_token)~~ | ✅ |
 | ~~16b~~ | ~~Мануальний save export/import — UI-кнопки в Settings~~ | ✅ |

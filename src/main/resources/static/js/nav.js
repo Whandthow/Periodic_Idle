@@ -100,6 +100,7 @@ function activatePage(name) {
   if (name === 'stats' && typeof fetchStats === 'function') fetchStats();
   if (name === 'stats' && typeof renderStatsPage === 'function') renderStatsPage();
   if (name === 'periodic_table' && typeof fetchElements === 'function') fetchElements();
+  if (name === 'achievements' && typeof fetchAchievements === 'function') fetchAchievements();
 }
 
 function toggleTierDrawer() {
@@ -147,6 +148,20 @@ function showPage(name, el, keepDrawerOpen) {
   if (el) el.classList.add('active');
   if (!keepDrawerOpen && isCompactNav()) closeTierDrawer();
   activatePage(name);
+}
+
+// Відкриття досягнень: ховаємо другу панель + показуємо сторінку досягнень (як openSettings).
+function openAchievements(el) {
+  document.body.classList.add('settings-open');
+  document.body.classList.remove('subnav-pinned');
+  closeTierDrawer();
+  document.querySelectorAll('.tier-btn').forEach(function(b) { b.classList.remove('active'); });
+  if (el) el.classList.add('active');
+
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  var page = document.getElementById('page-achievements');
+  if (page) page.classList.add('active');
+  activatePage('achievements');
 }
 
 // Відкриття налаштувань: ховаємо другу панель + показуємо сторінку налаштувань
