@@ -15,10 +15,17 @@ import java.util.List;
  * Тір 2: синтез атомів з протонів/нейтронів/електронів за рецептом елемента.
  * Прогресія послідовна: елемент Z &gt; 1 доступний лише якщо елемент Z-1 вже синтезовано хоч раз.
  *
- * <p>Наукова концепція (CLAUDE.md, розділ 1): синтез враховує реальну криву питомої
- * енергії зв'язку ядра (SEMF/Вайцзеккер, {@link BindingEnergy}). Елементи легші за
- * залізо-56 — екзотермічні (синтез повертає енергію в E, як термоядерний синтез у зорі);
- * елементи важчі за залізо — ендотермічні (синтез коштує E, як r-process у наднових).
+ * <p>Наукова концепція (CLAUDE.md, розділ 1): нуклеосинтез розділений на дві реальні фази.
+ * <b>Первинний</b> (Big Bang nucleosynthesis, Z&lt;=3 — H, He, Li) доступний одразу, як і
+ * первинному Всесвіту вистачило лічених хвилин розширення й охолодження. <b>Зоряний</b>
+ * (C-N-O-цикл, Z&gt;=4) вимагає "запаленої зорі" — гравець повинен спершу накопичити
+ * достатньо гелію (паливо), як реальна протозоря повинна досягти критичної маси, перш
+ * ніж гравітаційний тиск запустить термоядерний синтез важчих елементів.
+ *
+ * <p>Синтез також враховує реальну криву питомої енергії зв'язку ядра (SEMF/Вайцзеккер,
+ * {@link BindingEnergy}). Елементи легші за залізо-56 — екзотермічні (синтез повертає
+ * енергію в E, як термоядерний синтез у зорі); елементи важчі за залізо — ендотермічні
+ * (синтез коштує E, як r-process у наднових).
  */
 @Service
 @RequiredArgsConstructor
@@ -29,6 +36,16 @@ public class SynthesisService {
 
     /** Залізо-56 — пік кривої енергії зв'язку: межа "самопідтримного" термоядерного синтезу зорі. */
     private static final int IRON_ATOMIC_NUMBER = 26;
+
+    /** H, He, Li — усе, що встиг дати первинний нуклеосинтез за перші ~20хв після Великого вибуху. */
+    public static final int PRIMORDIAL_MAX_ATOMIC_NUMBER = 3;
+
+    /**
+     * Скільки атомів гелію потрібно накопичити, щоб "запалити зорю" (умовний поріг критичної
+     * маси протозорі) і відкрити зоряний нуклеосинтез (Z&gt;=4). Перший прохід — потребує
+     * живого тестування (docs/balance.md).
+     */
+    public static final long STELLAR_IGNITION_HELIUM_COUNT = 1_000L;
 
     /**
      * Масштаб переведення МеВ у ігрові одиниці E. Перший прохід (як V12-баланс) —
@@ -55,6 +72,11 @@ public class SynthesisService {
 
         if (element.getAtomicNumber() > 1 && !previousDiscovered(saveId, element)) {
             throw new RuntimeException("Спочатку синтезуйте попередній елемент у таблиці");
+        }
+        if (element.getAtomicNumber() > PRIMORDIAL_MAX_ATOMIC_NUMBER
+                && heliumCount(saveId) < STELLAR_IGNITION_HELIUM_COUNT) {
+            throw new RuntimeException("Потрібна зоря: накопичте " + STELLAR_IGNITION_HELIUM_COUNT
+                    + " гелію, щоб запустити зоряний нуклеосинтез (C-N-O-цикл)");
         }
 
         Save save = saveRepository.findById(saveId)
@@ -167,6 +189,20 @@ public class SynthesisService {
         return playerElementRepository.findBySaveId(saveId).stream()
                 .anyMatch(pe -> pe.getElement().getAtomicNumber() == element.getAtomicNumber() - 1
                         && pe.getCount() > 0);
+    }
+
+    /** Скільки атомів гелію (Z=2) синтезовано — "паливо" для запалення зорі. */
+    public long heliumCount(Long saveId) {
+        return playerElementRepository.findBySaveId(saveId).stream()
+                .filter(pe -> pe.getElement().getAtomicNumber() == 2)
+                .mapToLong(PlayerElement::getCount)
+                .findFirst()
+                .orElse(0L);
+    }
+
+    /** Чи відкритий зоряний нуклеосинтез (Z&gt;=4) для цього save. */
+    public boolean isStellarIgnited(Long saveId) {
+        return heliumCount(saveId) >= STELLAR_IGNITION_HELIUM_COUNT;
     }
 
     private long maxAffordable(long available, long cost) {

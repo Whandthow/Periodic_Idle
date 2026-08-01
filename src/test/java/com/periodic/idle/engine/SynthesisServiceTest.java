@@ -147,6 +147,77 @@ class SynthesisServiceTest {
         verifyNoInteractions(elementRepository);
     }
 
+    // === Наукова концепція: первинний vs зоряний нуклеосинтез ===
+
+    @Test
+    @DisplayName("synthesizeBulk: Li (Z=3, первинний) не потребує запаленої зорі")
+    void synthesize_lithium_primordial_noStarRequired() {
+        Element lithium = createElement(3L, 3, "Li", 3, 4, 3);
+        PlayerElement existingHe = new PlayerElement();
+        existingHe.setElement(helium);
+        existingHe.setCount(1); // мало гелію — зоря НЕ запалена
+
+        when(elementRepository.findById(3L)).thenReturn(Optional.of(lithium));
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(existingHe));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(baseResources());
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+
+        long got = synthesisService.synthesizeBulk(1L, 3L, 1);
+
+        assertEquals(1, got);
+    }
+
+    @Test
+    @DisplayName("synthesizeBulk: Be (Z=4, зоряний) без запаленої зорі -> кидає помилку")
+    void synthesize_beryllium_withoutIgnitedStar_throws() {
+        Element beryllium = createElement(4L, 4, "Be", 4, 5, 4);
+        PlayerElement existingLi = new PlayerElement();
+        existingLi.setElement(createElement(3L, 3, "Li", 3, 4, 3));
+        existingLi.setCount(1);
+        PlayerElement smallHelium = new PlayerElement();
+        smallHelium.setElement(helium);
+        smallHelium.setCount(5); // набагато менше порогу 1000
+
+        when(elementRepository.findById(4L)).thenReturn(Optional.of(beryllium));
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(existingLi, smallHelium));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> synthesisService.synthesizeBulk(1L, 4L, 1));
+        assertTrue(ex.getMessage().contains("зоря"), "повідомлення мало пояснювати потребу в зорі: " + ex.getMessage());
+        verifyNoInteractions(playerResourceRepository);
+    }
+
+    @Test
+    @DisplayName("synthesizeBulk: Be (Z=4, зоряний) із запаленою зорею (>=1000 He) — успішно")
+    void synthesize_beryllium_withIgnitedStar_success() {
+        Element beryllium = createElement(4L, 4, "Be", 4, 5, 4);
+        PlayerElement existingLi = new PlayerElement();
+        existingLi.setElement(createElement(3L, 3, "Li", 3, 4, 3));
+        existingLi.setCount(1);
+        PlayerElement ignitedStar = ignitedStarHelium();
+
+        when(elementRepository.findById(4L)).thenReturn(Optional.of(beryllium));
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(existingLi, ignitedStar));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(baseResources());
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+
+        long got = synthesisService.synthesizeBulk(1L, 4L, 1);
+
+        assertEquals(1, got);
+    }
+
+    @Test
+    @DisplayName("heliumCount/isStellarIgnited відображають поточний стан гелію")
+    void heliumCountAndIgnition_reflectState() {
+        PlayerElement smallHelium = new PlayerElement();
+        smallHelium.setElement(helium);
+        smallHelium.setCount(42);
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(smallHelium));
+
+        assertEquals(42, synthesisService.heliumCount(1L));
+        assertFalse(synthesisService.isStellarIgnited(1L));
+    }
+
     // === Наукова концепція: енергія зв'язку ядра (SEMF) ===
 
     @Test
@@ -162,9 +233,10 @@ class SynthesisServiceTest {
         Element prev = createElement(29L, 29, "Cu*", 29, 34, 29);
         existingPrev.setElement(prev);
         existingPrev.setCount(1);
+        PlayerElement ignitedStar = ignitedStarHelium();
 
         when(elementRepository.findById(30L)).thenReturn(Optional.of(zincLike));
-        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(existingPrev));
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(existingPrev, ignitedStar));
         when(playerResourceRepository.findBySaveId(1L)).thenReturn(baseResources());
         when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
 
@@ -189,9 +261,10 @@ class SynthesisServiceTest {
         Element prev = createElement(29L, 29, "Cu*", 29, 34, 29);
         existingPrev.setElement(prev);
         existingPrev.setCount(1);
+        PlayerElement ignitedStar = ignitedStarHelium();
 
         when(elementRepository.findById(30L)).thenReturn(Optional.of(zincLike));
-        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(existingPrev));
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(existingPrev, ignitedStar));
         when(playerResourceRepository.findBySaveId(1L)).thenReturn(baseResources());
         when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
 
@@ -219,6 +292,14 @@ class SynthesisServiceTest {
 
         assertEquals(GameEngine.ENERGY_CAP_EXPONENT, energy.getExponent());
         assertEquals(1.0, energy.getNumber(), 1e-9);
+    }
+
+    /** He (Z=2) з count >= STELLAR_IGNITION_HELIUM_COUNT — "запалена зоря" для тестів зоряного нуклеосинтезу. */
+    private PlayerElement ignitedStarHelium() {
+        PlayerElement pe = new PlayerElement();
+        pe.setElement(helium);
+        pe.setCount(SynthesisService.STELLAR_IGNITION_HELIUM_COUNT);
+        return pe;
     }
 
     private Element createElement(Long id, int atomicNumber, String symbol,

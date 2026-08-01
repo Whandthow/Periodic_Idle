@@ -378,6 +378,37 @@ class GameControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/elements/1 — елемент Z=4 (зоряний) locked без запаленої зорі, з поясненням")
+    void getElements_starGate_lockedWithReason() throws Exception {
+        Element beryllium = newElementWithAtomicNumber(10L, 4);
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(elementRepository.findAll()).thenReturn(List.of(beryllium));
+        when(synthesisService.heliumCount(1L)).thenReturn(5L);
+
+        mockMvc.perform(get("/api/elements/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].requiresStar").value(true))
+                .andExpect(jsonPath("$[0].unlocked").value(false))
+                .andExpect(jsonPath("$[0].lockedReason").value(org.hamcrest.Matchers.containsString("зоря")));
+    }
+
+    private Element newElementWithAtomicNumber(Long id, int atomicNumber) {
+        try {
+            var c = Element.class.getDeclaredConstructor();
+            c.setAccessible(true);
+            Element el = c.newInstance();
+            org.springframework.test.util.ReflectionTestUtils.setField(el, "id", id);
+            org.springframework.test.util.ReflectionTestUtils.setField(el, "atomicNumber", atomicNumber);
+            org.springframework.test.util.ReflectionTestUtils.setField(el, "symbol", "X");
+            org.springframework.test.util.ReflectionTestUtils.setField(el, "name", "Test");
+            org.springframework.test.util.ReflectionTestUtils.setField(el, "shellConfig", "2,2");
+            return el;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
     @DisplayName("POST /api/synthesize — успішний синтез")
     void synthesize_success() throws Exception {
         when(synthesisService.synthesizeBulk(1L, 1L, 1)).thenReturn(1L);
