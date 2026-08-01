@@ -133,7 +133,8 @@ periodic-idle/
 │   │   │   │
 │   │   │   ├── player/                        # мутабельний стан гравця
 │   │   │   │   ├── Save.java                  # id, playerName, lastTick, brokenInfinity,
-│   │   │   │   │                              # matterCollapses, autobuyEnabled, clientToken
+│   │   │   │   │                              # matterCollapses, autobuyEnabled,
+│   │   │   │   │                              # autoSynthesizeEnabled, clientToken
 │   │   │   │   ├── SaveRepository.java        # findByClientToken
 │   │   │   │   ├── PlayerResource.java        # save → resource, number, exponent
 │   │   │   │   ├── PlayerResourceRepository.java
@@ -157,6 +158,7 @@ periodic-idle/
 │   │   │   │   ├── PrestigeService.java       # prestige, hardReset, calcPotentialGain
 │   │   │   │   ├── ExchangeService.java       # splitCrystals (VC → p, n, e)
 │   │   │   │   ├── AutoBuyService.java        # @Scheduled автокупівля генераторів
+│   │   │   │   ├── AutoSynthesizeService.java # @Scheduled автосинтез елементів + молекул
 │   │   │   │   ├── ParticleBonus.java         # пасивні бонуси Tier1-частинок до Tier0
 │   │   │   │   ├── MatterService.java         # Тір 1: колапс матерії, Break Infinity
 │   │   │   │   ├── SynthesisService.java      # Тір 2: синтез атомів з p/n/e
@@ -226,7 +228,8 @@ periodic-idle/
 │   │           ├── V12__long_game_balance.sql
 │   │           ├── V13__tier_unlock_conditions.sql
 │   │           ├── V14__achievements.sql
-│   │           └── V15__molecules.sql
+│   │           ├── V15__molecules.sql
+│   │           └── V16__auto_synthesize.sql
 │   │
 │   └── test/java/com/periodic/idle/
 │       ├── BigNumTest.java
@@ -246,7 +249,8 @@ periodic-idle/
 │       │   ├── SaveServiceTest.java
 │       │   ├── SaveTransferServiceTest.java
 │       │   ├── AchievementServiceTest.java
-│       │   └── MoleculeServiceTest.java
+│       │   ├── MoleculeServiceTest.java
+│       │   └── AutoSynthesizeServiceTest.java
 │       └── web/
 │           └── GameControllerTest.java
 ```
@@ -433,6 +437,7 @@ logs/
 | broken_infinity | BOOLEAN |
 | matter_collapses | BIGINT |
 | autobuy_enabled | BOOLEAN |
+| auto_synthesize_enabled | BOOLEAN |
 | client_token | VARCHAR(64) UNIQUE |
 
 **`player_resources`** — кількість ресурсу як BigNum.
@@ -602,6 +607,16 @@ Data-driven, одноразові умови над станом save (табл�
 
 `GET /api/molecules/{saveId}` віддає контент+стан (формула, назва, рецепт, bondEnergyEv, count, unlocked). `POST /api/synthesize-molecule` — дія синтезу.
 
+### 7.10 Автосинтез (AutoSynthesizeService)
+
+Дзеркалить `AutoBuyService`, але для Тіру 2 (елементи) і Тіру 3 (молекули) разом: щосекунди (`AUTO_SYNTHESIZE_INTERVAL_MS=1000`, рідше за game tick — синтез не такий чутливий до затримки) для кожного save з `save.autoSynthesizeEnabled=true` намагається `synthesizeBulk(saveId, id, -1)` для **кожного** елемента і **кожної** молекули в грі, ігноруючи помилки окремого пункту (недостатньо частинок/атомів/енергії, послідовна прогресія, незапалена зоря) — так само, як `AutoBuyService` ігнорує "не вистачає ресурсів" для окремого генератора.
+
+На відміну від `AUTOBUY` (апгрейд, effect_type=`AUTOBUY`), автосинтез — **безкоштовний player-driven тогл** (`save.autoSynthesizeEnabled`, за замовчуванням `false`), не апгрейд: у Тірів 2/3 ще немає власного дерева апгрейдів. Один прапор керує і елементами, і молекулами одночасно — вимикач не деталізований по тіру.
+
+`POST /api/autosynthesize-toggle` (mirror `autobuy-toggle`), стан читається з `/api/matter-info` (`autoSynthesizeEnabled`) — той самий "загальний бег прапорів save", де вже лежить `autobuyEnabled`. Кнопка тоглу дублюється на сторінках періодичної таблиці й молекул (`renderAutoSynthesizeToggle()` у periodic-table.js, викликається з `fetchMatterInfo()` у matter.js), обидві відображають той самий загальний стан.
+
+**Емерджентна поведінка (перевірено наживо):** оскільки авто-синтез елементів і молекул виконується в одному тіку послідовно, накопичені елементи одразу частково "з'їдаються" молекулами того ж тіку — гравець бачить не монотонне накопичення, а живий баланс виробництва/споживання, як і в реальній хімічній системі.
+
 ---
 
 ## 8. Тіри гри (ігровий дизайн)
@@ -662,7 +677,8 @@ Data-driven, одноразові умови над станом save (табл�
 | POST | `/api/prestige` | saveId | Виконати престиж |
 | POST | `/api/reset` | saveId | Повний скид |
 | POST | `/api/exchange/split` | saveId, amount | Розщепити кристали |
-| POST | `/api/autobuy-toggle` | saveId, enabled? | Перемкнути автокупівлю |
+| POST | `/api/autobuy-toggle` | saveId, enabled? | Перемкнути автокупівлю генераторів |
+| POST | `/api/autosynthesize-toggle` | saveId, enabled? | Перемкнути автосинтез елементів + молекул |
 | POST | `/api/matter-collapse` | saveId, particle | Колапс матерії (+1 частинки) |
 | POST | `/api/break-infinity` | saveId | Зняти кап `1e308` |
 | POST | `/api/synthesize` | saveId, elementId, amount | Синтезувати елемент |
@@ -753,13 +769,14 @@ spring:
 - TierUnlockCondition: data-driven умови розблокування тірів (OR за рядками), фронтенд без хардкоду
 - AchievementService: 15 data-driven досягнень (RESOURCE_LOG10, MATTER_COLLAPSES, ELEMENTS_SYNTHESIZED, BROKEN_INFINITY), перевірка на кожен /api/state
 - MoleculeService: 10 молекул (Тір 3) з реальних атомів, хімічна енергія зв'язку в тій самій шкалі, що й ядерна (розділ 7.9)
+- AutoSynthesizeService: автосинтез елементів + молекул (player-driven тогл, без апгрейду), розділ 7.10
 - SaveService: ізольований save на кожен client_token (справжній multi-account)
 - SaveTransferService: мануальний export/import save як JSON, з UI-кнопками в Settings
 - GameController: повний REST API (стан, купівлі, престиж, обмін, матерія, статистика, елементи, молекули, save-transfer)
 - DevController: tick-speed, add-exp
 - Фронтенд: сайдбар/тіри (0-3), ресурси, генератори, апгрейди, престиж, колапс матерії, грейди/Break Infinity, статистика, періодична таблиця з анімованою моделлю Бора, молекули
-- Flyway міграції V1-V15 (включно з довгограйним ребалансом, data-driven unlock conditions, досягненнями і молекулами)
-- Тести: 216+ passed
+- Flyway міграції V1-V16 (включно з довгограйним ребалансом, data-driven unlock conditions, досягненнями, молекулами й автосинтезом)
+- Тести: 224+ passed
 
 **Відомі прогалини:**
 - Баланс V12 — перший прохід, не грано наживо; можливе подальше тонке налаштування (`docs/balance.md`)
@@ -792,6 +809,7 @@ spring:
 | ~~20~~ | ~~Крива питомої енергії зв'язку в SynthesisService (екзо-/ендотермічний synthesis відносно заліза-56)~~ | ✅ |
 | ~~21~~ | ~~Розділити нуклеосинтез на первинний (Big Bang: H/He/Li) і зоряний (C-N-O аж до заліза)~~ | ✅ |
 | ~~19~~ | ~~Tier 3: молекули (H₂O, CH₄, NH₃...) з атомів, енергія хімічного зв'язку~~ | ✅ |
+| ~~23~~ | ~~Автосинтез елементів + молекул (player-driven тогл)~~ | ✅ |
 | 22 | Tier 4+: зорі (головна послідовність), важкі елементи лише через наднові/r-process | ⏳ |
 
 ---

@@ -99,6 +99,7 @@ function activatePage(name) {
   if (name === 'upgrades_t1' && typeof renderMatterUpgrades === 'function') renderMatterUpgrades();
   if (name === 'stats' && typeof fetchStats === 'function') fetchStats();
   if (name === 'stats' && typeof renderStatsPage === 'function') renderStatsPage();
+  if ((name === 'periodic_table' || name === 'molecules') && typeof fetchMatterInfo === 'function') fetchMatterInfo();
   if (name === 'periodic_table' && typeof fetchElements === 'function') fetchElements();
   if (name === 'molecules' && typeof fetchMolecules === 'function') fetchMolecules();
   if (name === 'achievements' && typeof fetchAchievements === 'function') fetchAchievements();

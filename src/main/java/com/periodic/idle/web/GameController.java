@@ -276,6 +276,7 @@ public class GameController {
         map.put("collapseReady", save.isBrokenInfinity()
                 || log10Energy >= GameEngine.ENERGY_CAP_EXPONENT);
         map.put("autobuyEnabled", save.isAutobuyEnabled());
+        map.put("autoSynthesizeEnabled", save.isAutoSynthesizeEnabled());
         return map;
     }
 
@@ -289,6 +290,18 @@ public class GameController {
         save.setAutobuyEnabled(next);
         saveRepository.save(save);
         return Map.of("status", "ok", "autobuyEnabled", next);
+    }
+
+    @PostMapping("/autosynthesize-toggle")
+    public Map<String, Object> autoSynthesizeToggle(@RequestBody Map<String, Object> request) {
+        Long saveId = ((Number) request.get("saveId")).longValue();
+        Save save = saveRepository.findById(saveId)
+                .orElseThrow(() -> new RuntimeException("Save not found"));
+        Object enabled = request.get("enabled");
+        boolean next = enabled == null ? !save.isAutoSynthesizeEnabled() : Boolean.TRUE.equals(enabled);
+        save.setAutoSynthesizeEnabled(next);
+        saveRepository.save(save);
+        return Map.of("status", "ok", "autoSynthesizeEnabled", next);
     }
 
     @PostMapping("/matter-collapse")
