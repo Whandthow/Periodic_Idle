@@ -35,6 +35,12 @@ public class GameEngine {
     /** Кап енергії: 1e308. Знімається флагом save.brokenInfinity. */
     public static final long ENERGY_CAP_EXPONENT = 308L;
 
+    /** Мінімальний розрив від lastTick, щоб вважати це офлайн-періодом (не звичайним джиттером тіку). */
+    private static final double OFFLINE_MIN_SECONDS = 2.0;
+
+    /** Максимальний офлайн-приріст за один "повернення" — щоб не нарахувати роки прогресу за збій годинника. */
+    private static final double OFFLINE_MAX_SECONDS = 24 * 60 * 60;
+
     private final SaveRepository saveRepository;
     private final PlayerResourceRepository playerResourceRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
@@ -57,12 +63,36 @@ public class GameEngine {
     public void tick() {
         List<Save> saves = saveRepository.findAll();
         for (Save save : saves) {
-            processSave(save);
+            processSave(save, TICK_INTERVAL_SEC * tickSpeedMultiplier);
             save.setLastTick(LocalDateTime.now());
         }
     }
 
-    private void processSave(Save save) {
+    /**
+     * Одноразовий наздоганяючий прогрес за час, поки сервер був вимкнений (деплой, рестарт).
+     * Викликається на старті застосунку для кожного save — рахує реальний dt від
+     * {@code lastTick} до зараз і нараховує виробництво так, ніби генератори працювали весь цей час.
+     * Не чіпає tickSpeedMultiplier (це dev-прискорення, не стосується реального офлайн-часу)
+     * і обмежене {@link #OFFLINE_MAX_SECONDS}, щоб збій годинника не подарував нескінченність одразу.
+     */
+    @Transactional
+    public void applyOfflineProgress() {
+        LocalDateTime now = LocalDateTime.now();
+        for (Save save : saveRepository.findAll()) {
+            if (save.getLastTick() == null) {
+                save.setLastTick(now);
+                continue;
+            }
+            double elapsedSeconds = java.time.Duration.between(save.getLastTick(), now).toMillis() / 1000.0;
+            if (!Double.isFinite(elapsedSeconds) || elapsedSeconds < OFFLINE_MIN_SECONDS) continue;
+
+            double dtSeconds = Math.min(elapsedSeconds, OFFLINE_MAX_SECONDS);
+            processSave(save, dtSeconds);
+            save.setLastTick(now);
+        }
+    }
+
+    private void processSave(Save save, double dtSeconds) {
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(save.getId());
         Map<Long, Double> productionPerSec = computeProduction(save.getId());
         boolean capEnergy = !save.isBrokenInfinity();
@@ -90,7 +120,7 @@ public class GameEngine {
             }
             if (!Double.isFinite(rate) || rate <= 0) continue; // захист від NaN/Infinity
 
-            double addPerTick = rate * TICK_INTERVAL_SEC * tickSpeedMultiplier;
+            double addPerTick = rate * dtSeconds;
             if (capEnergy && isEnergy && Double.isInfinite(addPerTick) && addPerTick > 0) {
                 pr.setNumber(1.0);
                 pr.setExponent(ENERGY_CAP_EXPONENT);

@@ -106,6 +106,94 @@ class GameEngineTest {
         assertDoesNotThrow(() -> gameEngine.tick());
     }
 
+    // === applyOfflineProgress ===
+
+    @Test
+    @DisplayName("applyOfflineProgress: розрив 1 годину нараховує годину виробництва одним стрибком")
+    void applyOfflineProgress_grantsElapsedProduction() {
+        save.setLastTick(LocalDateTime.now().minusHours(1));
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        gameEngine.applyOfflineProgress();
+
+        // rate/sec = 0.5, ~3600с офлайн → ~1800 енергії (з допуском на дрібні мс різниці виміру часу).
+        double total = playerEnergy.getNumber() * Math.pow(10, playerEnergy.getExponent());
+        assertTrue(total > 1700 && total < 1900,
+                "очікували ~1800 енергії за годину офлайну, отримали " + total);
+    }
+
+    @Test
+    @DisplayName("applyOfflineProgress: оновлює lastTick до поточного часу")
+    void applyOfflineProgress_updatesLastTick() {
+        save.setLastTick(LocalDateTime.now().minusHours(1));
+        LocalDateTime before = LocalDateTime.now().minusSeconds(1);
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        gameEngine.applyOfflineProgress();
+
+        assertTrue(save.getLastTick().isAfter(before));
+    }
+
+    @Test
+    @DisplayName("applyOfflineProgress: розрив менше порогу (2с) — нічого не нараховує")
+    void applyOfflineProgress_belowThreshold_noop() {
+        save.setLastTick(LocalDateTime.now().minusNanos(500_000_000));
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+
+        gameEngine.applyOfflineProgress();
+
+        assertEquals(0, playerEnergy.getNumber(), 0.001);
+        verifyNoInteractions(playerResourceRepository, playerGeneratorRepository, playerUpgradeRepository);
+    }
+
+    @Test
+    @DisplayName("applyOfflineProgress: капається на 24 години навіть якщо розрив був тижнем")
+    void applyOfflineProgress_cappedAt24Hours() {
+        save.setLastTick(LocalDateTime.now().minusDays(7));
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        gameEngine.applyOfflineProgress();
+
+        // Кап 24h: rate 0.5/сек * 86400с = 43200 енергії (не 0.5 * 7 * 86400 = 302400).
+        double total = playerEnergy.getNumber() * Math.pow(10, playerEnergy.getExponent());
+        assertTrue(total > 40000 && total < 45000,
+                "очікували ~43200 енергії (кап 24h), отримали " + total);
+    }
+
+    @Test
+    @DisplayName("applyOfflineProgress: null lastTick лише виставляє now без нарахування")
+    void applyOfflineProgress_nullLastTick_setsNowOnly() {
+        save.setLastTick(null);
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+
+        assertDoesNotThrow(() -> gameEngine.applyOfflineProgress());
+
+        assertNotNull(save.getLastTick());
+        assertEquals(0, playerEnergy.getNumber(), 0.001);
+    }
+
+    @Test
+    @DisplayName("applyOfflineProgress: без saves — нічого не падає")
+    void applyOfflineProgress_noSaves_noop() {
+        when(saveRepository.findAll()).thenReturn(new ArrayList<>());
+
+        assertDoesNotThrow(() -> gameEngine.applyOfflineProgress());
+    }
+
     // === processSave — базова генерація ===
 
     @Test
