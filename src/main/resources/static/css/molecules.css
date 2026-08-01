@@ -1,0 +1,83 @@
+/* === Тір 3: Молекули ============================================ */
+.molecules-panel { max-width: 900px; }
+
+.molecules-intro {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 14px;
+}
+
+.molecules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.molecule-card {
+    position: relative;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(20, 20, 28, 0.85);
+    border: 1px solid #1e1e2a;
+    text-align: center;
+}
+
+.molecule-card.discovered {
+    border-color: rgba(125, 211, 252, 0.4);
+    box-shadow: 0 0 10px rgba(125, 211, 252, 0.08);
+}
+
+.molecule-card.locked { opacity: 0.5; }
+
+.molecule-card-badge {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 11px;
+    color: #7dd3fc;
+}
+
+.molecule-card-formula {
+    font-size: 20px;
+    font-weight: 700;
+    color: #e0e0e0;
+}
+.molecule-card.discovered .molecule-card-formula { color: #7dd3fc; }
+
+.molecule-card-name {
+    font-size: 12px;
+    color: #999;
+    margin-top: 2px;
+}
+
+.molecule-card-recipe {
+    font-size: 11px;
+    color: #cbd5e1;
+    margin-top: 8px;
+}
+
+.molecule-card-energy {
+    font-size: 10px;
+    color: #7dd3fc;
+    margin-top: 4px;
+}
+
+.molecule-synth-btn {
+    margin-top: 10px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #7dd3fc;
+    background: rgba(125, 211, 252, 0.12);
+    color: #7dd3fc;
+    cursor: pointer;
+    font-size: 12px;
+}
+.molecule-synth-btn:hover:not(:disabled) { background: rgba(125, 211, 252, 0.25); }
+.molecule-synth-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.molecule-card-msg {
+    margin-top: 6px;
+    font-size: 10px;
+    color: #fca5a5;
+    min-height: 12px;
+}

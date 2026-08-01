@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="/css/stats.css?v=23">
   <link rel="stylesheet" href="/css/periodic-table.css?v=24">
   <link rel="stylesheet" href="/css/achievements.css?v=1">
+  <link rel="stylesheet" href="/css/molecules.css?v=1">
 </head>
 <body>
 
@@ -43,6 +44,16 @@
   <div class="tier-btn locked" id="tier-btn-2" onclick="selectTier(2, this)">
     <img src="/img/AtomTear2.png" alt="Atoms" loading="lazy" decoding="async" width="42" height="42">
     <span>Атоми</span>
+  </div>
+  <div class="tier-btn locked" id="tier-btn-3" onclick="selectTier(3, this)">
+    <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="6" cy="7" r="3"></circle>
+      <circle cx="18" cy="7" r="3"></circle>
+      <circle cx="12" cy="18" r="3.5"></circle>
+      <line x1="8.6" y1="8.6" x2="10" y2="15"></line>
+      <line x1="15.4" y1="8.6" x2="14" y2="15"></line>
+    </svg>
+    <span>Молекули</span>
   </div>
 
   <div class="sidebar-spacer"></div>
@@ -229,6 +240,14 @@
     </div>
   </div>
 
+  <div id="page-molecules" class="page">
+    <div class="panel molecules-panel">
+      <div class="panel-title">Молекули</div>
+      <div class="molecules-intro" id="molecules-intro">Завантаження…</div>
+      <div id="molecules-grid"></div>
+    </div>
+  </div>
+
   <div id="page-achievements" class="page">
     <div class="panel achievements-panel">
       <div class="panel-title">Досягнення</div>
@@ -337,9 +356,9 @@
 </main>
 
 <!-- JS модулі (порядок важливий: залежності спочатку) -->
-<script src="/js/config.js?v=23"></script>
+<script src="/js/config.js?v=24"></script>
 <script src="/js/utils.js?v=23"></script>
-<script src="/js/nav.js?v=23"></script>
+<script src="/js/nav.js?v=24"></script>
 <script src="/js/resources.js?v=23"></script>
 <script src="/js/generators.js?v=23"></script>
 <script src="/js/upgrades.js?v=23"></script>
@@ -349,6 +368,7 @@
 <script src="/js/stats.js?v=23"></script>
 <script src="/js/periodic-table.js?v=25"></script>
 <script src="/js/achievements.js?v=1"></script>
+<script src="/js/molecules.js?v=1"></script>
 <script src="/js/main.js?v=23"></script>
 </body>
 </html>

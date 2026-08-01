@@ -28,6 +28,9 @@ var TIERS = {
   ]},
   2: { name: 'Атоми', tabs: [
     { id: 'periodic_table', label: 'Таблиця' }
+  ]},
+  3: { name: 'Молекули', tabs: [
+    { id: 'molecules', label: 'Молекули' }
   ]}
 };
 

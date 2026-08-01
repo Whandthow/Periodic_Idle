@@ -5,6 +5,8 @@ import com.periodic.idle.content.Element;
 import com.periodic.idle.content.ElementRepository;
 import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorRepository;
+import com.periodic.idle.content.Molecule;
+import com.periodic.idle.content.MoleculeRepository;
 import com.periodic.idle.content.TierUnlockConditionRepository;
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
@@ -13,6 +15,7 @@ import com.periodic.idle.engine.ExchangeService;
 import com.periodic.idle.engine.GameEngine;
 import com.periodic.idle.engine.GeneratorService;
 import com.periodic.idle.engine.MatterService;
+import com.periodic.idle.engine.MoleculeService;
 import com.periodic.idle.engine.PrestigeService;
 import com.periodic.idle.engine.SaveService;
 import com.periodic.idle.engine.SaveTransferService;
@@ -36,6 +39,8 @@ public class GameController {
     private final UpgradeRepository upgradeRepository;
     private final GeneratorRepository generatorRepository;
     private final ElementRepository elementRepository;
+    private final MoleculeRepository moleculeRepository;
+    private final PlayerMoleculeRepository playerMoleculeRepository;
     private final TierUnlockConditionRepository tierUnlockConditionRepository;
     private final UpgradeService upgradeService;
     private final GeneratorService generatorService;
@@ -44,6 +49,7 @@ public class GameController {
     private final ExchangeService exchangeService;
     private final MatterService matterService;
     private final SynthesisService synthesisService;
+    private final MoleculeService moleculeService;
     private final SaveRepository saveRepository;
     private final SaveService saveService;
     private final SaveTransferService saveTransferService;
@@ -389,6 +395,55 @@ public class GameController {
         Object amt = request.get("amount");
         long amount = amt == null ? 1 : ((Number) amt).longValue(); // -1 = max
         long synthesized = synthesisService.synthesizeBulk(saveId, elementId, amount);
+        return Map.of("status", "ok", "synthesized", synthesized);
+    }
+
+    // === Тір 3: Молекули ===
+
+    @GetMapping("/molecules/{saveId}")
+    public List<Map<String, Object>> getMolecules(@PathVariable Long saveId) {
+        List<PlayerMolecule> playerMolecules = playerMoleculeRepository.findBySaveId(saveId);
+        List<Molecule> allMolecules = moleculeRepository.findAll().stream()
+                .sorted(Comparator.comparing(Molecule::getFormula))
+                .toList();
+
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Molecule m : allMolecules) {
+            long count = playerMolecules.stream()
+                    .filter(pm -> pm.getMolecule().getId().equals(m.getId()))
+                    .findFirst()
+                    .map(PlayerMolecule::getCount)
+                    .orElse(0L);
+
+            List<Map<String, Object>> recipe = m.getComponents().stream()
+                    .map(c -> {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("elementSymbol", c.getElement().getSymbol());
+                        row.put("atomCount", c.getAtomCount());
+                        return (Map<String, Object>) row;
+                    })
+                    .toList();
+
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", m.getId());
+            map.put("formula", m.getFormula());
+            map.put("name", m.getName());
+            map.put("bondEnergyEv", m.getBondEnergyEv());
+            map.put("recipe", recipe);
+            map.put("count", count);
+            map.put("unlocked", moleculeService.canAffordAtLeastOne(saveId, m));
+            out.add(map);
+        }
+        return out;
+    }
+
+    @PostMapping("/synthesize-molecule")
+    public Map<String, Object> synthesizeMolecule(@RequestBody Map<String, Object> request) {
+        Long saveId = ((Number) request.get("saveId")).longValue();
+        Long moleculeId = ((Number) request.get("moleculeId")).longValue();
+        Object amt = request.get("amount");
+        long amount = amt == null ? 1 : ((Number) amt).longValue(); // -1 = max
+        long synthesized = moleculeService.synthesizeBulk(saveId, moleculeId, amount);
         return Map.of("status", "ok", "synthesized", synthesized);
     }
 

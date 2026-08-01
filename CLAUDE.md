@@ -79,13 +79,13 @@ graph TD
     web --> content
     web --> player
 
-    engine["engine<br/>GameEngine, GeneratorService, UpgradeService,<br/>PrestigeService, ExchangeService, AutoBuyService,<br/>MatterService, SynthesisService, ParticleBonus,<br/>SaveService, SaveTransferService, AchievementService"] --> common
+    engine["engine<br/>GameEngine, GeneratorService, UpgradeService,<br/>PrestigeService, ExchangeService, AutoBuyService,<br/>MatterService, SynthesisService, MoleculeService, ParticleBonus,<br/>SaveService, SaveTransferService, AchievementService"] --> common
     engine --> content
     engine --> player
 
-    player["player<br/>Save, PlayerResource, PlayerGenerator,<br/>PlayerUpgrade, PlayerElement, PlayerAchievement + repositories"] --> content
+    player["player<br/>Save, PlayerResource, PlayerGenerator,<br/>PlayerUpgrade, PlayerElement, PlayerAchievement, PlayerMolecule + repositories"] --> content
 
-    content["content<br/>Resource, Generator, GeneratorInput/Output,<br/>Upgrade, Element, Achievement + repositories"]
+    content["content<br/>Resource, Generator, GeneratorInput/Output,<br/>Upgrade, Element, Achievement, Molecule, MoleculeComponent + repositories"]
 
     common["common<br/>BigNum, BindingEnergy (SEMF)"] --> exception
     exception["exception<br/>canNotSubtractBigNumException,<br/>dividedByZeroException,<br/>negativeNumberInBigNumException"]
@@ -126,7 +126,10 @@ periodic-idle/
 │   │   │   │   ├── TierUnlockCondition.java   # tier → resource, minLog10 (OR-умова розблокування)
 │   │   │   │   ├── TierUnlockConditionRepository.java
 │   │   │   │   ├── Achievement.java           # code, conditionType, resource, threshold (data-driven)
-│   │   │   │   └── AchievementRepository.java
+│   │   │   │   ├── AchievementRepository.java
+│   │   │   │   ├── Molecule.java              # Тір 3: formula, name, bondEnergyEv (реальні дані)
+│   │   │   │   ├── MoleculeComponent.java     # molecule → element, atomCount (рецепт)
+│   │   │   │   └── MoleculeRepository.java
 │   │   │   │
 │   │   │   ├── player/                        # мутабельний стан гравця
 │   │   │   │   ├── Save.java                  # id, playerName, lastTick, brokenInfinity,
@@ -141,7 +144,9 @@ periodic-idle/
 │   │   │   │   ├── PlayerElement.java         # save → element, count (скільки синтезовано)
 │   │   │   │   ├── PlayerElementRepository.java
 │   │   │   │   ├── PlayerAchievement.java     # save → achievement, unlockedAt
-│   │   │   │   └── PlayerAchievementRepository.java
+│   │   │   │   ├── PlayerAchievementRepository.java
+│   │   │   │   ├── PlayerMolecule.java        # save → molecule, count (скільки зібрано)
+│   │   │   │   └── PlayerMoleculeRepository.java
 │   │   │   │
 │   │   │   ├── engine/                        # ігрова логіка
 │   │   │   │   ├── GameEngine.java            # @Scheduled tick, computeProduction, множники,
@@ -155,6 +160,7 @@ periodic-idle/
 │   │   │   │   ├── ParticleBonus.java         # пасивні бонуси Tier1-частинок до Tier0
 │   │   │   │   ├── MatterService.java         # Тір 1: колапс матерії, Break Infinity
 │   │   │   │   ├── SynthesisService.java      # Тір 2: синтез атомів з p/n/e
+│   │   │   │   ├── MoleculeService.java       # Тір 3: молекули з атомів, хімічна енергія зв'язку
 │   │   │   │   ├── SaveService.java           # findOrCreateByToken (ізольований save на браузер)
 │   │   │   │   ├── SaveTransferService.java   # мануальний export/import save як JSON
 │   │   │   │   └── AchievementService.java    # checkAndUnlock (на кожен /api/state), listWithStatus
@@ -163,7 +169,8 @@ periodic-idle/
 │   │   │   │   ├── GameController.java        # /api/state, /api/buy-*, /api/prestige, /api/exchange,
 │   │   │   │   │                              # /api/matter-*, /api/break-infinity, /api/stats,
 │   │   │   │   │                              # /api/elements, /api/synthesize, /api/save-*,
-│   │   │   │   │                              # /api/tier-unlocks, /api/achievements
+│   │   │   │   │                              # /api/tier-unlocks, /api/achievements,
+│   │   │   │   │                              # /api/molecules, /api/synthesize-molecule
 │   │   │   │   └── DevController.java         # /api/dev/tick-speed, /api/dev/add-exp
 │   │   │   │
 │   │   │   └── exception/                     # кастомні винятки
@@ -185,7 +192,8 @@ periodic-idle/
 │   │       │   │   ├── matter.css             # Тір 1: колапс матерії + грейди/Break Infinity
 │   │       │   │   ├── stats.css              # вкладка "Статистика"
 │   │       │   │   ├── periodic-table.css     # Тір 2: таблиця + анімація орбіт
-│   │       │   │   └── achievements.css       # сторінка досягнень (картки locked/unlocked)
+│   │       │   │   ├── achievements.css       # сторінка досягнень (картки locked/unlocked)
+│   │       │   │   └── molecules.css          # Тір 3: картки молекул
 │   │       │   ├── js/
 │   │       │   │   ├── main.js                # точка входу: bootstrap токена, game loop
 │   │       │   │   ├── config.js              # SAVE_ID, TIERS, TIER_UNLOCK_CONDITIONS, ICONS
@@ -198,6 +206,7 @@ periodic-idle/
 │   │       │   │   ├── stats.js                # вкладка "Статистика" (/api/stats)
 │   │       │   │   ├── periodic-table.js      # Тір 2: періодична таблиця + синтез
 │   │       │   │   ├── achievements.js        # сторінка досягнень, /api/achievements
+│   │       │   │   ├── molecules.js           # Тір 3: картки молекул, /api/molecules
 │   │       │   │   ├── nav.js                 # сайдбар/tier-навігація, fetchTierUnlocks, openAchievements
 │   │       │   │   └── dev.js                 # dev-інструменти (tick speed, add exp) + save export/import
 │   │       │   └── img/                       # іконки ресурсів і генераторів
@@ -216,7 +225,8 @@ periodic-idle/
 │   │           ├── V11__periodic_table.sql
 │   │           ├── V12__long_game_balance.sql
 │   │           ├── V13__tier_unlock_conditions.sql
-│   │           └── V14__achievements.sql
+│   │           ├── V14__achievements.sql
+│   │           └── V15__molecules.sql
 │   │
 │   └── test/java/com/periodic/idle/
 │       ├── BigNumTest.java
@@ -235,7 +245,8 @@ periodic-idle/
 │       │   ├── SynthesisServiceTest.java
 │       │   ├── SaveServiceTest.java
 │       │   ├── SaveTransferServiceTest.java
-│       │   └── AchievementServiceTest.java
+│       │   ├── AchievementServiceTest.java
+│       │   └── MoleculeServiceTest.java
 │       └── web/
 │           └── GameControllerTest.java
 ```
@@ -372,6 +383,44 @@ logs/
 | shell_config | VARCHAR(30) | CSV розподілу електронів по оболонках, напр. "2,8,11,2" |
 | cost_protons, cost_neutrons, cost_electrons | BIGINT | рецепт синтезу |
 
+**`tier_unlock_conditions`** — data-driven OR-умови розблокування тіру (розділ 10, Progressive disclosure).
+
+| Поле | Тип | Опис |
+|------|-----|------|
+| id | BIGINT PK | |
+| tier | INT | 1, 2, 3... |
+| resource_id | FK → resources | |
+| min_log10 | DOUBLE | поріг `log10(number)+exponent` |
+
+**`achievements`** — data-driven одноразова умова (розділ 7.9).
+
+| Поле | Тип | Опис |
+|------|-----|------|
+| id | BIGINT PK | |
+| code | VARCHAR(50) UNIQUE | |
+| name, description | VARCHAR | |
+| condition_type | VARCHAR(30) | RESOURCE_LOG10 / MATTER_COLLAPSES / ELEMENTS_SYNTHESIZED / BROKEN_INFINITY |
+| resource_id | FK → resources NULL | лише для RESOURCE_LOG10 |
+| threshold | DOUBLE | |
+
+**`molecules`** — Тір 3: молекула, зібрана з атомів (розділ 7.9).
+
+| Поле | Тип | Опис |
+|------|-----|------|
+| id | BIGINT PK | |
+| formula | VARCHAR(20) UNIQUE | "H2O", "CO2" |
+| name | VARCHAR(100) | Українська назва |
+| bond_energy_ev | DOUBLE | реальна сумарна (атомізаційна) енергія зв'язку, еВ |
+
+**`molecule_components`** — рецепт молекули: скільки атомів якого елемента.
+
+| Поле | Тип | Опис |
+|------|-----|------|
+| id | BIGINT PK | |
+| molecule_id | FK → molecules | |
+| element_id | FK → elements | |
+| atom_count | INT | |
+
 ### Стан гравця (мутабельний)
 
 **`saves`** — слот збереження.
@@ -421,6 +470,24 @@ logs/
 | id | BIGINT PK |
 | save_id | FK → saves |
 | element_id | FK → elements |
+| count | BIGINT |
+
+**`player_achievements`** — факт розблокування досягнення (одна дата, без повторів).
+
+| Поле | Тип |
+|------|-----|
+| id | BIGINT PK |
+| save_id | FK → saves |
+| achievement_id | FK → achievements |
+| unlocked_at | TIMESTAMP |
+
+**`player_molecules`** — скільки разів гравець зібрав кожну молекулу.
+
+| Поле | Тип |
+|------|-----|
+| id | BIGINT PK |
+| save_id | FK → saves |
+| molecule_id | FK → molecules |
 | count | BIGINT |
 
 ---
@@ -525,6 +592,16 @@ Data-driven, одноразові умови над станом save (табл�
 
 `checkAndUnlock(saveId)` перевіряє лише ще не розблоковані досягнення й вставляє рядок у `player_achievements` (унікальний по `save_id + achievement_id`, дата фіксується). Викликається на кожному `/api/state` (кожні ~1.5с незалежно від активної вкладки) — це навмисно: короткочасний пік (напр. енергія прямо перед престижем) інакше міг би не встигнути зафіксуватись, якби перевірка була лише при відкритій вкладці "Досягнення". Окремий `GET /api/achievements/{saveId}` теж викликає перевірку і повертає повний список з прапором `unlocked`/`unlockedAt` для UI.
 
+### 7.9 Молекули (MoleculeService)
+
+Тір 3: молекули збираються з уже синтезованих атомів (`player_elements`), не з сирих p/n/e. Рецепт — `molecule_components` (елемент + кількість атомів), доступний увесь molecule.getComponents() без окремого запиту (як `Generator.outputs`).
+
+**Наукова концепція:** формування молекули з вільних атомів **завжди екзотермічне** (на відміну від ядерного синтезу в 7.7, де є крос-овер точка на залізі-56) — реальна хімія: утворення зв'язку вивільняє енергію, розрив — поглинає. `bond_energy_ev` (реальні довідникові атомізаційні/дисоціаційні енергії, напр. H₂O ≈ 9.51 еВ) переводиться в МеВ (÷1 000 000) і йде через ту саму шкалу `BigNum(meV, ENERGY_SCALE_EXPONENT=298)`, що й `SynthesisService` — єдина шкала енергії для гри. Оскільки 1 еВ = 1e-6 МеВ, той самий код природно відтворює реальний розрив на ~6 порядків між хімічною і ядерною енергією без окремої "хімічної" константи.
+
+Прогресія: молекула доступна для синтезу (`unlocked`/`canAffordAtLeastOne`), якщо гравець має достатньо атомів **кожного** компонента рецепту хоча б на 1 молекулу — не потрібна послідовна прогресія, як у елементів. `synthesizeBulk(amount=-1)` обмежується найдефіцитнішим атомом рецепту (аналог `maxAffordable` у SynthesisService, але по кожному компоненту).
+
+`GET /api/molecules/{saveId}` віддає контент+стан (формула, назва, рецепт, bondEnergyEv, count, unlocked). `POST /api/synthesize-molecule` — дія синтезу.
+
 ---
 
 ## 8. Тіри гри (ігровий дизайн)
@@ -549,8 +626,14 @@ Data-driven, одноразові умови над станом save (табл�
 - **Наукова точність:** синтез враховує реальну криву питомої енергії зв'язку ядра (SEMF/Вайцзеккер, `BindingEnergy`, розділ 7.7) — до заліза-56 екзотермічний (повертає E), важче за залізо — ендотермічний (коштує E). Нуклеосинтез розділений на первинний (H/He/Li, доступний одразу) і зоряний (Be і далі, вимагає "запаленої зорі" — 1000+ синтезованого He).
 - **UI:** hover/клік на елемент показує модель Бора (оболонки з анімованими електронами), реальну енергію зв'язку (МеВ) і кнопку синтезу
 
-### Tier 3+ — Молекули, зорі, чорні діри, мультивсесвіт (майбутнє)
-Продовження нуклеосинтезу за науковою концепцією (розділ 1): молекули — хімічні зв'язки з атомів (H₂O, CH₄, NH₃, CO₂...); зорі — термоядерний синтез головної послідовності аж до заліза; важчі за залізо елементи вже й зараз ендотермічні (розділ 7.7), а надалі — окрема "катастрофічна" механіка (наднові, злиття нейтронних зірок, r-process) замість звичайного synthesis.
+### Tier 3 — Молекули (хімічні зв'язки)
+- **Розблоковується:** `log10(протонів) >= 4` (10 000+ протонів)
+- **Окрема вкладка:** 10 молекул (H₂, O₂, N₂, H₂O, CO₂, CH₄, NH₃, CO, HCl, NaCl) — реальні речовини з елементів Z≤17
+- **Механіка:** MoleculeService збирає молекулу з уже синтезованих атомів (`player_elements`), не з сирих p/n/e; доступна, коли вистачає атомів кожного компонента рецепту на 1 молекулу (без послідовної прогресії, на відміну від елементів)
+- **Наукова точність:** формування молекули завжди екзотермічне (реальна хімія), `bond_energy_ev` — реальні довідникові значення, переведені в ту саму енергетичну шкалу, що й ядерний синтез (розділ 7.9) — природно відтворює розрив на ~6 порядків між хімією і ядерною фізикою
+
+### Tier 4+ — Зорі, чорні діри, мультивсесвіт (майбутнє)
+Зорі — термоядерний синтез головної послідовності аж до заліза; важчі за залізо елементи вже й зараз ендотермічні (розділ 7.7), а надалі — окрема "катастрофічна" механіка (наднові, злиття нейтронних зірок, r-process) замість звичайного synthesis; чорні діри — гравітаційний колапс; мультивсесвіт/циклічна космологія — endgame.
 
 ---
 
@@ -568,6 +651,7 @@ Data-driven, одноразові умови над станом save (табл�
 | GET | `/api/elements/{saveId}` | Періодична таблиця з прапором `unlocked`/`count` |
 | GET | `/api/tier-unlocks` | Data-driven умови розблокування тірів (без saveId — однакові для всіх) |
 | GET | `/api/achievements/{saveId}` | Перевіряє і повертає список досягнень з прапором `unlocked`/`unlockedAt` |
+| GET | `/api/molecules/{saveId}` | Молекули з рецептом, bondEnergyEv, count, unlocked |
 
 ### Дії гравця
 | Method | Path | Body | Опис |
@@ -582,6 +666,7 @@ Data-driven, одноразові умови над станом save (табл�
 | POST | `/api/matter-collapse` | saveId, particle | Колапс матерії (+1 частинки) |
 | POST | `/api/break-infinity` | saveId | Зняти кап `1e308` |
 | POST | `/api/synthesize` | saveId, elementId, amount | Синтезувати елемент |
+| POST | `/api/synthesize-molecule` | saveId, moleculeId, amount | Зібрати молекулу з атомів |
 | POST | `/api/save/init` | token | Отримати/створити save за client-token |
 | GET | `/api/save-export/{saveId}` | — | Мануальний export save як JSON |
 | POST | `/api/save-import` | saveId, data | Мануальний import save з JSON |
@@ -606,18 +691,22 @@ Data-driven, одноразові умови над станом save (табл�
 
 ### Сайдбар з тірами (не плоский ряд вкладок)
 ```
-Тір 0 (Пустота)     Тір 1 (Матерія)      Тір 2 (Атоми)
-  Генератори          Колапс               Таблиця
+Тір 0 (Пустота)     Тір 1 (Матерія)      Тір 2 (Атоми)      Тір 3 (Молекули)
+  Генератори          Колапс               Таблиця            Молекули
   Апгрейди            Грейди
   Престиж
   Статистика
 ```
+Досягнення й Налаштування — не тіри, а окремі кнопки в сайдбарі (`openAchievements`/`openSettings`), що ведуть на повноекранну сторінку без другої панелі вкладок.
 
 ### Ресурси завжди видно зверху
 Горизонтальний рядок карток із іконкою, кількістю, і +rate/с. Оновлюється кожні 1.5с (`fetchState`).
 
 ### Періодична таблиця
-Стандартна 18-колонкова сітка (по періодах/групах), картки з orange/red neon-акцентом. Hover/клік показує плаваючу картку з моделлю Бора — концентричні кільця обертаються навколо ядра (CSS keyframe-анімація, `prefers-reduced-motion` враховано).
+Стандартна 18-колонкова сітка (по періодах/групах), картки з orange/red neon-акцентом. Hover/клік показує плаваючу картку з моделлю Бора — концентричні кільця обертаються навколо ядра (CSS keyframe-анімація, `prefers-reduced-motion` враховано). Показує реальну енергію зв'язку ядра (МеВ) і `lockedReason` (напр. "Потрібна зоря: X/1000 He") замість generic "ще не відкрито".
+
+### Молекули
+Проста сітка карток (formula, name, рецепт, bondEnergyEv, кнопка "Зібрати") — без анімованої моделі, на відміну від періодичної таблиці, оскільки хімічні зв'язки не потребують орбітальної візуалізації для розуміння.
 
 ---
 
@@ -650,12 +739,12 @@ spring:
 
 ## 12. Поточний стан
 
-**Версія:** 0.4.0 (Tier 0-2 грабельні, довга гра)
+**Версія:** 0.5.0 (Tier 0-3 грабельні, довга гра, наукова концепція)
 
 **Реалізовано:**
 - BigNum (mantissa + exponent) з повним покриттям тестами
 - Content entities: Resource, Generator, GeneratorInput/Output, Upgrade, Element (+ репозиторії)
-- Player entities: Save (multi-account, client_token), PlayerResource, PlayerGenerator, PlayerUpgrade, PlayerElement
+- Player entities: Save (multi-account, client_token), PlayerResource, PlayerGenerator, PlayerUpgrade, PlayerElement, PlayerAchievement, PlayerMolecule
 - GameEngine з @Scheduled tick (100ms): ENERGY_MULT, GENERATOR_MULT, CORE, GEN_SPECIFIC_MULT, GEN_STACK, ENERGY_POW, PHANTOM_GEN, ParticleBonus
 - OfflineProgressRunner: наздоганяючий прогрес на старті сервера (реальний dt від lastTick, кап 24h)
 - GeneratorService, UpgradeService, PrestigeService, ExchangeService, AutoBuyService
@@ -663,13 +752,14 @@ spring:
 - SynthesisService: синтез атомів 1-36 з послідовною прогресією (Тір 2), реальна енергія зв'язку ядра (SEMF) — екзо-/ендотермічно відносно заліза-56, первинний vs зоряний нуклеосинтез (гейт "запаленої зорі")
 - TierUnlockCondition: data-driven умови розблокування тірів (OR за рядками), фронтенд без хардкоду
 - AchievementService: 15 data-driven досягнень (RESOURCE_LOG10, MATTER_COLLAPSES, ELEMENTS_SYNTHESIZED, BROKEN_INFINITY), перевірка на кожен /api/state
+- MoleculeService: 10 молекул (Тір 3) з реальних атомів, хімічна енергія зв'язку в тій самій шкалі, що й ядерна (розділ 7.9)
 - SaveService: ізольований save на кожен client_token (справжній multi-account)
 - SaveTransferService: мануальний export/import save як JSON, з UI-кнопками в Settings
-- GameController: повний REST API (стан, купівлі, престиж, обмін, матерія, статистика, елементи, save-transfer)
+- GameController: повний REST API (стан, купівлі, престиж, обмін, матерія, статистика, елементи, молекули, save-transfer)
 - DevController: tick-speed, add-exp
-- Фронтенд: сайдбар/тіри, ресурси, генератори, апгрейди, престиж, колапс матерії, грейди/Break Infinity, статистика, періодична таблиця з анімованою моделлю Бора
-- Flyway міграції V1-V14 (включно з довгограйним ребалансом, data-driven unlock conditions і досягненнями)
-- Тести: 176+ passed
+- Фронтенд: сайдбар/тіри (0-3), ресурси, генератори, апгрейди, престиж, колапс матерії, грейди/Break Infinity, статистика, періодична таблиця з анімованою моделлю Бора, молекули
+- Flyway міграції V1-V15 (включно з довгограйним ребалансом, data-driven unlock conditions, досягненнями і молекулами)
+- Тести: 216+ passed
 
 **Відомі прогалини:**
 - Баланс V12 — перший прохід, не грано наживо; можливе подальше тонке налаштування (`docs/balance.md`)
@@ -701,8 +791,8 @@ spring:
 | 18 | Статистика гри (час гри, кількість престижів, тощо — частково є через /api/stats) | 🔶 |
 | ~~20~~ | ~~Крива питомої енергії зв'язку в SynthesisService (екзо-/ендотермічний synthesis відносно заліза-56)~~ | ✅ |
 | ~~21~~ | ~~Розділити нуклеосинтез на первинний (Big Bang: H/He/Li) і зоряний (C-N-O аж до заліза)~~ | ✅ |
-| 19 | Tier 3: молекули (H₂O, CH₄, NH₃...) з атомів, енергія хімічного зв'язку | ⏳ |
-| 22 | Tier 3+: зорі (головна послідовність), важкі елементи лише через наднові/r-process | ⏳ |
+| ~~19~~ | ~~Tier 3: молекули (H₂O, CH₄, NH₃...) з атомів, енергія хімічного зв'язку~~ | ✅ |
+| 22 | Tier 4+: зорі (головна послідовність), важкі елементи лише через наднові/r-process | ⏳ |
 
 ---
 
@@ -716,11 +806,13 @@ spring:
 - **Сервіси** — `@RequiredArgsConstructor`, DI через конструктор, `@Transactional` на мутуючих методах.
 
 ### 14.2 Data-driven принцип
-Додавання нового ресурсу/генератора/апгрейду/елемента = **тільки SQL-міграція**:
+Додавання нового ресурсу/генератора/апгрейду/елемента/молекули/досягнення = **тільки SQL-міграція**:
 1. Рядок у `resources`
 2. Рядок у `generator` + рядки в `generator_outputs`/`generator_input`
 3. Або рядок у `upgrades`
 4. Або рядок у `elements`
+5. Або рядок у `molecules` + рядки в `molecule_components`
+6. Або рядок у `achievements`
 
 **Жодного нового Java-коду.** Движок працює з абстракціями.
 
@@ -739,10 +831,10 @@ V12__long_game_balance.sql
 ### Наукова точність (пріоритет — див. розділ 1 "Наукова концепція")
 - ~~Крива питомої енергії зв'язку в SynthesisService~~ ✅ (BindingEnergy/SEMF, розділ 7.7)
 - ~~Розділити нуклеосинтез на "первинний" і "зоряний"~~ ✅ (гейт "запаленої зорі" — 1000+ He, розділ 7.7)
-- Молекули: H₂O, CH₄, NH₃, CO₂ — рецепти з атомів, з енергією хімічного зв'язку (значно менші порядки величини, ніж ядерна енергія зв'язку — реалістична різниця хімії й фізики)
-- Елементи важчі за залізо (Z>26) — доступні лише через окрему "катастрофічну" механіку (наднова/злиття нейтронних зірок, r-process), не звичайний synthesis
-- Зорі як генератори Tier 3 (споживають водень, виробляють гелій — головна послідовність)
-- Чорні діри як престиж Tier 3+ (гравітаційний колапс)
+- ~~Молекули: H₂O, CH₄, NH₃, CO₂ — рецепти з атомів~~ ✅ (MoleculeService, 10 молекул, розділ 7.9)
+- Елементи важчі за залізо (Z>26) — вже ендотермічні (розділ 7.7), надалі — окрема "катастрофічна" механіка (наднова/злиття нейтронних зірок, r-process) замість звичайного synthesis
+- Зорі як генератори Tier 4 (споживають водень, виробляють гелій — головна послідовність)
+- Чорні діри як престиж Tier 4+ (гравітаційний колапс)
 - Мультивсесвіт / циклічна космологія як endgame (новий Великий вибух після теплової смерті)
 
 ### Технічне / UX
