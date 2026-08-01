@@ -6,6 +6,7 @@ import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorRepository;
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
+import com.periodic.idle.engine.AchievementService;
 import com.periodic.idle.engine.ExchangeService;
 import com.periodic.idle.engine.GameEngine;
 import com.periodic.idle.engine.GeneratorService;
@@ -43,9 +44,13 @@ public class GameController {
     private final SaveRepository saveRepository;
     private final SaveService saveService;
     private final SaveTransferService saveTransferService;
+    private final AchievementService achievementService;
 
     @GetMapping("/state/{saveId}")
     public List<Map<String, Object>> getState(@PathVariable Long saveId) {
+        // Перевіряємо досягнення на кожному опитуванні стану (~1.5с, незалежно від
+        // активної вкладки) — щоб короткочасні піки (напр. енергія перед престижем) не губились.
+        achievementService.checkAndUnlock(saveId);
         Map<Long, Double> production = gameEngine.calculateProductionPerSec(saveId);
 
         return playerResourceRepository.findBySaveId(saveId).stream()
@@ -279,6 +284,14 @@ public class GameController {
     @GetMapping("/stats/{saveId}")
     public Map<String, Object> stats(@PathVariable Long saveId) {
         return gameEngine.calculateStats(saveId);
+    }
+
+    // === Досягнення ===
+
+    @GetMapping("/achievements/{saveId}")
+    public List<Map<String, Object>> getAchievements(@PathVariable Long saveId) {
+        achievementService.checkAndUnlock(saveId);
+        return achievementService.listWithStatus(saveId);
     }
 
     // === Тір 2: Періодична таблиця ===

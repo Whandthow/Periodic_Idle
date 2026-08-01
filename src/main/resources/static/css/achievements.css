@@ -1,0 +1,51 @@
+/* === Сторінка досягнень ======================================= */
+.achievements-panel { max-width: 900px; }
+
+.achievements-summary {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.achievement-card {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(20, 20, 28, 0.85);
+    border: 1px solid #1e1e2a;
+}
+
+.achievement-card.unlocked {
+    border-color: rgba(125, 211, 252, 0.4);
+    box-shadow: 0 0 10px rgba(125, 211, 252, 0.08);
+}
+
+.achievement-card.locked { opacity: 0.55; }
+
+.achievement-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ddd;
+    margin-bottom: 4px;
+}
+.achievement-card.unlocked .achievement-name { color: #7dd3fc; }
+
+.achievement-desc {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 8px;
+}
+
+.achievement-meta {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}

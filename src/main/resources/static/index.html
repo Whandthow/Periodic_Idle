@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="/css/matter.css?v=23">
   <link rel="stylesheet" href="/css/stats.css?v=23">
   <link rel="stylesheet" href="/css/periodic-table.css?v=23">
+  <link rel="stylesheet" href="/css/achievements.css?v=1">
 </head>
 <body>
 
@@ -45,6 +46,13 @@
   </div>
 
   <div class="sidebar-spacer"></div>
+
+  <div class="tier-btn achievements-btn" onclick="openAchievements(this)" title="Досягнення">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+      <path d="M5,4V6H4A2,2 0 0,0 2,8V9A5,5 0 0,0 6.79,13.9C7.73,15.36 9.24,16.45 11,16.86V19H7V21H17V19H13V16.86C14.76,16.45 16.27,15.36 17.21,13.9A5,5 0 0,0 22,9V8A2,2 0 0,0 20,6H19V4H5M4,8H5V11.7C3.83,11.24 3,10.2 3,9V8H4M19,8H20V9C20,10.2 19.17,11.24 18,11.7V8H19Z"/>
+    </svg>
+    <span>Досягн.</span>
+  </div>
 
   <div class="tier-btn settings-btn" onclick="openSettings(this)" title="Налаштування">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
@@ -220,6 +228,13 @@
     </div>
   </div>
 
+  <div id="page-achievements" class="page">
+    <div class="panel achievements-panel">
+      <div class="panel-title">Досягнення</div>
+      <div id="achievements-list"><div class="empty-hint">Завантаження…</div></div>
+    </div>
+  </div>
+
   <div id="page-settings" class="page">
     <div class="panel settings-panel">
       <div class="panel-title">Налаштування</div>
@@ -306,7 +321,7 @@
 <!-- JS модулі (порядок важливий: залежності спочатку) -->
 <script src="/js/config.js?v=22"></script>
 <script src="/js/utils.js?v=22"></script>
-<script src="/js/nav.js?v=22"></script>
+<script src="/js/nav.js?v=23"></script>
 <script src="/js/resources.js?v=22"></script>
 <script src="/js/generators.js?v=22"></script>
 <script src="/js/upgrades.js?v=22"></script>
@@ -315,6 +330,7 @@
 <script src="/js/matter.js?v=22"></script>
 <script src="/js/stats.js?v=22"></script>
 <script src="/js/periodic-table.js?v=22"></script>
+<script src="/js/achievements.js?v=1"></script>
 <script src="/js/main.js?v=22"></script>
 </body>
 </html>

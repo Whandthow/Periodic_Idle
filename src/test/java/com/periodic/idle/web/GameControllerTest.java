@@ -41,6 +41,7 @@ class GameControllerTest {
     @MockitoBean private PlayerElementRepository playerElementRepository;
     @MockitoBean private SynthesisService synthesisService;
     @MockitoBean private SaveTransferService saveTransferService;
+    @MockitoBean private AchievementService achievementService;
 
     @Test
     @DisplayName("GET /api/state/1 повертає 200 і JSON масив")
@@ -299,6 +300,23 @@ class GameControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    // === Досягнення ===
+
+    @Test
+    @DisplayName("GET /api/achievements/1 — перевіряє і повертає JSON масив")
+    void getAchievements_returnsJson() throws Exception {
+        when(achievementService.listWithStatus(1L)).thenReturn(List.of(
+                Map.of("code", "first_steps", "name", "Перші кроки", "unlocked", true)));
+
+        mockMvc.perform(get("/api/achievements/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].code").value("first_steps"))
+                .andExpect(jsonPath("$[0].unlocked").value(true));
+
+        verify(achievementService).checkAndUnlock(1L);
     }
 
     // === Тір 2: Періодична таблиця ===
