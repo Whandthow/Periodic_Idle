@@ -115,7 +115,8 @@ function _renderElementDetail(el) {
   var btn = document.getElementById('element-detail-btn');
   btn.disabled = !el.unlocked;
   btn.textContent = el.unlocked ? 'Синтезувати' : 'Ще не відкрито';
-  document.getElementById('element-detail-msg').textContent = '';
+  // lockedReason: наукова концепція — пояснює ЧОМУ заблоковано (потрібна зоря, попередній елемент).
+  document.getElementById('element-detail-msg').textContent = el.unlocked ? '' : (el.lockedReason || '');
 }
 
 function _orbitsSvg(shells) {

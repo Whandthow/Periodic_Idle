@@ -328,6 +328,11 @@ public class GameController {
             }
         }
 
+        // Наукова концепція (CLAUDE.md, розділ 1): зоряний нуклеосинтез (Z>3) вимагає
+        // "запаленої зорі" — накопиченого гелієвого палива (SynthesisService).
+        long heliumCount = synthesisService.heliumCount(saveId);
+        boolean stellarIgnited = heliumCount >= SynthesisService.STELLAR_IGNITION_HELIUM_COUNT;
+
         List<Map<String, Object>> out = new ArrayList<>();
         for (Element el : allElements) {
             long count = playerElements.stream()
@@ -335,6 +340,12 @@ public class GameController {
                     .findFirst()
                     .map(PlayerElement::getCount)
                     .orElse(0L);
+
+            boolean requiresStar = el.getAtomicNumber() > SynthesisService.PRIMORDIAL_MAX_ATOMIC_NUMBER;
+            // Розблоковано для спроби синтезу: перший елемент завжди, інші — коли попередній вже
+            // відкритий, І (якщо це зоряний нуклеосинтез) зоря вже "запалена".
+            boolean sequentiallyUnlocked = el.getAtomicNumber() == 1 || el.getAtomicNumber() <= maxDiscovered + 1;
+            boolean unlocked = sequentiallyUnlocked && (!requiresStar || stellarIgnited);
 
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("id", el.getId());
@@ -349,8 +360,17 @@ public class GameController {
             map.put("costNeutrons", el.getCostNeutrons());
             map.put("costElectrons", el.getCostElectrons());
             map.put("count", count);
-            // Розблоковано для спроби синтезу: перший елемент завжди, інші — коли попередній вже відкритий.
-            map.put("unlocked", el.getAtomicNumber() == 1 || el.getAtomicNumber() <= maxDiscovered + 1);
+            map.put("unlocked", unlocked);
+            map.put("requiresStar", requiresStar);
+            map.put("stellarIgnited", stellarIgnited);
+            if (requiresStar && !stellarIgnited) {
+                map.put("lockedReason", "Потрібна зоря: " + heliumCount + " / "
+                        + SynthesisService.STELLAR_IGNITION_HELIUM_COUNT + " He");
+            } else if (!sequentiallyUnlocked) {
+                map.put("lockedReason", "Спочатку синтезуйте попередній елемент");
+            } else {
+                map.put("lockedReason", null);
+            }
             // Наукова концепція (CLAUDE.md, розділ 1): реальна енергія зв'язку ядра (SEMF),
             // видима гравцеві — синтез до заліза-56 повертає E, важче за залізо — коштує E.
             int massNumber = (int) (el.getCostProtons() + el.getCostNeutrons());
