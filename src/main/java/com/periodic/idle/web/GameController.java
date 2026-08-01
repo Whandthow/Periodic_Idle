@@ -1,5 +1,6 @@
 package com.periodic.idle.web;
 
+import com.periodic.idle.common.BindingEnergy;
 import com.periodic.idle.content.Element;
 import com.periodic.idle.content.ElementRepository;
 import com.periodic.idle.content.Generator;
@@ -350,6 +351,12 @@ public class GameController {
             map.put("count", count);
             // Розблоковано для спроби синтезу: перший елемент завжди, інші — коли попередній вже відкритий.
             map.put("unlocked", el.getAtomicNumber() == 1 || el.getAtomicNumber() <= maxDiscovered + 1);
+            // Наукова концепція (CLAUDE.md, розділ 1): реальна енергія зв'язку ядра (SEMF),
+            // видима гравцеві — синтез до заліза-56 повертає E, важче за залізо — коштує E.
+            int massNumber = (int) (el.getCostProtons() + el.getCostNeutrons());
+            double bindingEnergyMeV = BindingEnergy.totalMeV(el.getAtomicNumber(), massNumber);
+            map.put("bindingEnergyMeV", bindingEnergyMeV);
+            map.put("exothermic", el.getAtomicNumber() <= 26);
             out.add(map);
         }
         return out;

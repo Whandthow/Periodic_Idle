@@ -87,7 +87,7 @@ graph TD
 
     content["content<br/>Resource, Generator, GeneratorInput/Output,<br/>Upgrade, Element, Achievement + repositories"]
 
-    common["common<br/>BigNum"] --> exception
+    common["common<br/>BigNum, BindingEnergy (SEMF)"] --> exception
     exception["exception<br/>canNotSubtractBigNumException,<br/>dividedByZeroException,<br/>negativeNumberInBigNumException"]
 ```
 
@@ -109,7 +109,8 @@ periodic-idle/
 │   │   │   ├── PeriodicIdleApplication.java   # @SpringBootApplication + @EnableScheduling
 │   │   │   │
 │   │   │   ├── common/
-│   │   │   │   └── BigNum.java                # mantissa + exponent, immutable
+│   │   │   │   ├── BigNum.java                # mantissa + exponent, immutable
+│   │   │   │   └── BindingEnergy.java         # SEMF (Вайцзеккер): реальна енергія зв'язку ядра
 │   │   │   │
 │   │   │   ├── content/                       # правила гри (@Entity, read-only в runtime)
 │   │   │   │   ├── Resource.java              # id, code, name, tier
@@ -220,6 +221,8 @@ periodic-idle/
 │   └── test/java/com/periodic/idle/
 │       ├── BigNumTest.java
 │       ├── PeriodicIdleApplicationTests.java
+│       ├── common/
+│       │   └── BindingEnergyTest.java
 │       ├── engine/
 │       │   ├── GameEngineTest.java
 │       │   ├── GeneratorServiceTest.java
@@ -231,7 +234,8 @@ periodic-idle/
 │       │   ├── MatterServiceTest.java
 │       │   ├── SynthesisServiceTest.java
 │       │   ├── SaveServiceTest.java
-│       │   └── SaveTransferServiceTest.java
+│       │   ├── SaveTransferServiceTest.java
+│       │   └── AchievementServiceTest.java
 │       └── web/
 │           └── GameControllerTest.java
 ```
@@ -494,7 +498,15 @@ crystals = 10^(base_log10 + log10(crystalGainMult * electronCrystalMult))
 
 ### 7.7 Синтез атомів (SynthesisService)
 
-Рецепт: `cost_protons = Z`, `cost_electrons = Z`, `cost_neutrons = mass_number(найпоширенішого ізотопу) - Z`. Приклади: H = 1p+0n+1e, He = 2p+2n+2e. Прогресія послідовна — елемент Z доступний для синтезу лише якщо елемент Z-1 вже синтезовано хоча б раз. `synthesizeBulk(amount=-1)` синтезує максимум за наявні частинки.
+Рецепт: `cost_protons = Z`, `cost_electrons = Z`, `cost_neutrons = mass_number(найпоширенішого ізотопу) - Z`. Приклади: H = 1p+0n+1e, He = 2p+2n+2e. Прогресія послідовна — елемент Z доступний для синтезу лише якщо елемент Z-1 вже синтезовано хоча б раз. `synthesizeBulk(amount=-1)` синтезує максимум за наявні частинки й енергію.
+
+**Наукова концепція — енергія зв'язку ядра ({@link BindingEnergy}, SEMF/Вайцзеккер):**
+- `massNumber = costProtons + costNeutrons`, `bindingEnergyMeV = BindingEnergy.totalMeV(Z, massNumber)` — справжня фізична формула, не хардкод-таблиця.
+- **Z ≤ 26 (до заліза-56 включно) — екзотермічно**: синтез повертає енергію в E (`addEnergyRespectingCap`, поважає кап `1e308`, як `GameEngine.processSave`). Мімікрує термоядерний синтез у зорі — живить сам себе аж до заліза.
+- **Z > 26 (важче за залізо) — ендотермічно**: синтез вимагає й списує E. Мімікрує r-process у наднових/злитті нейтронних зірок — важкі елементи не даються "безкоштовно".
+- Переведення МеВ → ігрові одиниці E: `BigNum(meV, ENERGY_SCALE_EXPONENT=298)` — перший прохід масштабу (як V12-баланс), потребує живого тестування, див. `docs/balance.md`.
+- Кількість атомів для ендотермічних елементів додатково обмежена наявною енергією (`maxAffordableByEnergy`, дзеркалить `wholeAmount`) — так само, як бракує частинок, може забракнути й енергії.
+- `/api/elements/{saveId}` віддає `bindingEnergyMeV`/`exothermic` для кожного елемента — фронтенд (`element-detail-energy` у periodic-table.js) показує гравцеві реальну фізику перед синтезом.
 
 ### 7.8 Досягнення (AchievementService)
 
@@ -530,11 +542,11 @@ Data-driven, одноразові умови над станом save (табл�
 - **Розблоковується:** `log10(протонів) >= 3` (1000+ протонів)
 - **Окрема вкладка:** періодична таблиця (елементи 1-36, H..Kr)
 - **Механіка:** синтез p + n + e → атоми за рецептами (H=1p+1e, He=2p+2n+2e, ...), послідовна прогресія
-- **UI:** hover/клік на елемент показує модель Бора (оболонки з анімованими електронами) і кнопку синтезу
-- **Відомий розрив із наукою (кандидат на доробку):** зараз синтез не враховує криву питомої енергії зв'язку — усі елементи "коштують" однаково (лише сума p/n/e), без екзо-/ендотермічності відносно заліза-56. Реальний нуклеосинтез після Великого вибуху дає практично тільки H/He/трохи Li — важчі елементи вимагають зоряних умов. Приведення synthesis-формули у відповідність із розділом 1 — природний наступний крок.
+- **Наукова точність:** синтез враховує реальну криву питомої енергії зв'язку ядра (SEMF/Вайцзеккер, `BindingEnergy`, розділ 7.7) — до заліза-56 екзотермічний (повертає E), важче за залізо — ендотермічний (коштує E). Ще не розділено на первинний (H/He/Li) і зоряний (C-N-O) нуклеосинтез (roadmap #21).
+- **UI:** hover/клік на елемент показує модель Бора (оболонки з анімованими електронами), реальну енергію зв'язку (МеВ) і кнопку синтезу
 
 ### Tier 3+ — Молекули, зорі, чорні діри, мультивсесвіт (майбутнє)
-Продовження нуклеосинтезу за науковою концепцією (розділ 1): молекули — хімічні зв'язки з атомів (H₂O, CH₄, NH₃, CO₂...); зорі — термоядерний синтез головної послідовності аж до заліза; важчі за залізо елементи — лише через катастрофічні джерела енергії (наднові, злиття нейтронних зірок, r-process), а не звичайний synthesis.
+Продовження нуклеосинтезу за науковою концепцією (розділ 1): молекули — хімічні зв'язки з атомів (H₂O, CH₄, NH₃, CO₂...); зорі — термоядерний синтез головної послідовності аж до заліза; важчі за залізо елементи вже й зараз ендотермічні (розділ 7.7), а надалі — окрема "катастрофічна" механіка (наднові, злиття нейтронних зірок, r-process) замість звичайного synthesis.
 
 ---
 
@@ -644,7 +656,7 @@ spring:
 - OfflineProgressRunner: наздоганяючий прогрес на старті сервера (реальний dt від lastTick, кап 24h)
 - GeneratorService, UpgradeService, PrestigeService, ExchangeService, AutoBuyService
 - MatterService: колапс матерії + Break Infinity (Тір 1)
-- SynthesisService: синтез атомів 1-36 з послідовною прогресією (Тір 2)
+- SynthesisService: синтез атомів 1-36 з послідовною прогресією (Тір 2), реальна енергія зв'язку ядра (SEMF) — екзо-/ендотермічно відносно заліза-56
 - TierUnlockCondition: data-driven умови розблокування тірів (OR за рядками), фронтенд без хардкоду
 - AchievementService: 15 data-driven досягнень (RESOURCE_LOG10, MATTER_COLLAPSES, ELEMENTS_SYNTHESIZED, BROKEN_INFINITY), перевірка на кожен /api/state
 - SaveService: ізольований save на кожен client_token (справжній multi-account)
@@ -683,7 +695,7 @@ spring:
 | ~~16b~~ | ~~Мануальний save export/import — UI-кнопки в Settings~~ | ✅ |
 | 17 | Production PostgreSQL profile | ⏳ |
 | 18 | Статистика гри (час гри, кількість престижів, тощо — частково є через /api/stats) | 🔶 |
-| 20 | Крива питомої енергії зв'язку в SynthesisService (екзо-/ендотермічний synthesis відносно заліза-56) | ⏳ |
+| ~~20~~ | ~~Крива питомої енергії зв'язку в SynthesisService (екзо-/ендотермічний synthesis відносно заліза-56)~~ | ✅ |
 | 21 | Розділити нуклеосинтез на первинний (Big Bang: H/He/Li) і зоряний (C-N-O аж до заліза) | ⏳ |
 | 19 | Tier 3: молекули (H₂O, CH₄, NH₃...) з атомів, енергія хімічного зв'язку | ⏳ |
 | 22 | Tier 3+: зорі (головна послідовність), важкі елементи лише через наднові/r-process | ⏳ |
@@ -721,7 +733,7 @@ V12__long_game_balance.sql
 ## 15. Можливі майбутні покращення
 
 ### Наукова точність (пріоритет — див. розділ 1 "Наукова концепція")
-- Крива питомої енергії зв'язку в SynthesisService: синтез до заліза-56 екзотермічний (повертає E), важчі елементи — ендотермічний (чисті витрати E)
+- ~~Крива питомої енергії зв'язку в SynthesisService~~ ✅ (BindingEnergy/SEMF, розділ 7.7)
 - Розділити нуклеосинтез на "первинний" (Big Bang: H/He/трохи Li, дешево і одразу після стіни нескінченності) і "зоряний" (C-N-O-цикл, вимагає окремих умов/ресурсу зорі)
 - Молекули: H₂O, CH₄, NH₃, CO₂ — рецепти з атомів, з енергією хімічного зв'язку (значно менші порядки величини, ніж ядерна енергія зв'язку — реалістична різниця хімії й фізики)
 - Елементи важчі за залізо (Z>26) — доступні лише через окрему "катастрофічну" механіку (наднова/злиття нейтронних зірок, r-process), не звичайний synthesis

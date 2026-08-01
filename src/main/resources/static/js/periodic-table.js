@@ -101,6 +101,17 @@ function _renderElementDetail(el) {
     '<span>' + el.costNeutrons + 'n</span>' +
     '<span>' + el.costElectrons + 'e</span>';
 
+  // Наукова концепція: реальна енергія зв'язку ядра (SEMF) — синтез до заліза
+  // повертає енергію (як термоядерний синтез у зорі), важче за залізо — коштує її.
+  var energyEl = document.getElementById('element-detail-energy');
+  if (energyEl) {
+    var beText = (el.bindingEnergyMeV || 0).toFixed(1) + ' МеВ';
+    energyEl.className = 'element-detail-energy' + (el.exothermic ? ' exo' : ' endo');
+    energyEl.textContent = el.bindingEnergyMeV > 0
+      ? (el.exothermic ? '⚡ +' + beText + ' (синтез)' : '⚠ -' + beText + ' (синтез)')
+      : '';
+  }
+
   var btn = document.getElementById('element-detail-btn');
   btn.disabled = !el.unlocked;
   btn.textContent = el.unlocked ? 'Синтезувати' : 'Ще не відкрито';
