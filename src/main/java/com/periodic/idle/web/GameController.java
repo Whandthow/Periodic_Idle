@@ -4,6 +4,7 @@ import com.periodic.idle.content.Element;
 import com.periodic.idle.content.ElementRepository;
 import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorRepository;
+import com.periodic.idle.content.TierUnlockConditionRepository;
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
 import com.periodic.idle.engine.ExchangeService;
@@ -33,6 +34,7 @@ public class GameController {
     private final UpgradeRepository upgradeRepository;
     private final GeneratorRepository generatorRepository;
     private final ElementRepository elementRepository;
+    private final TierUnlockConditionRepository tierUnlockConditionRepository;
     private final UpgradeService upgradeService;
     private final GeneratorService generatorService;
     private final GameEngine gameEngine;
@@ -67,6 +69,21 @@ public class GameController {
                     // в логіці processSave такий rate уже скеймпив енергію до 1e308.
                     if (!Double.isFinite(rate)) rate = 0.0;
                     map.put("ratePerSec", rate);
+                    return map;
+                })
+                .toList();
+    }
+
+    // Умови розблокування тірів (data-driven progressive disclosure) — контент, однаковий
+    // для всіх saves, тому без saveId у шляху. Тір розблокований, якщо ХОЧА Б ОДНА умова з його групи виконана.
+    @GetMapping("/tier-unlocks")
+    public List<Map<String, Object>> getTierUnlocks() {
+        return tierUnlockConditionRepository.findAllByOrderByTierAsc().stream()
+                .map(c -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("tier", c.getTier());
+                    map.put("resource", c.getResource().getCode());
+                    map.put("minLog10", c.getMinLog10());
                     return map;
                 })
                 .toList();

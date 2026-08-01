@@ -3,11 +3,33 @@
  var activeTierId = 0;
 
  function _tierUnlocked(tierKey) {
-   if (String(tierKey) === '1') return isMatterTierUnlocked();
-   var cfg = TIER_UNLOCKS[tierKey];
-   if (!cfg) return true;
-   return resourceLog10(cfg.resource) >= cfg.minLog10;
+   var conditions = TIER_UNLOCK_CONDITIONS[tierKey];
+   if (!conditions || !conditions.length) return true;
+   // OR за умовами одного тіру: досить виконати одну (напр. E>=1e308 АБО вже є частинки).
+   return conditions.some(function(c) { return resourceLog10(c.resource) >= c.minLog10; });
  }
+
+/**
+ * Підвантажує data-driven умови розблокування тірів з /api/tier-unlocks
+ * і групує їх за tier: {1: [{resource, minLog10}, ...], 2: [...]}.
+ * Контент, однаковий для всіх saves — викликається один раз при bootstrap.
+ */
+async function fetchTierUnlocks() {
+  try {
+    var res = await fetch('/api/tier-unlocks');
+    if (!res.ok) return;
+    var rows = await res.json();
+    var grouped = {};
+    rows.forEach(function(row) {
+      var key = String(row.tier);
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push({ resource: row.resource, minLog10: row.minLog10 });
+    });
+    TIER_UNLOCK_CONDITIONS = grouped;
+  } catch (e) {
+    console.error('fetchTierUnlocks failed', e);
+  }
+}
 
  function isCompactNav() {
    return window.matchMedia('(max-width: 900px)').matches;
@@ -46,13 +68,13 @@
  }
 
 /**
- * Перевіряє умови TIER_UNLOCKS і знімає клас `locked` з відповідних tier-btn.
+ * Перевіряє TIER_UNLOCK_CONDITIONS і знімає клас `locked` з відповідних tier-btn.
  * Викликається з renderLoop / після fetchState.
  */
 function refreshTierLocks() {
-  if (typeof TIER_UNLOCKS === 'undefined' || typeof resourceState === 'undefined') return;
+  if (typeof TIER_UNLOCK_CONDITIONS === 'undefined' || typeof resourceState === 'undefined') return;
   var changed = false;
-  Object.keys(TIER_UNLOCKS).forEach(function(tierKey) {
+  Object.keys(TIER_UNLOCK_CONDITIONS).forEach(function(tierKey) {
     var btn = document.getElementById('tier-btn-' + tierKey);
     if (!btn) return;
     var unlocked = _tierUnlocked(tierKey);

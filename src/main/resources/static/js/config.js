@@ -12,7 +12,6 @@ var ICONS = {
   VC: 'VoidCrystal'
 };
 
-var MATTER_UNLOCK_LOG10 = 308;
 var ENERGY_CAP_LOG10 = 308;
 
 // Конфігурація вкладок для кожного етапу
@@ -32,9 +31,6 @@ var TIERS = {
   ]}
 };
 
-// Умови розблокування тірів. minLog10 — мін. значення log10(ресурс).
-// Матерія відкривається на 1e308 енергії й більше не замикається після першої частинки.
-var TIER_UNLOCKS = {
-  1: { resource: 'E', minLog10: MATTER_UNLOCK_LOG10 },
-  2: { resource: 'p',  minLog10: 3 }
-};
+// Умови розблокування тірів: {tier: [{resource, minLog10}, ...]}, OR за рядками одного tier.
+// Data-driven — підвантажується з /api/tier-unlocks при bootstrap (див. nav.js fetchTierUnlocks).
+var TIER_UNLOCK_CONDITIONS = {};

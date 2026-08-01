@@ -29,6 +29,7 @@ setInterval(renderLoop, 250);
 bootstrapSave().then(function() {
   var tasks = [fetchState(), fetchGenerators(), fetchUpgrades()];
   if (typeof fetchMatterInfo === 'function') tasks.push(fetchMatterInfo());
+  if (typeof fetchTierUnlocks === 'function') tasks.push(fetchTierUnlocks());
   return Promise.all(tasks);
 }).then(function() {
   if (typeof refreshTierLocks === 'function') refreshTierLocks();

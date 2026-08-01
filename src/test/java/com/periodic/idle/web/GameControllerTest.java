@@ -41,6 +41,7 @@ class GameControllerTest {
     @MockitoBean private PlayerElementRepository playerElementRepository;
     @MockitoBean private SynthesisService synthesisService;
     @MockitoBean private SaveTransferService saveTransferService;
+    @MockitoBean private TierUnlockConditionRepository tierUnlockConditionRepository;
 
     @Test
     @DisplayName("GET /api/state/1 повертає 200 і JSON масив")
@@ -299,6 +300,50 @@ class GameControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    // === Умови розблокування тірів (data-driven) ===
+
+    @Test
+    @DisplayName("GET /api/tier-unlocks — повертає JSON масив із tier/resource/minLog10")
+    void getTierUnlocks_returnsJson() throws Exception {
+        Resource energy = newResource(1L, "E");
+        TierUnlockCondition cond = newTierUnlockCondition(1, energy, 308.0);
+        when(tierUnlockConditionRepository.findAllByOrderByTierAsc()).thenReturn(List.of(cond));
+
+        mockMvc.perform(get("/api/tier-unlocks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].tier").value(1))
+                .andExpect(jsonPath("$[0].resource").value("E"))
+                .andExpect(jsonPath("$[0].minLog10").value(308.0));
+    }
+
+    private Resource newResource(Long id, String code) {
+        try {
+            var c = Resource.class.getDeclaredConstructor();
+            c.setAccessible(true);
+            Resource r = c.newInstance();
+            org.springframework.test.util.ReflectionTestUtils.setField(r, "id", id);
+            org.springframework.test.util.ReflectionTestUtils.setField(r, "code", code);
+            return r;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private TierUnlockCondition newTierUnlockCondition(int tier, Resource resource, double minLog10) {
+        try {
+            var c = TierUnlockCondition.class.getDeclaredConstructor();
+            c.setAccessible(true);
+            TierUnlockCondition t = c.newInstance();
+            org.springframework.test.util.ReflectionTestUtils.setField(t, "tier", tier);
+            org.springframework.test.util.ReflectionTestUtils.setField(t, "resource", resource);
+            org.springframework.test.util.ReflectionTestUtils.setField(t, "minLog10", minLog10);
+            return t;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     // === Тір 2: Періодична таблиця ===
