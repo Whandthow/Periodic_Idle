@@ -1,6 +1,7 @@
 package com.periodic.idle.engine;
 
 import com.periodic.idle.common.BigNum;
+import com.periodic.idle.common.BindingEnergy;
 import com.periodic.idle.content.Element;
 import com.periodic.idle.content.ElementRepository;
 import com.periodic.idle.player.*;
@@ -13,6 +14,11 @@ import java.util.List;
 /**
  * Тір 2: синтез атомів з протонів/нейтронів/електронів за рецептом елемента.
  * Прогресія послідовна: елемент Z &gt; 1 доступний лише якщо елемент Z-1 вже синтезовано хоч раз.
+ *
+ * <p>Наукова концепція (CLAUDE.md, розділ 1): синтез враховує реальну криву питомої
+ * енергії зв'язку ядра (SEMF/Вайцзеккер, {@link BindingEnergy}). Елементи легші за
+ * залізо-56 — екзотермічні (синтез повертає енергію в E, як термоядерний синтез у зорі);
+ * елементи важчі за залізо — ендотермічні (синтез коштує E, як r-process у наднових).
  */
 @Service
 @RequiredArgsConstructor
@@ -21,13 +27,23 @@ public class SynthesisService {
     /** Жорсткий запобіжник нескінченного циклу при буст-синтезі. */
     private static final long BULK_HARD_CAP = 100_000L;
 
+    /** Залізо-56 — пік кривої енергії зв'язку: межа "самопідтримного" термоядерного синтезу зорі. */
+    private static final int IRON_ATOMIC_NUMBER = 26;
+
+    /**
+     * Масштаб переведення МеВ у ігрові одиниці E. Перший прохід (як V12-баланс) —
+     * підібраний так, щоб внесок був відчутним на масштабі Тіру 2 (E типово ~1e308),
+     * але потребує живого тестування (див. docs/balance.md).
+     */
+    private static final long ENERGY_SCALE_EXPONENT = 298L;
+
     private final ElementRepository elementRepository;
     private final PlayerElementRepository playerElementRepository;
     private final PlayerResourceRepository playerResourceRepository;
     private final SaveRepository saveRepository;
 
     /**
-     * Синтезувати до {@code amount} атомів (amount &lt; 0 = максимум за наявні частинки).
+     * Синтезувати до {@code amount} атомів (amount &lt; 0 = максимум за наявні частинки й енергію).
      * Повертає фактичну синтезовану кількість.
      */
     @Transactional
@@ -41,11 +57,15 @@ public class SynthesisService {
             throw new RuntimeException("Спочатку синтезуйте попередній елемент у таблиці");
         }
 
+        Save save = saveRepository.findById(saveId)
+                .orElseThrow(() -> new RuntimeException("Save not found"));
+
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
         PlayerResource p = findByCode(resources, "p");
         PlayerResource n = findByCode(resources, "n");
         PlayerResource e = findByCode(resources, "e");
-        if (p == null || n == null || e == null) {
+        PlayerResource energy = findByCode(resources, "E");
+        if (p == null || n == null || e == null || energy == null) {
             throw new RuntimeException("Particle resources not initialized");
         }
 
@@ -54,12 +74,28 @@ public class SynthesisService {
         long maxByE = maxAffordable(wholeAmount(e), element.getCostElectrons());
         long maxAffordable = Math.min(maxByP, Math.min(maxByN, maxByE));
 
+        int massNumber = (int) (element.getCostProtons() + element.getCostNeutrons());
+        double meVPerAtom = BindingEnergy.totalMeV(element.getAtomicNumber(), massNumber);
+        boolean endothermic = meVPerAtom > 0 && element.getAtomicNumber() > IRON_ATOMIC_NUMBER;
+        BigNum energyPerAtom = meVPerAtom > 0 ? new BigNum(meVPerAtom, ENERGY_SCALE_EXPONENT) : null;
+
+        long maxByEnergy = Long.MAX_VALUE;
+        if (endothermic) {
+            BigNum currentEnergy = new BigNum(energy.getNumber(), energy.getExponent());
+            maxByEnergy = maxAffordableByEnergy(currentEnergy, energyPerAtom);
+            maxAffordable = Math.min(maxAffordable, maxByEnergy);
+        }
+
         long target = amount < 0
                 ? Math.min(maxAffordable, BULK_HARD_CAP)
                 : Math.min(Math.min(amount, maxAffordable), BULK_HARD_CAP);
 
         if (target <= 0) {
             if (amount < 0) return 0;
+            if (endothermic && maxByEnergy <= 0) {
+                throw new RuntimeException(
+                        "Not enough energy: елементи важчі за залізо потребують витрат E (ендотермічний синтез)");
+            }
             throw new RuntimeException("Not enough particles");
         }
 
@@ -70,14 +106,26 @@ public class SynthesisService {
         playerResourceRepository.save(n);
         playerResourceRepository.save(e);
 
+        if (energyPerAtom != null) {
+            BigNum totalEnergyDelta = energyPerAtom.multiply((double) target);
+            if (endothermic) {
+                BigNum current = new BigNum(energy.getNumber(), energy.getExponent());
+                BigNum result = current.subtract(totalEnergyDelta);
+                energy.setNumber(result.getNumber());
+                energy.setExponent(result.getExponent());
+            } else {
+                addEnergyRespectingCap(energy, totalEnergyDelta, save.isBrokenInfinity());
+            }
+            playerResourceRepository.save(energy);
+        }
+
         List<PlayerElement> owned = playerElementRepository.findBySaveId(saveId);
         PlayerElement pe = owned.stream()
                 .filter(x -> x.getElement().getId().equals(elementId))
                 .findFirst()
                 .orElseGet(() -> {
                     PlayerElement created = new PlayerElement();
-                    created.setSave(saveRepository.findById(saveId)
-                            .orElseThrow(() -> new RuntimeException("Save not found")));
+                    created.setSave(save);
                     created.setElement(element);
                     created.setCount(0);
                     return created;
@@ -86,6 +134,33 @@ public class SynthesisService {
         playerElementRepository.save(pe);
 
         return target;
+    }
+
+    /**
+     * Скільки атомів дозволяє наявна енергія при заданій ціні за атом.
+     * Дзеркалить {@link #wholeAmount(PlayerResource)}: захист від overflow на великих BigNum.
+     */
+    private long maxAffordableByEnergy(BigNum available, BigNum costPerAtom) {
+        if (costPerAtom.getNumber() <= 0) return Long.MAX_VALUE;
+        BigNum ratio = available.divide(costPerAtom);
+        if (ratio.getExponent() < 0) return 0;
+        if (ratio.getExponent() >= 18) return Long.MAX_VALUE;
+        double raw = ratio.getNumber() * Math.pow(10, ratio.getExponent());
+        if (!Double.isFinite(raw) || raw >= (double) Long.MAX_VALUE) return Long.MAX_VALUE;
+        return (long) Math.floor(raw);
+    }
+
+    /** Додає енергію з екзотермічного синтезу, поважаючи кап 1e308 (як GameEngine.processSave). */
+    private void addEnergyRespectingCap(PlayerResource energy, BigNum delta, boolean brokenInfinity) {
+        BigNum current = new BigNum(energy.getNumber(), energy.getExponent());
+        BigNum result = current.add(delta);
+        if (!brokenInfinity && result.getExponent() >= GameEngine.ENERGY_CAP_EXPONENT) {
+            energy.setNumber(1.0);
+            energy.setExponent(GameEngine.ENERGY_CAP_EXPONENT);
+        } else {
+            energy.setNumber(result.getNumber());
+            energy.setExponent(result.getExponent());
+        }
     }
 
     private boolean previousDiscovered(Long saveId, Element element) {
