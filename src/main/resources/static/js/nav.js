@@ -100,6 +100,7 @@ function activatePage(name) {
   if (name === 'stats' && typeof fetchStats === 'function') fetchStats();
   if (name === 'stats' && typeof renderStatsPage === 'function') renderStatsPage();
   if (name === 'periodic_table' && typeof fetchElements === 'function') fetchElements();
+  if (name === 'molecules' && typeof fetchMolecules === 'function') fetchMolecules();
   if (name === 'achievements' && typeof fetchAchievements === 'function') fetchAchievements();
 }
 
