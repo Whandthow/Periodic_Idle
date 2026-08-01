@@ -48,14 +48,6 @@ function fmtCost(num, exp, mult, level) {
    return upg ? (upg.currentLevel || 0) : 0;
  }
 
- function hasBrokenInfinity() {
-   return typeof matterState !== 'undefined' && !!matterState.brokenInfinity;
- }
-
- function isMatterTierUnlocked() {
-   return resourceLog10('E') >= MATTER_UNLOCK_LOG10 || resourceLog10('p') > -Infinity || resourceLog10('n') > -Infinity || resourceLog10('e') > -Infinity || hasBrokenInfinity();
- }
-
  function hydrateDeferredMedia(root) {
    if (!root || !root.querySelectorAll) return;
    root.querySelectorAll('img[data-src]').forEach(function(img) {

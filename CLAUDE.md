@@ -34,7 +34,7 @@
 | БД продакшену | **PostgreSQL** — перемикається через Spring profiles |
 | Фронтенд | **Vanilla HTML + JS + CSS** — без фреймворків, Spring Boot роздає з `static/` |
 | Великі числа | **BigNum (mantissa + exponent)** — кастомний клас, immutable, покритий тестами |
-| Архітектура контенту | **Data-driven** — ресурси, генератори, апгрейди, елементи, рецепти визначаються рядками в БД, не кодом |
+| Архітектура контенту | **Data-driven** — ресурси, генератори, апгрейди, елементи, рецепти, умови розблокування тірів визначаються рядками в БД, не кодом |
 | Модель гравця | **Multi-save за client_token** — кожен браузер отримує власний ізольований save при першому зверненні |
 | Деплой | **Railway** з автодеплоєм з GitHub |
 
@@ -98,7 +98,9 @@ periodic-idle/
 │   │   │   │   ├── Upgrade.java               # id, code, effectType, effectValue, cost*, maxLevel
 │   │   │   │   ├── UpgradeRepository.java
 │   │   │   │   ├── Element.java               # Тір 2: атомний номер, символ, оболонки, рецепт p/n/e
-│   │   │   │   └── ElementRepository.java
+│   │   │   │   ├── ElementRepository.java
+│   │   │   │   ├── TierUnlockCondition.java   # tier → resource, minLog10 (OR-умова розблокування)
+│   │   │   │   └── TierUnlockConditionRepository.java
 │   │   │   │
 │   │   │   ├── player/                        # мутабельний стан гравця
 │   │   │   │   ├── Save.java                  # id, playerName, lastTick, brokenInfinity,
@@ -131,7 +133,8 @@ periodic-idle/
 │   │   │   ├── web/                           # REST API
 │   │   │   │   ├── GameController.java        # /api/state, /api/buy-*, /api/prestige, /api/exchange,
 │   │   │   │   │                              # /api/matter-*, /api/break-infinity, /api/stats,
-│   │   │   │   │                              # /api/elements, /api/synthesize, /api/save-*
+│   │   │   │   │                              # /api/elements, /api/synthesize, /api/save-*,
+│   │   │   │   │                              # /api/tier-unlocks
 │   │   │   │   └── DevController.java         # /api/dev/tick-speed, /api/dev/add-exp
 │   │   │   │
 │   │   │   └── exception/                     # кастомні винятки
@@ -155,7 +158,7 @@ periodic-idle/
 │   │       │   │   └── periodic-table.css     # Тір 2: таблиця + анімація орбіт
 │   │       │   ├── js/
 │   │       │   │   ├── main.js                # точка входу: bootstrap токена, game loop
-│   │       │   │   ├── config.js              # SAVE_ID, TIERS, TIER_UNLOCKS, ICONS
+│   │       │   │   ├── config.js              # SAVE_ID, TIERS, TIER_UNLOCK_CONDITIONS, ICONS
 │   │       │   │   ├── utils.js               # formatBigNum, resourceLog10, tier-unlock хелпери
 │   │       │   │   ├── resources.js           # рендер верхньої панелі ресурсів
 │   │       │   │   ├── generators.js          # вкладка генераторів, autobuy-toggle
@@ -164,7 +167,7 @@ periodic-idle/
 │   │       │   │   ├── matter.js              # Тір 1: колапс матерії + Break Infinity
 │   │       │   │   ├── stats.js                # вкладка "Статистика" (/api/stats)
 │   │       │   │   ├── periodic-table.js      # Тір 2: періодична таблиця + синтез
-│   │       │   │   ├── nav.js                 # сайдбар/tier-навігація
+│   │       │   │   ├── nav.js                 # сайдбар/tier-навігація, fetchTierUnlocks
 │   │       │   │   └── dev.js                 # dev-інструменти (tick speed, add exp) + save export/import
 │   │       │   └── img/                       # іконки ресурсів і генераторів
 │   │       │
@@ -180,7 +183,8 @@ periodic-idle/
 │   │           ├── V9__matter_tier.sql
 │   │           ├── V10__save_matter_flags.sql
 │   │           ├── V11__periodic_table.sql
-│   │           └── V12__long_game_balance.sql
+│   │           ├── V12__long_game_balance.sql
+│   │           └── V13__tier_unlock_conditions.sql
 │   │
 │   └── test/java/com/periodic/idle/
 │       ├── BigNumTest.java
@@ -500,6 +504,7 @@ crystals = 10^(base_log10 + log10(crystalGainMult * electronCrystalMult))
 | GET | `/api/matter-info/{saveId}` | Прапори Тіру 1, частинки, готовність до колапсу |
 | GET | `/api/stats/{saveId}` | Множники й per-generator розбивка |
 | GET | `/api/elements/{saveId}` | Періодична таблиця з прапором `unlocked`/`count` |
+| GET | `/api/tier-unlocks` | Data-driven умови розблокування тірів (без saveId — однакові для всіх) |
 
 ### Дії гравця
 | Method | Path | Body | Опис |
@@ -532,7 +537,8 @@ crystals = 10^(base_log10 + log10(crystalGainMult * electronCrystalMult))
 ## 10. UI принципи
 
 ### Progressive disclosure
-- Вкладки розблоковуються поступово через `TIER_UNLOCKS` (config.js) — гравець не бачить Тір 1/2, доки не виконана умова
+- Вкладки розблоковуються поступово через `TIER_UNLOCK_CONDITIONS` — data-driven, підвантажується з `/api/tier-unlocks` при bootstrap (`fetchTierUnlocks()` у nav.js), а не хардкодиться у JS
+- Тір розблокований, якщо ХОЧА Б ОДНА його умова виконана (OR за рядками `tier_unlock_conditions` з однаковим `tier`) — напр. Тір 1 відкривається або стіною нескінченності (E ≥ 1e308), або вже наявною хоч однією частинкою p/n/e
 - `locked` тір-кнопки в сайдбарі (`display:none`) знімають клас, коли `refreshTierLocks()` бачить виконану умову
 
 ### Сайдбар з тірами (не плоский ряд вкладок)
@@ -592,12 +598,13 @@ spring:
 - GeneratorService, UpgradeService, PrestigeService, ExchangeService, AutoBuyService
 - MatterService: колапс матерії + Break Infinity (Тір 1)
 - SynthesisService: синтез атомів 1-36 з послідовною прогресією (Тір 2)
+- TierUnlockCondition: data-driven умови розблокування тірів (OR за рядками), фронтенд без хардкоду
 - SaveService: ізольований save на кожен client_token (справжній multi-account)
 - SaveTransferService: мануальний export/import save як JSON (тільки backend — UI кнопки ще не підключені)
 - GameController: повний REST API (стан, купівлі, престиж, обмін, матерія, статистика, елементи, save-transfer)
 - DevController: tick-speed, add-exp
 - Фронтенд: сайдбар/тіри, ресурси, генератори, апгрейди, престиж, колапс матерії, грейди/Break Infinity, статистика, періодична таблиця з анімованою моделлю Бора
-- Flyway міграції V1-V12 (включно з довгограйним ребалансом)
+- Flyway міграції V1-V13 (включно з довгограйним ребалансом і data-driven unlock conditions)
 - Тести: 176+ passed
 
 **Відомі прогалини:**
@@ -623,7 +630,7 @@ spring:
 | 12 | Баланс Tier 0 — перший прохід під довгу гру зроблено (V12), потрібне живе тестування | 🔶 |
 | ~~13~~ | ~~Offline progress (наздоганяючий прогрес на старті сервера)~~ | ✅ |
 | 14 | Досягнення (achievements system) | ⏳ |
-| 15 | Unlock conditions (data-driven progressive disclosure) | ⏳ |
+| ~~15~~ | ~~Unlock conditions (data-driven progressive disclosure)~~ | ✅ |
 | ~~16~~ | ~~Збереження/завантаження (multiple saves за client_token)~~ | ✅ |
 | ~~16b~~ | ~~Мануальний save export/import — UI-кнопки в Settings~~ | ✅ |
 | 17 | Production PostgreSQL profile | ⏳ |
