@@ -62,8 +62,13 @@ public class MatterService {
         }
         playerGeneratorRepository.saveAll(gens);
 
+        // AUTOBUY-апгрейд (покриття автокупівлі генераторів) навмисно НЕ скидається —
+        // інакше кожен колапс глушив би AutoBuyService до ручної повторної покупки,
+        // хоча сама автокупівля — це наскрізна зручність, а не прогрес Тіру 0, який
+        // колапс і покликаний обнуляти.
         List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
         for (PlayerUpgrade pu : upgrades) {
+            if ("AUTOBUY".equals(pu.getUpgrade().getEffectType())) continue;
             pu.setLevel(0);
         }
         playerUpgradeRepository.saveAll(upgrades);

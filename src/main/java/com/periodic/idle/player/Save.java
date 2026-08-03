@@ -32,6 +32,14 @@ public class Save {
     private boolean autoSynthesizeEnabled = false;
 
     /**
+     * Чи увімкнена автопокупка апгрейдів Тіру 0. Розблоковується у UI лише після
+     * {@link com.periodic.idle.engine.AutoUpgradeService#AUTO_UPGRADE_UNLOCK_COLLAPSES}
+     * колапсів матерії. За замовчуванням вимкнено.
+     */
+    @Column(name = "auto_upgrade_enabled", nullable = false)
+    private boolean autoUpgradeEnabled = false;
+
+    /**
      * Стабільний UUID, який клієнт зберігає в localStorage. Дає мульти-юзер: кожен
      * браузер ідентифікує "свій" save без логіна. NULL = legacy/dev save.
      */

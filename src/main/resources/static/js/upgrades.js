@@ -92,6 +92,7 @@ async function fetchUpgrades() {
     data.forEach(function(u) { upgradesState.byCode[u.code] = u; });
     renderCompass();
     if (typeof renderAutobuyToggle === 'function') renderAutobuyToggle();
+    if (typeof renderAutoUpgradeToggle === 'function') renderAutoUpgradeToggle();
   } catch (e) {
     console.error('fetchUpgrades failed', e);
   } finally {
@@ -126,5 +127,75 @@ async function buyUpgrade(id, amount) {
   } catch (e) {
     console.error('buyUpgrade failed', e);
     return { ok: false, error: String(e) };
+  }
+}
+
+/**
+ * Автопокупка апгрейдів Тіру 0 — окремий перемикач від автобаю генераторів.
+ * Розблоковується у UI лише після matterState.autoUpgradeUnlockCollapses колапсів
+ * матерії (AutoUpgradeService.AUTO_UPGRADE_UNLOCK_COLLAPSES): до того — показуємо
+ * прогрес-хінт замість кнопки, як і решта progressive-disclosure підказок у грі.
+ */
+function renderAutoUpgradeToggle() {
+  var row = document.getElementById('autoupgrade-toggle-row');
+  var btn = document.getElementById('autoupgrade-toggle-btn');
+  var hint = document.getElementById('autoupgrade-toggle-hint');
+  if (!row || !btn) return;
+  if (typeof matterState === 'undefined') return;
+
+  var done = matterState.matterCollapses || 0;
+  var required = matterState.autoUpgradeUnlockCollapses || 4;
+  var unlocked = !!matterState.autoUpgradeUnlocked;
+
+  // До першого колапсу матерії гравець ще не бачив саму механіку колапсу —
+  // показувати прогрес "0 / 4 колапсів" тут було б передчасним спойлером.
+  if (done <= 0 && !unlocked) {
+    row.style.display = 'none';
+    return;
+  }
+  row.style.display = '';
+
+  if (!unlocked) {
+    btn.style.display = 'none';
+    if (hint) {
+      hint.style.display = '';
+      hint.textContent = 'Автопокупка апгрейдів: ' + done + ' / ' + required + ' колапсів матерії';
+    }
+    return;
+  }
+
+  if (hint) hint.style.display = 'none';
+  btn.style.display = '';
+  btn.disabled = false;
+  var enabled = !!matterState.autoUpgradeEnabled;
+  btn.classList.toggle('on', enabled);
+  btn.classList.toggle('off', !enabled);
+  btn.textContent = enabled ? 'Авто-апгрейди: УВІМК' : 'Авто-апгрейди: ВИМК';
+  btn.title = enabled
+    ? 'Автопокупка всіх доступних апгрейдів кожну секунду. Натисни щоб вимкнути.'
+    : 'Автопокупка апгрейдів вимкнена. Натисни щоб увімкнути.';
+}
+
+async function toggleAutoUpgrade() {
+  var btn = document.getElementById('autoupgrade-toggle-btn');
+  if (!btn || btn.disabled || typeof matterState === 'undefined') return;
+  var enabled = !!matterState.autoUpgradeEnabled;
+  var next = !enabled;
+  matterState.autoUpgradeEnabled = next;
+  renderAutoUpgradeToggle();
+  try {
+    var res = await fetch('/api/autoupgrade-toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saveId: SAVE_ID, enabled: next })
+    });
+    if (!res.ok) throw new Error('toggle failed');
+    var data = await res.json();
+    matterState.autoUpgradeEnabled = !!data.autoUpgradeEnabled;
+    renderAutoUpgradeToggle();
+  } catch (err) {
+    console.error('toggleAutoUpgrade failed', err);
+    matterState.autoUpgradeEnabled = enabled;
+    renderAutoUpgradeToggle();
   }
 }
