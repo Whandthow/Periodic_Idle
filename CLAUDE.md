@@ -255,7 +255,8 @@ periodic-idle/
 │       │   ├── SaveTransferServiceTest.java
 │       │   ├── AchievementServiceTest.java
 │       │   ├── MoleculeServiceTest.java
-│       │   └── AutoSynthesizeServiceTest.java
+│       │   ├── AutoSynthesizeServiceTest.java
+│       │   └── AutoSynthesizeServiceTransactionTest.java  # @SpringBootTest: реальний AOP-проксі, ловить rollback-only баг
 │       └── web/
 │           └── GameControllerTest.java
 ```
@@ -297,6 +298,8 @@ periodic-idle/
 - **Інтеграційні тести контролерів** — `@SpringBootTest` + `@AutoConfigureMockMvc` + `@MockitoBean`.
 - **Кастомні винятки** замість голих `RuntimeException` (поступово мігрувати).
 - **Жодних мережевих викликів у тестах.**
+- **`@Scheduled`-сервіси, що викликають ІНШІ `@Transactional`-біни всередині `try/catch` у циклі** (`AutoBuyService`, `AutoSynthesizeService`) — **зовнішній `@Scheduled`-метод НЕ повинен бути `@Transactional`.** Якщо він є, увесь цикл (по всіх saves і по кожному елементу/генератору) ділить ОДНУ фізичну транзакцію; виняток від внутрішнього виклику (а це норма — "недостатньо ресурсів", "зоря ще не запалена") позначає її rollback-only ще ДО того, як try/catch встигне його проковтнути, і на `commit` вилітає `UnexpectedRollbackException`, відкочуючи геть усе, що встигло вдатися цього тіку — саме так `AutoSynthesizeService` "зависав" наживо (не кидав видиму помилку гравцю, просто мовчки нічого не зберігав). Перевірити це можна **тільки** інтеграційним `@SpringBootTest` (Mockito-юніти AOP-проксі не залучають, тому бага не бачать) — див. `AutoSynthesizeServiceTransactionTest`.
+- **`@SpringBootTest` без моків реальних `@Scheduled`-бінів** (GameEngine/AutoBuyService/AutoSynthesizeService) — фонові тіки й далі активно виконуються протягом усього тесту (`@EnableScheduling` живий у повному контексті) і можуть конкурувати з тим, що тест перевіряє напряму, роблячи тест флейкі. Якщо тест не мокає ці біни явно — підміни `TaskScheduler` на no-op через вкладений `@TestConfiguration` (приклад: `AutoSynthesizeServiceTransactionTest.NoOpSchedulingConfig`).
 
 ### 5.3 База даних та міграції
 
@@ -635,6 +638,8 @@ Data-driven, одноразові умови над станом save (табл�
 
 `POST /api/autosynthesize-toggle` (mirror `autobuy-toggle`), стан читається з `/api/matter-info` (`autoSynthesizeEnabled`) — той самий "загальний бег прапорів save", де вже лежить `autobuyEnabled`. Кнопка тоглу дублюється на сторінках періодичної таблиці й молекул (`renderAutoSynthesizeToggle()` у periodic-table.js, викликається з `fetchMatterInfo()` у matter.js), обидві відображають той самий загальний стан.
 
+**Виправлений транзакційний баг (живий репорт гравця):** `tickAutoSynthesize()` НЕ `@Transactional` (розділ 5.2) — `synthesisService.synthesizeBulk`/`moleculeService.synthesizeBulk` кидають виняток у майже кожному тіку (елемент ще не відкритий послідовно, зоря не запалена — це геть не крайні випадки, а звичайний стан для більшості з 36 елементів), і якби зовнішній метод був `@Transactional`, кожен такий виняток позначав би ВСЮ транзакцію (по всіх saves) rollback-only ще до `try/catch`, тому жоден успішний синтез цього тіку не зберігався б.
+
 **Емерджентна поведінка (перевірено наживо):** оскільки авто-синтез елементів і молекул виконується в одному тіку послідовно, накопичені елементи одразу частково "з'їдаються" молекулами того ж тіку — гравець бачить не монотонне накопичення, а живий баланс виробництва/споживання, як і в реальній хімічній системі.
 
 ---
@@ -804,7 +809,7 @@ spring:
 - TierUnlockCondition: data-driven умови розблокування тірів (OR за рядками), фронтенд без хардкоду
 - AchievementService: 15 data-driven досягнень (RESOURCE_LOG10, MATTER_COLLAPSES, ELEMENTS_SYNTHESIZED, BROKEN_INFINITY), перевірка на кожен /api/state
 - MoleculeService: 10 молекул (Тір 3) з реальних атомів, хімічна енергія зв'язку в тій самій шкалі, що й ядерна (розділ 7.9)
-- AutoSynthesizeService: автосинтез елементів + молекул (player-driven тогл, без апгрейду), розділ 7.10
+- AutoSynthesizeService: автосинтез елементів + молекул (player-driven тогл, без апгрейду), розділ 7.10; виправлено живий транзакційний баг (rollback-only "з'їдав" усі успішні синтези тіку), той самий структурний фікс превентивно застосовано і до AutoBuyService (розділ 5.2)
 - SaveService: ізольований save на кожен client_token (справжній multi-account)
 - SaveTransferService: мануальний export/import save як JSON, з UI-кнопками в Settings
 - GameController: повний REST API (стан, купівлі, престиж, обмін, матерія, статистика, елементи, молекули, save-transfer)
