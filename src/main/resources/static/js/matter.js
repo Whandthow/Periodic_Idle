@@ -11,12 +11,22 @@ var matterState = {
   autobuyEnabled: true,
   protonEnergyMult: 1,
   neutronCostReduction: 0,
-  electronCrystalMult: 1
+  electronCrystalMult: 1,
+  cycleBoost: 1,
+  vcPersistsAfterCollapses: 10000
 };
 var selectedParticle = 'p';
 var matterFetchInFlight = false;
 
 var PARTICLE_NAMES = { p: 'Протон', n: 'Нейтрон', e: 'Електрон' };
+
+// Формат бусту циклу колапсів — може бути 1.0 або астрономічно великим.
+function fmtCycleBoost(v) {
+  if (v == null || !isFinite(v) || v <= 0) return '1';
+  if (v < 1000) return v.toFixed(2);
+  var exp = Math.floor(Math.log10(v));
+  return (v / Math.pow(10, exp)).toFixed(2) + 'e' + exp;
+}
 
 // Що саме дає кожна частинка — щоб не доводилось здогадуватись (розділ 7.1 CLAUDE.md).
 // Значення рахуються на бекенді (ParticleBonus), тут лише форматуємо текст.
@@ -63,11 +73,16 @@ function renderMatterPage() {
   var btn = document.getElementById('matter-collapse-btn');
   if (!intro || !particlesEl || !btn) return;
 
+  var vcPersists = (matterState.matterCollapses || 0) >= (matterState.vcPersistsAfterCollapses || Infinity);
   if (matterState.collapseReady) {
+    var resetText = vcPersists
+      ? 'це повністю скине Тір 0 (енергію, генератори, апгрейди) — Кристали Пустоти вже НЕ скидаються '
+        + '(поріг ' + matterState.vcPersistsAfterCollapses + ' колапсів пройдено)'
+      : 'це повністю скине Тір 0 (енергію, генератори, апгрейди й кристали пустоти)';
     intro.innerHTML = 'Енергія досягла межі! Обери частинку і сколапсуй — ' +
-      'це повністю скине Тір 0 (енергію, генератори, апгрейди й кристали пустоти) ' +
-      'та додасть +1 обраної частинки — вона залишиться назавжди.' +
-      '<div class="matter-intro-sub">Колапсів виконано: ' + matterState.matterCollapses + '</div>';
+      resetText + ' та додасть +1 обраної частинки — вона залишиться назавжди.' +
+      '<div class="matter-intro-sub">Колапсів виконано: ' + matterState.matterCollapses +
+      ' · Цикл-буст: ×' + fmtCycleBoost(matterState.cycleBoost) + '</div>';
   } else {
     var curExp = Math.floor(matterState.energyLog10 || 0);
     intro.innerHTML = 'Досягни 1e' + matterState.energyCapLog10 + ' енергії, щоб зробити колапс матерії.' +
@@ -120,6 +135,8 @@ function renderMatterUpgrades() {
   var required = matterState.breakInfinityRequired || 0;
   var done = matterState.matterCollapses || 0;
   var ready = matterState.brokenInfinity || done >= required;
+  var vcPersistThreshold = matterState.vcPersistsAfterCollapses || 0;
+  var vcPersists = done >= vcPersistThreshold;
 
   container.innerHTML =
     '<div class="matter-upg-card' + (matterState.brokenInfinity ? ' done' : '') + '">' +
@@ -132,6 +149,16 @@ function renderMatterUpgrades() {
         '<div class="matter-actions">' +
           '<button class="gen-buy-all-btn" ' + (ready ? '' : 'disabled') + ' onclick="doBreakInfinity()">Зламати нескінченність</button>' +
         '</div>') +
+    '</div>' +
+    '<div class="matter-upg-card' + (vcPersists ? ' done' : '') + '">' +
+      '<div class="matter-upg-title">Цикл колапсів</div>' +
+      '<div class="matter-upg-desc">Кожен колапс матерії — новий цикл, досвід якого лишається назавжди ' +
+        '(на відміну від Кристалів Пустоти). Поточний множник виробництва: ×' + fmtCycleBoost(matterState.cycleBoost) + '.' +
+        (vcPersists ? '' : ' Після ' + vcPersistThreshold + ' колапсів Кристали Пустоти більше не скидатимуться.') +
+      '</div>' +
+      '<div class="matter-upg-status">' +
+        (vcPersists ? 'Кристали більше не скидаються' : 'До постійних кристалів: ' + done + ' / ' + vcPersistThreshold) +
+      '</div>' +
     '</div>';
 
   if (msg) msg.textContent = '';

@@ -197,7 +197,10 @@ class GameControllerTest {
                 .andExpect(jsonPath("$.particles.e").value(0))
                 .andExpect(jsonPath("$.protonEnergyMult").value(1.0))
                 .andExpect(jsonPath("$.neutronCostReduction").value(0.0))
-                .andExpect(jsonPath("$.electronCrystalMult").value(1.0));
+                .andExpect(jsonPath("$.electronCrystalMult").value(1.0))
+                // matterCollapses=3 -> CollapseCycleBonus.boost(3) = 10^(2.5*log10(4)) ≈ 32.0
+                .andExpect(jsonPath("$.cycleBoost", closeTo(32.0, 0.5)))
+                .andExpect(jsonPath("$.vcPersistsAfterCollapses").value(10000));
     }
 
     @Test

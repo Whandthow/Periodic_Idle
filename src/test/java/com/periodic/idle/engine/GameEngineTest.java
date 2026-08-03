@@ -707,6 +707,41 @@ class GameEngineTest {
         assertEquals(expected.getNumber(), playerEnergy.getNumber(), 0.001);
     }
 
+    @Test
+    @DisplayName("Цикл колапсів (CollapseCycleBonus): 9 колапсів дає буст 10^2.5, не залежить від VC")
+    void processSave_cycleBoost_appliedWithoutCrystals() {
+        save.setMatterCollapses(9L);
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        gameEngine.tick();
+
+        // rawExponent = 2.5*log10(10) = 2.5 (< softcap 10, лінійно) -> boost = 10^2.5.
+        // rate/sec = 0.5 * 10^2.5; tick (0.1с) = 0.05 * 10^2.5.
+        double expectedTotal = 0.05 * Math.pow(10, 2.5);
+        double total = playerEnergy.getNumber() * Math.pow(10, playerEnergy.getExponent());
+        assertEquals(expectedTotal, total, expectedTotal * 1e-6);
+    }
+
+    @Test
+    @DisplayName("Цикл колапсів: 0 колапсів -> буст 1.0 (без ефекту)")
+    void processSave_cycleBoost_zeroCollapsesNoEffect() {
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        gameEngine.tick();
+
+        BigNum expected = new BigNum(0.05, 0);
+        assertEquals(expected.getNumber(), playerEnergy.getNumber(), 0.001);
+    }
+
     // === calculateGeneratorBreakdown ===
 
     @Test

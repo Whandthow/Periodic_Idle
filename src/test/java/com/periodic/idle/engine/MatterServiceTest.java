@@ -68,6 +68,29 @@ class MatterServiceTest {
     }
 
     @Test
+    @DisplayName("collapse: після VC_PERSISTS_AFTER_COLLAPSES колапсів VC більше НЕ скидається")
+    void collapse_afterVcPersistThreshold_keepsCrystals() {
+        ReflectionTestUtils.setField(save, "matterCollapses", CollapseCycleBonus.VC_PERSISTS_AFTER_COLLAPSES);
+        PlayerResource crystals = makePlayerResource("VC", 5.76, 95);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(energy, p, crystals));
+        PlayerGenerator gen = instantiate(PlayerGenerator.class);
+        gen.setLevel(5);
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(gen));
+        PlayerUpgrade upgrade = instantiate(PlayerUpgrade.class);
+        upgrade.setLevel(20);
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(upgrade));
+
+        matterService.collapse(1L, "p");
+
+        // Енергія/генератори/апгрейди й далі скидаються — тільки VC переживає колапс.
+        assertEquals(0, upgrade.getLevel());
+        assertEquals(0, gen.getLevel());
+        assertEquals(5.76, crystals.getNumber(), 1e-9);
+        assertEquals(95, crystals.getExponent());
+    }
+
+    @Test
     @DisplayName("collapse: енергія нижче капу -> кидає 'Потрібно 1e308 енергії'")
     void collapse_belowCap_throws() {
         energy.setExponent(100);

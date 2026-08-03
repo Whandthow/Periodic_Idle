@@ -68,11 +68,19 @@ public class MatterService {
         }
         playerUpgradeRepository.saveAll(upgrades);
 
-        PlayerResource crystals = findByCode(resources, "VC");
-        if (crystals != null) {
-            crystals.setNumber(0);
-            crystals.setExponent(0);
-            playerResourceRepository.save(crystals);
+        // Кристали Пустоти скидаються так само, як апгрейди й генератори — АЛЕ лише
+        // поки не накопичено CollapseCycleBonus.VC_PERSISTS_AFTER_COLLAPSES (10 000)
+        // колапсів: після цього гравець "довів" накопичений цикл-досвід і отримує
+        // право на постійний VC/CORE-снігова-ком (без цього повторний колапс матерії
+        // практично недосяжний без VC — жива бот-симуляція, docs/balance.md V17/V18;
+        // CollapseCycleBonus — незалежний від VC місток до цього моменту).
+        if (save.getMatterCollapses() < CollapseCycleBonus.VC_PERSISTS_AFTER_COLLAPSES) {
+            PlayerResource crystals = findByCode(resources, "VC");
+            if (crystals != null) {
+                crystals.setNumber(0);
+                crystals.setExponent(0);
+                playerResourceRepository.save(crystals);
+            }
         }
 
         // +1 частинка обраного типу.
