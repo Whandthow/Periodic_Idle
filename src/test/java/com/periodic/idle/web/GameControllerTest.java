@@ -333,6 +333,64 @@ class GameControllerTest {
     }
 
     @Test
+    @DisplayName("POST /api/autoupgrade-toggle — перемикає прапор і повертає новий стан")
+    void autoUpgradeToggle_setsFlagFromBody() throws Exception {
+        Save save = newSave(1L);
+        save.setAutoUpgradeEnabled(false);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(saveRepository.save(save)).thenReturn(save);
+
+        mockMvc.perform(post("/api/autoupgrade-toggle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"enabled\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autoUpgradeEnabled").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /api/autoupgrade-toggle без enabled — інвертує поточне значення")
+    void autoUpgradeToggle_noBody_inverts() throws Exception {
+        Save save = newSave(1L);
+        save.setAutoUpgradeEnabled(true);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+
+        mockMvc.perform(post("/api/autoupgrade-toggle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autoUpgradeEnabled").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /api/matter-info/1 — включає autoUpgradeEnabled і поріг розблокування")
+    void matterInfo_includesAutoUpgradeFlags() throws Exception {
+        Save save = newSave(1L);
+        save.setAutoUpgradeEnabled(true);
+        save.setMatterCollapses(4L);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        mockMvc.perform(get("/api/matter-info/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autoUpgradeEnabled").value(true))
+                .andExpect(jsonPath("$.autoUpgradeUnlockCollapses").value(4))
+                .andExpect(jsonPath("$.autoUpgradeUnlocked").value(true));
+    }
+
+    @Test
+    @DisplayName("GET /api/matter-info/1 — autoUpgradeUnlocked=false до 4 колапсів")
+    void matterInfo_autoUpgradeNotYetUnlocked() throws Exception {
+        Save save = newSave(1L);
+        save.setMatterCollapses(1L);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+
+        mockMvc.perform(get("/api/matter-info/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autoUpgradeUnlocked").value(false));
+    }
+
+    @Test
     @DisplayName("GET /api/stats/1 — повертає JSON, делегує GameEngine.calculateStats")
     void stats_returnsBreakdown() throws Exception {
         Map<String, Object> payload = new LinkedHashMap<>();

@@ -9,6 +9,9 @@ var matterState = {
   breakInfinityRequired: 10,
   collapseReady: false,
   autobuyEnabled: true,
+  autoUpgradeEnabled: false,
+  autoUpgradeUnlockCollapses: 4,
+  autoUpgradeUnlocked: false,
   protonEnergyMult: 1,
   neutronCostReduction: 0,
   electronCrystalMult: 1,
@@ -55,6 +58,7 @@ async function fetchMatterInfo() {
     if (typeof refreshTierLocks === 'function') refreshTierLocks();
     if (typeof renderAutobuyToggle === 'function') renderAutobuyToggle();
     if (typeof renderAutoSynthesizeToggle === 'function') renderAutoSynthesizeToggle();
+    if (typeof renderAutoUpgradeToggle === 'function') renderAutoUpgradeToggle();
     if (isPageActive('exchange')) renderMatterPage();
     if (isPageActive('upgrades_t1')) renderMatterUpgrades();
   } finally {

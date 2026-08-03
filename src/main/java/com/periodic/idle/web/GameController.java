@@ -11,6 +11,7 @@ import com.periodic.idle.content.TierUnlockConditionRepository;
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
 import com.periodic.idle.engine.AchievementService;
+import com.periodic.idle.engine.AutoUpgradeService;
 import com.periodic.idle.engine.CollapseCycleBonus;
 import com.periodic.idle.engine.ExchangeService;
 import com.periodic.idle.engine.GameEngine;
@@ -279,6 +280,10 @@ public class GameController {
                 || log10Energy >= GameEngine.ENERGY_CAP_EXPONENT);
         map.put("autobuyEnabled", save.isAutobuyEnabled());
         map.put("autoSynthesizeEnabled", save.isAutoSynthesizeEnabled());
+        map.put("autoUpgradeEnabled", save.isAutoUpgradeEnabled());
+        map.put("autoUpgradeUnlockCollapses", AutoUpgradeService.AUTO_UPGRADE_UNLOCK_COLLAPSES);
+        map.put("autoUpgradeUnlocked",
+                save.getMatterCollapses() >= AutoUpgradeService.AUTO_UPGRADE_UNLOCK_COLLAPSES);
         // Реальні поточні бонуси від накопичених частинок (ParticleBonus, розділ 7.1 CLAUDE.md) —
         // щоб гравець бачив НАЖИВО, що саме йому дають протони/нейтрони/електрони, а не здогадувався.
         map.put("protonEnergyMult", ParticleBonus.protonEnergyMult(resources));
@@ -313,6 +318,18 @@ public class GameController {
         save.setAutoSynthesizeEnabled(next);
         saveRepository.save(save);
         return Map.of("status", "ok", "autoSynthesizeEnabled", next);
+    }
+
+    @PostMapping("/autoupgrade-toggle")
+    public Map<String, Object> autoUpgradeToggle(@RequestBody Map<String, Object> request) {
+        Long saveId = ((Number) request.get("saveId")).longValue();
+        Save save = saveRepository.findById(saveId)
+                .orElseThrow(() -> new RuntimeException("Save not found"));
+        Object enabled = request.get("enabled");
+        boolean next = enabled == null ? !save.isAutoUpgradeEnabled() : Boolean.TRUE.equals(enabled);
+        save.setAutoUpgradeEnabled(next);
+        saveRepository.save(save);
+        return Map.of("status", "ok", "autoUpgradeEnabled", next);
     }
 
     @PostMapping("/matter-collapse")

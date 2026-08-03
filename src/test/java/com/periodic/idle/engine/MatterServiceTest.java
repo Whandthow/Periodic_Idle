@@ -1,6 +1,7 @@
 package com.periodic.idle.engine;
 
 import com.periodic.idle.content.Resource;
+import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,9 +52,9 @@ class MatterServiceTest {
         PlayerGenerator gen = instantiate(PlayerGenerator.class);
         gen.setLevel(5);
         when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(gen));
-        PlayerUpgrade upgrade = instantiate(PlayerUpgrade.class);
-        upgrade.setLevel(20);
-        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(upgrade));
+        PlayerUpgrade upgrade = makePlayerUpgrade("ENERGY_MULT", 20);
+        PlayerUpgrade autobuyUpgrade = makePlayerUpgrade("AUTOBUY", 3);
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(upgrade, autobuyUpgrade));
 
         matterService.collapse(1L, "p");
 
@@ -61,6 +62,7 @@ class MatterServiceTest {
         assertEquals(PrestigeService.STARTER_ENERGY_EXPONENT, energy.getExponent());
         assertEquals(0, gen.getLevel());
         assertEquals(0, upgrade.getLevel());
+        assertEquals(3, autobuyUpgrade.getLevel(), "AUTOBUY upgrade must survive collapse so generator auto-buy keeps working");
         assertEquals(0, crystals.getNumber(), 1e-9);
         assertEquals(0, crystals.getExponent());
         assertEquals(1, p.getNumber() * Math.pow(10, p.getExponent()), 1e-9);
@@ -77,8 +79,7 @@ class MatterServiceTest {
         PlayerGenerator gen = instantiate(PlayerGenerator.class);
         gen.setLevel(5);
         when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(gen));
-        PlayerUpgrade upgrade = instantiate(PlayerUpgrade.class);
-        upgrade.setLevel(20);
+        PlayerUpgrade upgrade = makePlayerUpgrade("ENERGY_MULT", 20);
         when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(upgrade));
 
         matterService.collapse(1L, "p");
@@ -139,6 +140,15 @@ class MatterServiceTest {
 
         assertDoesNotThrow(() -> matterService.breakInfinity(1L));
         verify(saveRepository, never()).save(any());
+    }
+
+    private PlayerUpgrade makePlayerUpgrade(String effectType, int level) {
+        Upgrade upgrade = instantiate(Upgrade.class);
+        ReflectionTestUtils.setField(upgrade, "effectType", effectType);
+        PlayerUpgrade pu = instantiate(PlayerUpgrade.class);
+        pu.setUpgrade(upgrade);
+        pu.setLevel(level);
+        return pu;
     }
 
     private PlayerResource makePlayerResource(String code, double number, long exponent) {
