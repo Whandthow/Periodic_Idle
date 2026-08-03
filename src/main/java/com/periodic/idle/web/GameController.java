@@ -11,6 +11,7 @@ import com.periodic.idle.content.TierUnlockConditionRepository;
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
 import com.periodic.idle.engine.AchievementService;
+import com.periodic.idle.engine.CollapseCycleBonus;
 import com.periodic.idle.engine.ExchangeService;
 import com.periodic.idle.engine.GameEngine;
 import com.periodic.idle.engine.GeneratorService;
@@ -283,6 +284,10 @@ public class GameController {
         map.put("protonEnergyMult", ParticleBonus.protonEnergyMult(resources));
         map.put("neutronCostReduction", ParticleBonus.neutronCostReduction(resources));
         map.put("electronCrystalMult", ParticleBonus.electronCrystalMult(resources));
+        // Цикл-буст від кількості колапсів (CollapseCycleBonus) — не залежить від VC,
+        // єдиний місток до повторного колапсу матерії до VC_PERSISTS_AFTER_COLLAPSES.
+        map.put("cycleBoost", CollapseCycleBonus.boost(save.getMatterCollapses()));
+        map.put("vcPersistsAfterCollapses", CollapseCycleBonus.VC_PERSISTS_AFTER_COLLAPSES);
         return map;
     }
 

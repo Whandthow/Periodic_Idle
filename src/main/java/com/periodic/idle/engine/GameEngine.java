@@ -201,6 +201,7 @@ public class GameEngine {
         double genMult = calcMultiplier(upgrades, "GENERATOR_MULT");
         double coreBoost = calcCoreBoost(upgrades, resources);
         double protonMult = ParticleBonus.protonEnergyMult(resources);
+        double cycleBoost = calcCycleBoost(saveId);
         Map<Long, Double> genSpecific = calcGenSpecificMults(upgrades, generators);
         double energyPow = calcEnergyPow(upgrades);
         Map<Long, Double> genStack = calcGenStackMults(upgrades, generators);
@@ -220,7 +221,7 @@ public class GameEngine {
                 double perGen = genSpecific.getOrDefault(gid, 1.0);
                 double stack = genStack.getOrDefault(gid, 1.0);
                 double rate = output.getRatePerLevel() * pg.getLevel()
-                        * genMult * energyMult * coreBoost * protonMult * perGen * stack;
+                        * genMult * energyMult * coreBoost * protonMult * cycleBoost * perGen * stack;
                 if (phantom > 0) rate *= (1.0 + phantom);
                 if (energyPow != 1.0 && rate > 1.0) {
                     rate = Math.pow(rate, energyPow);
@@ -241,6 +242,7 @@ public class GameEngine {
         double genMult = calcMultiplier(upgrades, "GENERATOR_MULT");
         double coreBoost = calcCoreBoost(upgrades, resources);
         double protonMult = ParticleBonus.protonEnergyMult(resources);
+        double cycleBoost = calcCycleBoost(saveId);
         Map<Long, Double> genSpecific = calcGenSpecificMults(upgrades, generators);
         double energyPow = calcEnergyPow(upgrades);
         Map<Long, Double> genStack = calcGenStackMults(upgrades, generators);
@@ -254,7 +256,7 @@ public class GameEngine {
                 double perGen = genSpecific.getOrDefault(pg.getGenerator().getId(), 1.0);
                 double stack = genStack.getOrDefault(pg.getGenerator().getId(), 1.0);
                 double ratePerSec = output.getRatePerLevel() * pg.getLevel()
-                        * genMult * energyMult * coreBoost * protonMult * perGen * stack;
+                        * genMult * energyMult * coreBoost * protonMult * cycleBoost * perGen * stack;
                 if ("E".equals(output.getResource().getCode())) {
                     double bonus = phantomBonus.getOrDefault(pg.getGenerator().getId(), 0.0);
                     if (bonus > 0) ratePerSec *= (1.0 + bonus);
@@ -450,6 +452,13 @@ public class GameEngine {
         return Double.isFinite(result) ? result : 1.0;
     }
 
+    /** Цикл-буст від кількості колапсів матерії (CollapseCycleBonus) — 0 колапсів -> 1.0. */
+    private double calcCycleBoost(Long saveId) {
+        return saveRepository.findById(saveId)
+                .map(save -> CollapseCycleBonus.boost(save.getMatterCollapses()))
+                .orElse(1.0);
+    }
+
     private PlayerResource findResource(List<PlayerResource> resources, Long resourceId) {
         return resources.stream()
                 .filter(r -> r.getResource().getId().equals(resourceId))
@@ -470,6 +479,7 @@ public class GameEngine {
         double genMult = calcMultiplier(upgrades, "GENERATOR_MULT");
         double coreBoost = calcCoreBoost(upgrades, resources);
         double protonMult = ParticleBonus.protonEnergyMult(resources);
+        double cycleBoost = calcCycleBoost(saveId);
         double energyPow = calcEnergyPow(upgrades);
         Map<Long, Double> genSpecific = calcGenSpecificMults(upgrades, generators);
         Map<Long, Double> genStack = calcGenStackMults(upgrades, generators);
@@ -483,6 +493,7 @@ public class GameEngine {
         long eCount = ParticleBonus.count(resources, "e");
         double neutronCostCut = ParticleBonus.neutronCostReduction(resources);
         double electronCrystalMult = ParticleBonus.electronCrystalMult(resources);
+        long matterCollapses = saveRepository.findById(saveId).map(Save::getMatterCollapses).orElse(0L);
 
         // Множники з ярликами джерел.
         List<Map<String, Object>> mults = new ArrayList<>();
@@ -492,6 +503,8 @@ public class GameEngine {
                 "GENERATOR_MULT × рівень", upgradeLevel(upgrades, "GENERATOR_MULT")));
         mults.add(multEntry("Ядро (Core)", coreBoost,
                 "10^(Core × VC log10)", upgradeLevel(upgrades, "CORE")));
+        mults.add(multEntry("Цикл колапсів", cycleBoost,
+                "10^(2.5 × log10(колапсів+1)), не залежить від VC", (int) matterCollapses));
         mults.add(multEntry("Протони → енергія", protonMult,
                 "+" + pct(ParticleBonus.PROTON_ENERGY_PER) + " за кожен p", (int) pCount));
         mults.add(multEntry("Нейтрони → ціна", 1.0 - neutronCostCut,
