@@ -2,7 +2,9 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
     font-family: system-ui, sans-serif;
-    background: #0a0a0f url('/img/BackgraundUpdateStage1.png') center center / cover no-repeat;
+    /* Дефолт до першого JS-виклику refreshBackgroundStage (nav.js) — далі керується
+       класами bg-void/bg-particles/bg-atom/bg-nebula, див. background-stage.css. */
+    background: #05050a;
     color: #e0e0e0;
     display: flex;
     height: 100vh;

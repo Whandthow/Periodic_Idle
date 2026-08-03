@@ -1,0 +1,67 @@
+/* === Прогресія заднього фону (розділ 1 CLAUDE.md: наукова концепція) =====
+   Тір 0 до перших частинок — чорна порожнеча (квантовий вакуум).
+   Тір 1 (є p/n/e) — розсіяні частинки.
+   Тір 2 (синтез атомів) — велика анімована модель атома (Бор), у центрі екрана.
+   Тір 3 (молекули) — теперішня туманність/зоряне небо (космічні структури пізніші за атоми).
+   Керується класами на <body> з nav.js (refreshBackgroundStage), задній шар — #bg-stage. */
+
+#bg-stage {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+body.bg-void,
+body.bg-particles,
+body.bg-atom {
+    background: #05050a;
+}
+
+body.bg-nebula {
+    background: #0a0a0f url('/img/BackgraundUpdateStage1.png') center center / cover no-repeat;
+}
+
+/* --- Тір 1: розсіяні частинки ------------------------------------------ */
+body.bg-particles #bg-stage {
+    background-image:
+        radial-gradient(2px 2px at 10% 20%, rgba(230,120,110,0.55) 0, transparent 60%),
+        radial-gradient(2.5px 2.5px at 25% 65%, rgba(200,205,215,0.5) 0, transparent 60%),
+        radial-gradient(2px 2px at 40% 30%, rgba(110,170,235,0.55) 0, transparent 60%),
+        radial-gradient(2px 2px at 60% 75%, rgba(230,120,110,0.45) 0, transparent 60%),
+        radial-gradient(2.5px 2.5px at 75% 40%, rgba(110,170,235,0.5) 0, transparent 60%),
+        radial-gradient(2px 2px at 85% 80%, rgba(200,205,215,0.45) 0, transparent 60%),
+        radial-gradient(2px 2px at 15% 85%, rgba(110,170,235,0.4) 0, transparent 60%),
+        radial-gradient(2.5px 2.5px at 90% 15%, rgba(230,120,110,0.4) 0, transparent 60%);
+    background-repeat: no-repeat;
+    animation: bg-particles-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes bg-particles-drift {
+    from { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; opacity: 0.7; }
+    to   { background-position: 2% -3%, -2% 2%, 3% 1%, -1% -2%, 2% 2%, -3% -1%, 1% 3%, -2% -3%; opacity: 1; }
+}
+
+/* --- Тір 2: анімована модель атома (перевикористовує .orbit-* з periodic-table.css) --- */
+.bg-atom-svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(70vmin, 620px);
+    height: min(70vmin, 620px);
+    transform: translate(-50%, -50%);
+    color: #6ab0ff;
+    opacity: 0.55;
+}
+.bg-atom-svg .orbit-ring { stroke-opacity: 0.25; }
+.bg-atom-svg .orbit-electron { filter: drop-shadow(0 0 4px #6ab0ff); }
+.bg-atom-svg .bg-atom-nucleus {
+    fill: #ffd27a;
+    filter: drop-shadow(0 0 10px #ffb347);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.bg-particles #bg-stage { animation: none; }
+    .bg-atom-svg .orbit-shell { animation: none; }
+}

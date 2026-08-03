@@ -7,11 +7,10 @@
   <meta name="theme-color" content="#0e0e1a">
   <meta name="color-scheme" content="dark">
   <link rel="canonical" href="https://periodicidle-production.up.railway.app/">
-  <link rel="preload" as="image" href="/img/BackgraundUpdateStage1.png" fetchpriority="high">
   <link rel="preload" as="image" href="/img/Generator1Tier1.png" fetchpriority="high">
   <link rel="icon" href="/img/VoidVortexTir1.png" type="image/png">
   <title>Periodic Idle</title>
-  <link rel="stylesheet" href="/css/base.css?v=23">
+  <link rel="stylesheet" href="/css/base.css?v=25">
   <link rel="stylesheet" href="/css/nav.css?v=25">
   <link rel="stylesheet" href="/css/resources.css?v=23">
   <link rel="stylesheet" href="/css/generators.css?v=23">
@@ -22,8 +21,12 @@
   <link rel="stylesheet" href="/css/periodic-table.css?v=24">
   <link rel="stylesheet" href="/css/achievements.css?v=1">
   <link rel="stylesheet" href="/css/molecules.css?v=1">
+  <link rel="stylesheet" href="/css/background-stage.css?v=1">
 </head>
 <body>
+
+<!-- Задній фон-прогресія: чорнота -> частинки -> атом -> туманність (nav.js: refreshBackgroundStage) -->
+<div id="bg-stage" aria-hidden="true"></div>
 
 <!-- Кнопка для висувної панелі (мобільний режим) -->
 <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Меню етапів" onclick="toggleTierDrawer()">
@@ -375,7 +378,7 @@
 <!-- JS модулі (порядок важливий: залежності спочатку) -->
 <script src="/js/config.js?v=24"></script>
 <script src="/js/utils.js?v=23"></script>
-<script src="/js/nav.js?v=28"></script>
+<script src="/js/nav.js?v=29"></script>
 <script src="/js/resources.js?v=23"></script>
 <script src="/js/generators.js?v=23"></script>
 <script src="/js/upgrades.js?v=23"></script>
