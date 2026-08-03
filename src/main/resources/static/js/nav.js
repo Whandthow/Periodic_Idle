@@ -99,19 +99,47 @@ function _tierUnlockHint(tierKey) {
 
 /**
  * Перевіряє TIER_UNLOCK_CONDITIONS і знімає клас `locked` з відповідних tier-btn.
+ * Показує підказку (title) лише для НАЙБЛИЖЧОГО заблокованого тіру — той, що
+ * "наступний" за порядком номера. Тіри далі по черзі лишаються повністю
+ * прихованими (locked-hidden, display:none), як і раніше, — інакше гравець
+ * бачив би одразу умови Тіру 2/3, хоча ще навіть Тір 1 не відкрив, що більше
+ * плутає, ніж допомагає.
  * Викликається з renderLoop / після fetchState.
  */
 function refreshTierLocks() {
   if (typeof TIER_UNLOCK_CONDITIONS === 'undefined' || typeof resourceState === 'undefined') return;
   var changed = false;
-  Object.keys(TIER_UNLOCK_CONDITIONS).forEach(function(tierKey) {
+  var tierNums = Object.keys(TIER_UNLOCK_CONDITIONS).map(Number).sort(function(a, b) { return a - b; });
+  var nextHintShown = false;
+
+  tierNums.forEach(function(tierNum) {
+    var tierKey = String(tierNum);
     var btn = document.getElementById('tier-btn-' + tierKey);
     if (!btn) return;
     var unlocked = _tierUnlocked(tierKey);
     var wasLocked = btn.classList.contains('locked');
-    if (unlocked && wasLocked) { btn.classList.remove('locked'); btn.removeAttribute('title'); changed = true; }
-    else if (!unlocked && !wasLocked) { btn.classList.add('locked'); changed = true; }
-    if (!unlocked) btn.title = _tierUnlockHint(tierKey);
+    var wasHidden = btn.classList.contains('locked-hidden');
+
+    if (unlocked) {
+      if (wasLocked || wasHidden) {
+        btn.classList.remove('locked', 'locked-hidden');
+        btn.removeAttribute('title');
+        changed = true;
+      }
+      return;
+    }
+
+    if (!nextHintShown) {
+      nextHintShown = true;
+      if (!wasLocked || wasHidden) changed = true;
+      btn.classList.add('locked');
+      btn.classList.remove('locked-hidden');
+      btn.title = _tierUnlockHint(tierKey);
+    } else {
+      if (!wasHidden) changed = true;
+      btn.classList.add('locked', 'locked-hidden');
+      btn.removeAttribute('title');
+    }
   });
   // Якщо розблокувався/заблокувався тір — перемалювати resource-bar,
   // щоб ресурси тіру зʼявились/зникли.
