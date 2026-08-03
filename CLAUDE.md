@@ -255,8 +255,7 @@ periodic-idle/
 │       │   ├── SaveTransferServiceTest.java
 │       │   ├── AchievementServiceTest.java
 │       │   ├── MoleculeServiceTest.java
-│       │   ├── AutoSynthesizeServiceTest.java
-│       │   └── AutoSynthesizeServiceTransactionTest.java  # @SpringBootTest: реальний AOP-проксі, ловить rollback-only баг
+│       │   └── AutoSynthesizeServiceTest.java
 │       └── web/
 │           └── GameControllerTest.java
 ```
@@ -298,8 +297,7 @@ periodic-idle/
 - **Інтеграційні тести контролерів** — `@SpringBootTest` + `@AutoConfigureMockMvc` + `@MockitoBean`.
 - **Кастомні винятки** замість голих `RuntimeException` (поступово мігрувати).
 - **Жодних мережевих викликів у тестах.**
-- **`@Scheduled`-сервіси, що викликають ІНШІ `@Transactional`-біни всередині `try/catch` у циклі** (`AutoBuyService`, `AutoSynthesizeService`) — **зовнішній `@Scheduled`-метод НЕ повинен бути `@Transactional`.** Якщо він є, увесь цикл (по всіх saves і по кожному елементу/генератору) ділить ОДНУ фізичну транзакцію; виняток від внутрішнього виклику (а це норма — "недостатньо ресурсів", "зоря ще не запалена") позначає її rollback-only ще ДО того, як try/catch встигне його проковтнути, і на `commit` вилітає `UnexpectedRollbackException`, відкочуючи геть усе, що встигло вдатися цього тіку — саме так `AutoSynthesizeService` "зависав" наживо (не кидав видиму помилку гравцю, просто мовчки нічого не зберігав). Перевірити це можна **тільки** інтеграційним `@SpringBootTest` (Mockito-юніти AOP-проксі не залучають, тому бага не бачать) — див. `AutoSynthesizeServiceTransactionTest`.
-- **`@SpringBootTest` без моків реальних `@Scheduled`-бінів** (GameEngine/AutoBuyService/AutoSynthesizeService) — фонові тіки й далі активно виконуються протягом усього тесту (`@EnableScheduling` живий у повному контексті) і можуть конкурувати з тим, що тест перевіряє напряму, роблячи тест флейкі. Якщо тест не мокає ці біни явно — підміни `TaskScheduler` на no-op через вкладений `@TestConfiguration` (приклад: `AutoSynthesizeServiceTransactionTest.NoOpSchedulingConfig`).
+- **`@Scheduled`-сервіси, що викликають ІНШІ `@Transactional`-біни всередині `try/catch` у циклі** (`AutoBuyService`, `AutoSynthesizeService`) — **зовнішній `@Scheduled`-метод НЕ повинен бути `@Transactional`.** Якщо він є, увесь цикл (по всіх saves і по кожному елементу/генератору) ділить ОДНУ фізичну транзакцію; виняток від внутрішнього виклику (а це норма — "недостатньо ресурсів", "зоря ще не запалена") позначає її rollback-only ще ДО того, як try/catch встигне його проковтнути, і на `commit` вилітає `UnexpectedRollbackException`, відкочуючи геть усе, що встигло вдатися цього тіку — саме так `AutoSynthesizeService` "зависав" наживо (не кидав видиму помилку гравцю, просто мовчки нічого не зберігав). Перевірити це можна **тільки** інтеграційним `@SpringBootTest` (Mockito-юніти AOP-проксі не залучають, тому бага не бачать); якщо колись знадобиться такий тест знову — реальні `@Scheduled`-біни (GameEngine/AutoBuyService/AutoSynthesizeService) продовжують тікати у фоні протягом усього `@SpringBootTest` і можуть конкурувати з тестовим сценарієм, роблячи тест флейкі — підміни `TaskScheduler` на no-op через вкладений `@TestConfiguration`.
 
 ### 5.3 База даних та міграції
 
@@ -543,6 +541,8 @@ boost = 10^effectiveExponent
 | Нейтрон (n) | − до cost-mult генераторів | `saturating(count(n)) * 0.02` | −20 (далі підлога `effectiveCostMultiplier`) |
 | Електрон (e) | + до множника кристалів при престижі | `1 + saturating(count(e)) * 0.15` | ×151 |
 
+Живі значення цих трьох бонусів віддає `/api/matter-info` і показує UI (`.matter-particle-bonus` під кожною карткою частинки на сторінці "Колапс матерії", `_particleEffectText()` у matter.js) — щоб гравець бачив, що саме дає кожна частинка, а не здогадувався.
+
 ### 7.2 Tick loop (GameEngine)
 
 Кожні 100мс:
@@ -686,7 +686,7 @@ Data-driven, одноразові умови над станом save (табл�
 | GET | `/api/generators/{saveId}` | Генератори з breakdown |
 | GET | `/api/upgrades/{saveId}` | Апгрейди з поточним рівнем |
 | GET | `/api/prestige-info/{saveId}` | Потенційний gain кристалів |
-| GET | `/api/matter-info/{saveId}` | Прапори Тіру 1, частинки, готовність до колапсу |
+| GET | `/api/matter-info/{saveId}` | Прапори Тіру 1, частинки, готовність до колапсу, живі бонуси частинок (`protonEnergyMult`/`neutronCostReduction`/`electronCrystalMult` з `ParticleBonus`) |
 | GET | `/api/stats/{saveId}` | Множники й per-generator розбивка |
 | GET | `/api/elements/{saveId}` | Періодична таблиця з прапором `unlocked`/`count` |
 | GET | `/api/tier-unlocks` | Data-driven умови розблокування тірів (без saveId — однакові для всіх) |
@@ -728,7 +728,7 @@ Data-driven, одноразові умови над станом save (табл�
 ### Progressive disclosure
 - Вкладки розблоковуються поступово через `TIER_UNLOCK_CONDITIONS` — data-driven, підвантажується з `/api/tier-unlocks` при bootstrap (`fetchTierUnlocks()` у nav.js), а не хардкодиться у JS
 - Тір розблокований, якщо ХОЧА Б ОДНА його умова виконана (OR за рядками `tier_unlock_conditions` з однаковим `tier`) — напр. Тір 1 відкривається або стіною нескінченності (E ≥ 1e308), або вже наявною хоч однією частинкою p/n/e
-- `locked` тір-кнопки в сайдбарі (`display:none`) знімають клас, коли `refreshTierLocks()` бачить виконану умову
+- `locked` тір-кнопки в сайдбарі **лишаються видимими** (затемнені, з 🔒-бейджем і `title`-підказкою `_tierUnlockHint()`), а не `display:none` — інакше гравець не здогадається, що попереду ще є етапи. Підказка data-driven з `TIER_UNLOCK_CONDITIONS`, показує живий прогрес ("1e308 енергії (зараз ~1e142)") для порогових умов і компактно групує "хоча б трохи" умови (p/n/e). Оновлюється в `refreshTierLocks()` на кожному `fetchState`/`fetchMatterInfo`.
 
 ### Сайдбар з тірами (не плоский ряд вкладок)
 ```

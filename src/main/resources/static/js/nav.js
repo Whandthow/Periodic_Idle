@@ -67,6 +67,36 @@ async function fetchTierUnlocks() {
    return firstUnlocked;
  }
 
+// Людські підписи кодів ресурсів для підказки розблокування тіру (title заблокованого tier-btn).
+var _TIER_HINT_RESOURCE_LABELS = { E: 'енергії', p: 'протонів', n: 'нейтронів', e: 'електронів', VC: 'кристалів' };
+
+/**
+ * Текст підказки "чого бракує", щоб відкрити тір — data-driven з TIER_UNLOCK_CONDITIONS,
+ * з живим прогресом (скільки вже є проти скільки треба). OR-умови з однаковим minLog10<=0
+ * (напр. "хоча б одна частинка p/n/e") групуються в один компактний рядок.
+ */
+function _tierUnlockHint(tierKey) {
+  var conditions = TIER_UNLOCK_CONDITIONS[tierKey];
+  if (!conditions || !conditions.length) return '';
+
+  var anyLabels = [];
+  var thresholdParts = [];
+  conditions.forEach(function(c) {
+    var label = _TIER_HINT_RESOURCE_LABELS[c.resource] || c.resource;
+    if (c.minLog10 <= 0) {
+      anyLabels.push(label);
+      return;
+    }
+    var current = resourceLog10(c.resource);
+    var currentText = isFinite(current) && current > -300
+      ? ' (зараз ~1e' + Math.floor(current) + ')' : '';
+    thresholdParts.push('1e' + c.minLog10 + ' ' + label + currentText);
+  });
+  if (anyLabels.length) thresholdParts.push('хоча б трохи (' + anyLabels.join(', ') + ')');
+
+  return 'Щоб відкрити: ' + thresholdParts.join(' АБО ');
+}
+
 /**
  * Перевіряє TIER_UNLOCK_CONDITIONS і знімає клас `locked` з відповідних tier-btn.
  * Викликається з renderLoop / після fetchState.
@@ -79,8 +109,9 @@ function refreshTierLocks() {
     if (!btn) return;
     var unlocked = _tierUnlocked(tierKey);
     var wasLocked = btn.classList.contains('locked');
-    if (unlocked && wasLocked) { btn.classList.remove('locked'); changed = true; }
+    if (unlocked && wasLocked) { btn.classList.remove('locked'); btn.removeAttribute('title'); changed = true; }
     else if (!unlocked && !wasLocked) { btn.classList.add('locked'); changed = true; }
+    if (!unlocked) btn.title = _tierUnlockHint(tierKey);
   });
   // Якщо розблокувався/заблокувався тір — перемалювати resource-bar,
   // щоб ресурси тіру зʼявились/зникли.

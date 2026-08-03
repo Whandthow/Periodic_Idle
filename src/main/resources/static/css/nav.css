@@ -12,6 +12,7 @@
     flex-shrink: 0;
 }
 .tier-btn {
+    position: relative;
     width: 60px;
     height: 60px;
     border-radius: 12px;
@@ -25,7 +26,20 @@
 }
 .tier-btn:hover { background: rgba(60, 60, 90, 0.25); }
 .tier-btn.active { background: rgba(125, 211, 252, 0.15); box-shadow: 0 0 12px #7dd3fc33; }
-.tier-btn.locked { display: none; }
+/* Заблокований тір лишається видимим (не display:none) — щоб гравець знав, що
+   попереду є ще етапи, і навів курсор на підказку (title, див. nav.js refreshBackgroundStage
+   / _tierUnlockHint), а не губився, куди зникли решта іконок. */
+.tier-btn.locked { cursor: not-allowed; opacity: 0.32; filter: grayscale(0.7); }
+.tier-btn.locked:hover { background: transparent; opacity: 0.5; }
+.tier-btn.locked::after {
+    content: '🔒';
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    font-size: 13px;
+    line-height: 1;
+    filter: none;
+}
 .tier-btn img { width: 42px; height: 42px; image-rendering: pixelated; }
 .tier-btn span { display: none; }
 

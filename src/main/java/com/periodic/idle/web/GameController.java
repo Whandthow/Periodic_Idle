@@ -16,6 +16,7 @@ import com.periodic.idle.engine.GameEngine;
 import com.periodic.idle.engine.GeneratorService;
 import com.periodic.idle.engine.MatterService;
 import com.periodic.idle.engine.MoleculeService;
+import com.periodic.idle.engine.ParticleBonus;
 import com.periodic.idle.engine.PrestigeService;
 import com.periodic.idle.engine.SaveService;
 import com.periodic.idle.engine.SaveTransferService;
@@ -277,6 +278,11 @@ public class GameController {
                 || log10Energy >= GameEngine.ENERGY_CAP_EXPONENT);
         map.put("autobuyEnabled", save.isAutobuyEnabled());
         map.put("autoSynthesizeEnabled", save.isAutoSynthesizeEnabled());
+        // Реальні поточні бонуси від накопичених частинок (ParticleBonus, розділ 7.1 CLAUDE.md) —
+        // щоб гравець бачив НАЖИВО, що саме йому дають протони/нейтрони/електрони, а не здогадувався.
+        map.put("protonEnergyMult", ParticleBonus.protonEnergyMult(resources));
+        map.put("neutronCostReduction", ParticleBonus.neutronCostReduction(resources));
+        map.put("electronCrystalMult", ParticleBonus.electronCrystalMult(resources));
         return map;
     }
 
