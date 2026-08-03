@@ -9,7 +9,6 @@ import com.periodic.idle.player.SaveRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
@@ -38,8 +37,19 @@ public class AutoSynthesizeService {
     private final SynthesisService synthesisService;
     private final MoleculeService moleculeService;
 
+    /**
+     * НЕ {@code @Transactional} тут навмисно. {@code synthesisService}/{@code moleculeService} —
+     * окремі Spring-біни, кожен їхній {@code synthesizeBulk} вже сам {@code @Transactional}.
+     * Якби цей метод теж був {@code @Transactional}, усі виклики нижче (по всіх saves і по
+     * кожному елементу/молекулі) ділили б ОДНУ фізичну транзакцію — і перший-ліпший
+     * RuntimeException (а тут це норма: "запалена зоря", "бракує атома" тощо) позначив би
+     * її rollback-only ще на етапі виходу з внутрішнього проксі, ДО того, як try/catch нижче
+     * встигне його проковтнути. Зовнішній commit тоді впав би з
+     * {@code UnexpectedRollbackException}, і жоден успішний синтез цього тіку не зберігся б —
+     * саме так і поводилась гра наживо. Без анотації тут кожен {@code synthesizeBulk} відкриває
+     * власну незалежну транзакцію (як і мало бути задумано).
+     */
     @Scheduled(fixedRate = AUTO_SYNTHESIZE_INTERVAL_MS)
-    @Transactional
     public void tickAutoSynthesize() {
         for (Save save : saveRepository.findAll()) {
             if (!save.isAutoSynthesizeEnabled()) continue;

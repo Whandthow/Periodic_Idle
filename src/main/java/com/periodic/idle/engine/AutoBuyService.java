@@ -5,7 +5,6 @@ import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
@@ -27,8 +26,19 @@ public class AutoBuyService {
     private final GeneratorRepository generatorRepository;
     private final GeneratorService generatorService;
 
+    /**
+     * НЕ {@code @Transactional} тут навмисно — той самий структурний ризик, що й у
+     * {@link AutoSynthesizeService#tickAutoSynthesize()} (живий баг, підтверджений
+     * інтеграційним тестом): {@code generatorService.buyBulk} — окремий бін і сам
+     * {@code @Transactional}. Тут воно на практиці майже ніколи не стріляє —
+     * {@code buyBulk(saveId, id, -1)} у max-режимі свідомо повертає 0 замість винятку
+     * при нестачі ресурсів (щоб не псувати саме цю транзакцію), тож єдиний реальний
+     * шлях до винятку — зіпсований контент (генератор видалили з БД). Але якби колись
+     * ця гарантія в GeneratorService змінилась, спільна зовнішня транзакція так само
+     * позначилась би rollback-only від одного невдалого генератора ще до try/catch
+     * нижче — тож прибираю анотацію про всяк випадок, а не лише реактивно.
+     */
     @Scheduled(fixedRate = AUTOBUY_INTERVAL_MS)
-    @Transactional
     public void tickAutoBuy() {
         for (Save save : saveRepository.findAll()) {
             if (!save.isAutobuyEnabled()) continue;
