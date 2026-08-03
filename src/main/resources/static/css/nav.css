@@ -26,9 +26,9 @@
 }
 .tier-btn:hover { background: rgba(60, 60, 90, 0.25); }
 .tier-btn.active { background: rgba(125, 211, 252, 0.15); box-shadow: 0 0 12px #7dd3fc33; }
-/* Заблокований тір лишається видимим (не display:none) — щоб гравець знав, що
-   попереду є ще етапи, і навів курсор на підказку (title, див. nav.js refreshBackgroundStage
-   / _tierUnlockHint), а не губився, куди зникли решта іконок. */
+/* Найближчий заблокований тір лишається видимим (не display:none) — щоб гравець
+   знав, що попереду є ще етап, і навів курсор на підказку (title, див. nav.js
+   _tierUnlockHint/refreshTierLocks), а не губився, куди зник наступний етап. */
 .tier-btn.locked { cursor: not-allowed; opacity: 0.32; filter: grayscale(0.7); }
 .tier-btn.locked:hover { background: transparent; opacity: 0.5; }
 .tier-btn.locked::after {
@@ -40,6 +40,9 @@
     line-height: 1;
     filter: none;
 }
+/* Тіри ДАЛІ за найближчий заблокований — досі повністю приховані (не спойлеримо
+   умови розблокування тірів, до яких ще навіть не близько). */
+.tier-btn.locked-hidden { display: none; }
 .tier-btn img { width: 42px; height: 42px; image-rendering: pixelated; }
 .tier-btn span { display: none; }
 
