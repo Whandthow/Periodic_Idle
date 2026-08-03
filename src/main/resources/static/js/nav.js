@@ -144,6 +144,40 @@ function refreshTierLocks() {
   // Якщо розблокувався/заблокувався тір — перемалювати resource-bar,
   // щоб ресурси тіру зʼявились/зникли.
   if (changed && typeof buildResourceBar === 'function') buildResourceBar();
+
+  refreshBackgroundStage();
+}
+
+var _bgStage = null;
+
+/**
+ * Прогресія заднього фону (розділ 1 CLAUDE.md): чорна порожнеча -> частинки ->
+ * анімований атом -> туманність (космічні структури). Використовує ті самі
+ * data-driven умови розблокування тірів, що й сайдбар (_tierUnlocked), тож
+ * жодних нових API-викликів не додає.
+ */
+function refreshBackgroundStage() {
+  var stage = _tierUnlocked('3') ? 'nebula'
+      : _tierUnlocked('2') ? 'atom'
+      : _tierUnlocked('1') ? 'particles'
+      : 'void';
+
+  if (stage === _bgStage) return;
+  _bgStage = stage;
+
+  document.body.classList.remove('bg-void', 'bg-particles', 'bg-atom', 'bg-nebula');
+  document.body.classList.add('bg-' + stage);
+
+  var container = document.getElementById('bg-stage');
+  if (!container) return;
+  if (stage === 'atom' && typeof _orbitsSvg === 'function') {
+    container.innerHTML = '<svg class="bg-atom-svg" viewBox="0 0 200 200">' +
+        '<circle cx="100" cy="100" r="6" class="bg-atom-nucleus"></circle>' +
+        _orbitsSvg([2, 8, 4]) +
+        '</svg>';
+  } else {
+    container.innerHTML = '';
+  }
 }
 
 function activatePage(name) {
