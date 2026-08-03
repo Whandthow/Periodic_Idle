@@ -31,6 +31,9 @@ var TIERS = {
   ]},
   3: { name: 'Молекули', tabs: [
     { id: 'molecules', label: 'Молекули' }
+  ]},
+  4: { name: 'Зорі', tabs: [
+    { id: 'stars', label: 'Зорі' }
   ]}
 };
 

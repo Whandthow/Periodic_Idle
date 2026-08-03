@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="/css/achievements.css?v=1">
   <link rel="stylesheet" href="/css/molecules.css?v=1">
   <link rel="stylesheet" href="/css/background-stage.css?v=1">
+  <link rel="stylesheet" href="/css/stars.css?v=1">
 </head>
 <body>
 
@@ -57,6 +58,13 @@
       <line x1="15.4" y1="8.6" x2="14" y2="15"></line>
     </svg>
     <span>Молекули</span>
+  </div>
+  <div class="tier-btn locked" id="tier-btn-4" onclick="selectTier(4, this)">
+    <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"></circle>
+      <path d="M12 1 L12 5 M12 19 L12 23 M1 12 L5 12 M19 12 L23 12 M4.2 4.2 L7 7 M17 17 L19.8 19.8 M4.2 19.8 L7 17 M17 7 L19.8 4.2"></path>
+    </svg>
+    <span>Зорі</span>
   </div>
 
   <div class="sidebar-spacer"></div>
@@ -228,6 +236,7 @@
     <div class="panel periodic-panel">
       <div class="panel-title">Періодична таблиця</div>
       <div class="periodic-intro" id="periodic-intro">Завантаження…</div>
+      <div class="matter-intro-sub" id="element-bonus-info"></div>
       <div class="autobuy-toggle-row" id="autosynthesize-toggle-row-elements" style="display:none">
         <button class="autobuy-toggle-btn" id="autosynthesize-toggle-btn-elements"
                 onclick="toggleAutoSynthesize()" type="button">…</button>
@@ -261,6 +270,14 @@
                 onclick="toggleAutoSynthesize()" type="button">…</button>
       </div>
       <div id="molecules-grid"></div>
+    </div>
+  </div>
+
+  <div id="page-stars" class="page">
+    <div class="panel stars-panel">
+      <div class="panel-title">Зорі головної послідовності</div>
+      <div class="stars-intro" id="stars-intro">Завантаження…</div>
+      <div id="stars-grid"></div>
     </div>
   </div>
 
@@ -389,11 +406,12 @@
 <script src="/js/upgrades.js?v=24"></script>
 <script src="/js/dev.js?v=24"></script>
 <script src="/js/upgrade-info.js?v=23"></script>
-<script src="/js/matter.js?v=26"></script>
+<script src="/js/matter.js?v=27"></script>
 <script src="/js/stats.js?v=23"></script>
-<script src="/js/periodic-table.js?v=26"></script>
+<script src="/js/periodic-table.js?v=27"></script>
 <script src="/js/achievements.js?v=1"></script>
 <script src="/js/molecules.js?v=1"></script>
+<script src="/js/stars.js?v=2"></script>
 <script src="/js/main.js?v=23"></script>
 </body>
 </html>

@@ -47,6 +47,9 @@ class GameControllerTest {
     @MockitoBean private MoleculeRepository moleculeRepository;
     @MockitoBean private PlayerMoleculeRepository playerMoleculeRepository;
     @MockitoBean private MoleculeService moleculeService;
+    @MockitoBean private StarRepository starRepository;
+    @MockitoBean private PlayerStarRepository playerStarRepository;
+    @MockitoBean private StarService starService;
 
     @Test
     @DisplayName("GET /api/state/1 повертає 200 і JSON масив")
@@ -221,6 +224,29 @@ class GameControllerTest {
                 .andExpect(status().isOk())
                 // saturating(5) = 5/(1+5/1000) ≈ 4.9751; mult = 1 + 0.25 * 4.9751 ≈ 2.2438
                 .andExpect(jsonPath("$.protonEnergyMult", closeTo(2.243781, 0.000001)));
+    }
+
+    @Test
+    @DisplayName("GET /api/matter-info/1 — рахує реальні бонуси елементів (ElementBonus)")
+    void matterInfo_includesElementBonusValues() throws Exception {
+        Save save = newSave(1L);
+
+        PlayerElement hydrogen = new PlayerElement();
+        hydrogen.setElement(newElementWithAtomicNumber(10L, 1));
+        hydrogen.setCount(999L);
+
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(hydrogen));
+
+        mockMvc.perform(get("/api/matter-info/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.distinctElementsSynthesized").value(1))
+                .andExpect(jsonPath("$.totalAtomsSynthesized").value(999))
+                // saturating(1,15) = 1/(1+1/15) ≈ 0.9375; mult = 1 + 0.06 * 0.9375 ≈ 1.05625
+                .andExpect(jsonPath("$.elementDiversityMult", closeTo(1.05625, 0.00001)))
+                // x = log10(999+1) = 3 (< softcap 6) -> mult = 1 + 0.15*3 = 1.45
+                .andExpect(jsonPath("$.elementAtomCountMult", closeTo(1.45, 0.00001)));
     }
 
     @Test
@@ -601,6 +627,123 @@ class GameControllerTest {
                         .content("{\"saveId\":1,\"moleculeId\":1,\"amount\":1}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Not enough atoms"));
+    }
+
+    private Star newStar(Long id, String code, String name, long baseCostHydrogen,
+                          double costMultiplier, long fuelHPerEvent, long outputHePerEvent,
+                          double eventsPerSecPerLevel) {
+        try {
+            var c = Star.class.getDeclaredConstructor();
+            c.setAccessible(true);
+            Star star = c.newInstance();
+            org.springframework.test.util.ReflectionTestUtils.setField(star, "id", id);
+            org.springframework.test.util.ReflectionTestUtils.setField(star, "code", code);
+            org.springframework.test.util.ReflectionTestUtils.setField(star, "name", name);
+            org.springframework.test.util.ReflectionTestUtils.setField(star, "baseCostHydrogen", baseCostHydrogen);
+            org.springframework.test.util.ReflectionTestUtils.setField(star, "costMultiplier", costMultiplier);
+            org.springframework.test.util.ReflectionTestUtils.setField(star, "fuelHPerEvent", fuelHPerEvent);
+            org.springframework.test.util.ReflectionTestUtils.setField(star, "outputHePerEvent", outputHePerEvent);
+            org.springframework.test.util.ReflectionTestUtils.setField(star, "eventsPerSecPerLevel", eventsPerSecPerLevel);
+            return star;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // === Тір 4: Зорі ===
+
+    @Test
+    @DisplayName("GET /api/stars/1 — повертає список зірок, наявний Гідроген, лічильник гіпернов")
+    void getStars_returnsJson() throws Exception {
+        Save save = newSave(1L);
+        org.springframework.test.util.ReflectionTestUtils.setField(save, "hypernovaCount", 2L);
+
+        Star star = newStar(1L, "main_sequence", "Зоря головної послідовності",
+                1000000L, 2.0, 4L, 1L, 0.01);
+
+        PlayerElement hydrogen = new PlayerElement();
+        hydrogen.setElement(newElementWithAtomicNumber(10L, 1));
+        hydrogen.setCount(5_000_000L);
+
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(starRepository.findAll()).thenReturn(List.of(star));
+        when(playerStarRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(hydrogen));
+
+        mockMvc.perform(get("/api/stars/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hydrogenAvailable").value(5000000))
+                .andExpect(jsonPath("$.hypernovaCount").value(2))
+                .andExpect(jsonPath("$.stars[0].code").value("main_sequence"))
+                .andExpect(jsonPath("$.stars[0].level").value(0))
+                .andExpect(jsonPath("$.stars[0].nextLevelCostHydrogen").value(1000000))
+                .andExpect(jsonPath("$.cnoCatalystActive").value(false))
+                .andExpect(jsonPath("$.cnoCatalystMult").value(1.0));
+    }
+
+    @Test
+    @DisplayName("GET /api/stars/1 — CNO-каталіз активний (C+N+O синтезовані) подвоює пропускну здатність")
+    void getStars_cnoCatalystActive_doublesRates() throws Exception {
+        Save save = newSave(1L);
+
+        Star star = newStar(1L, "main_sequence", "Зоря головної послідовності",
+                1000000L, 2.0, 4L, 1L, 0.01);
+        PlayerStar playerStar = new PlayerStar();
+        playerStar.setStar(star);
+        playerStar.setLevel(1);
+
+        PlayerElement hydrogen = new PlayerElement();
+        hydrogen.setElement(newElementWithAtomicNumber(10L, 1));
+        hydrogen.setCount(5_000_000L);
+        PlayerElement carbon = new PlayerElement();
+        carbon.setElement(newElementWithAtomicNumber(11L, 6));
+        carbon.setCount(1L);
+        PlayerElement nitrogen = new PlayerElement();
+        nitrogen.setElement(newElementWithAtomicNumber(12L, 7));
+        nitrogen.setCount(1L);
+        PlayerElement oxygen = new PlayerElement();
+        oxygen.setElement(newElementWithAtomicNumber(13L, 8));
+        oxygen.setCount(1L);
+
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(starRepository.findAll()).thenReturn(List.of(star));
+        when(playerStarRepository.findBySaveId(1L)).thenReturn(List.of(playerStar));
+        when(playerElementRepository.findBySaveId(1L))
+                .thenReturn(List.of(hydrogen, carbon, nitrogen, oxygen));
+
+        mockMvc.perform(get("/api/stars/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cnoCatalystActive").value(true))
+                .andExpect(jsonPath("$.cnoCatalystMult").value(2.0))
+                // без каталізу: 0.01*1*4=0.04 H/с; з каталізом ×2 = 0.08
+                .andExpect(jsonPath("$.stars[0].fuelHPerSec", closeTo(0.08, 0.0001)))
+                .andExpect(jsonPath("$.stars[0].outputHePerSec", closeTo(0.02, 0.0001)));
+    }
+
+    @Test
+    @DisplayName("POST /api/buy-star — успішна купівля рівня")
+    void buyStar_success() throws Exception {
+        when(starService.buyLevel(1L, 1L, 1)).thenReturn(1);
+
+        mockMvc.perform(post("/api/buy-star")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"starId\":1,\"amount\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"))
+                .andExpect(jsonPath("$.bought").value(1));
+    }
+
+    @Test
+    @DisplayName("POST /api/buy-star — недостатньо Гідрогену -> 400")
+    void buyStar_notEnoughHydrogen_returns400() throws Exception {
+        doThrow(new RuntimeException("Not enough hydrogen"))
+                .when(starService).buyLevel(1L, 1L, 1);
+
+        mockMvc.perform(post("/api/buy-star")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"saveId\":1,\"starId\":1,\"amount\":1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Not enough hydrogen"));
     }
 
     // === Мануальне збереження ===

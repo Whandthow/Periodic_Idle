@@ -221,3 +221,23 @@ async function toggleAutoSynthesize() {
     renderAutoSynthesizeToggle();
   }
 }
+
+/**
+ * Живі бонуси від синтезованих елементів (ElementBonus, розділ 7.1 CLAUDE.md) —
+ * дзеркалить _particleEffectText у matter.js, лише вхід Тір 2, а не Тір 1.
+ * Викликається з fetchMatterInfo() (matter.js), бо дані приходять з /api/matter-info.
+ */
+function renderElementBonusInfo() {
+  var el = document.getElementById('element-bonus-info');
+  if (!el || typeof matterState === 'undefined') return;
+
+  var distinct = matterState.distinctElementsSynthesized || 0;
+  if (distinct <= 0) {
+    el.textContent = '';
+    return;
+  }
+  var diversityPct = Math.round(((matterState.elementDiversityMult || 1) - 1) * 100);
+  var atomPct = Math.round(((matterState.elementAtomCountMult || 1) - 1) * 100);
+  el.textContent = 'Різноманіття (' + distinct + ' елем.): +' + diversityPct + '% до енергії · ' +
+    'Кількість атомів: +' + atomPct + '% до енергії';
+}

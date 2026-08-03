@@ -32,6 +32,8 @@ class GameEngineTest {
     private PlayerGeneratorRepository playerGeneratorRepository;
     @Mock
     private PlayerUpgradeRepository playerUpgradeRepository;
+    @Mock
+    private PlayerElementRepository playerElementRepository;
 
     @InjectMocks
     private GameEngine gameEngine;
@@ -78,6 +80,10 @@ class GameEngineTest {
         playerVoidGen.setSave(save);
         playerVoidGen.setGenerator(voidGen);
         playerVoidGen.setLevel(1);
+
+        // ElementBonus (Тір 2 -> Тір 0/1): за замовчуванням без елементів (mult=1.0);
+        // lenient — більшість тестів цього класу не стосуються синтезованих елементів.
+        lenient().when(playerElementRepository.findBySaveId(anyLong())).thenReturn(new ArrayList<>());
     }
 
     // === tick() ===

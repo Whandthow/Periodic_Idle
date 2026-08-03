@@ -59,6 +59,7 @@ async function fetchMatterInfo() {
     if (typeof renderAutobuyToggle === 'function') renderAutobuyToggle();
     if (typeof renderAutoSynthesizeToggle === 'function') renderAutoSynthesizeToggle();
     if (typeof renderAutoUpgradeToggle === 'function') renderAutoUpgradeToggle();
+    if (typeof renderElementBonusInfo === 'function') renderElementBonusInfo();
     if (isPageActive('exchange')) renderMatterPage();
     if (isPageActive('upgrades_t1')) renderMatterUpgrades();
   } finally {

@@ -1,0 +1,85 @@
+/* === Тір 4: Зорі головної послідовності ========================= */
+.stars-panel { max-width: 900px; }
+
+.stars-intro {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 14px;
+}
+.stars-intro-sub {
+    margin-top: 6px;
+    color: #cbd5e1;
+}
+.stars-intro-warn {
+    margin-top: 8px;
+    color: #fca5a5;
+}
+.stars-intro-warn-hint {
+    margin-top: 8px;
+    color: #fbbf24;
+    font-size: 11px;
+}
+
+.stars-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.star-card {
+    position: relative;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: rgba(20, 20, 28, 0.85);
+    border: 1px solid #1e1e2a;
+    text-align: center;
+}
+.star-card.active {
+    border-color: rgba(251, 191, 36, 0.5);
+    box-shadow: 0 0 14px rgba(251, 191, 36, 0.12);
+}
+.star-card.risky {
+    border-color: rgba(252, 165, 165, 0.7);
+    box-shadow: 0 0 14px rgba(252, 165, 165, 0.2);
+}
+
+.star-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fbbf24;
+}
+.star-card-level {
+    font-size: 12px;
+    color: #999;
+    margin-top: 2px;
+}
+.star-card-rates {
+    font-size: 11px;
+    color: #cbd5e1;
+    margin-top: 8px;
+}
+.star-card-cost {
+    font-size: 11px;
+    color: #7dd3fc;
+    margin-top: 6px;
+}
+
+.star-buy-btn {
+    margin-top: 10px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+    cursor: pointer;
+    font-size: 12px;
+}
+.star-buy-btn:hover:not(:disabled) { background: rgba(251, 191, 36, 0.25); }
+.star-buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.star-card-msg {
+    margin-top: 6px;
+    font-size: 10px;
+    color: #fca5a5;
+    min-height: 12px;
+}

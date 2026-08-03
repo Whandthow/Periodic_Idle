@@ -40,6 +40,14 @@ public class Save {
     private boolean autoUpgradeEnabled = false;
 
     /**
+     * Скільки разів зоря гравця (Тір 4) вибухнула гіпернового через нестачу палива
+     * (Гідрогену) — StarService.tick() скидає всі player_elements/player_molecules/
+     * player_stars цього save при кожному вибуху. Лічильник ніколи не скидається.
+     */
+    @Column(name = "hypernova_count", nullable = false)
+    private long hypernovaCount;
+
+    /**
      * Стабільний UUID, який клієнт зберігає в localStorage. Дає мульти-юзер: кожен
      * браузер ідентифікує "свій" save без логіна. NULL = legacy/dev save.
      */
