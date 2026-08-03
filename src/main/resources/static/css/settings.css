@@ -57,6 +57,7 @@
 
 .settings-row.column { flex-direction: column; align-items: stretch; gap: 8px; }
 .save-transfer-actions { display: flex; gap: 8px; }
+.dev-tier-jump-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .save-transfer-textarea {
     width: 100%;
     min-height: 90px;

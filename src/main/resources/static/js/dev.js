@@ -78,6 +78,56 @@ async function addResourceExp(code, delta) {
   }
 }
 
+/** Малює кнопки "Перейти на етап" по TIERS (config.js) — автоматично враховує нові тіри. */
+function renderDevTierJumpButtons() {
+  var row = document.getElementById('dev-tier-jump-row');
+  if (!row || typeof TIERS === 'undefined') return;
+  row.innerHTML = Object.keys(TIERS).map(function(tier) {
+    return '<button class="btn-primary" onclick="jumpToTier(' + tier + ')">' +
+      TIERS[tier].name + '</button>';
+  }).join('');
+}
+
+/**
+ * Dev-стрибок на тір: бекенд видає мінімальний прогрес найлегшої OR-умови
+ * розблокування цього тіру (той самий data-driven механізм, що й звичайна
+ * прогресія — /api/dev/jump-tier), тоді перечитуємо стан і переходимо на тір
+ * у сайдбарі.
+ */
+async function jumpToTier(tier) {
+  var status = document.getElementById('dev-tier-jump-status');
+  if (status) status.textContent = '';
+  try {
+    var res = await fetch('/api/dev/jump-tier', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saveId: SAVE_ID, tier: tier })
+    });
+    if (!res.ok) {
+      var txt = await res.text();
+      if (status) status.textContent = 'Помилка: ' + txt;
+      return;
+    }
+    var data = await res.json();
+    await fetchState();
+    if (typeof refreshTierLocks === 'function') refreshTierLocks();
+    if (typeof fetchMatterInfo === 'function') await fetchMatterInfo();
+
+    var btn = document.getElementById('tier-btn-' + tier);
+    if (btn && !btn.classList.contains('locked')) {
+      selectTier(tier, btn);
+    }
+    if (status) {
+      status.textContent = data.granted
+        ? 'Видано: ' + data.resource + ' → 1e' + data.exponent
+        : 'Цей тір не має умов розблокування (завжди відкритий)';
+    }
+  } catch (e) {
+    console.error('jumpToTier failed', e);
+    if (status) status.textContent = 'Помилка: ' + e;
+  }
+}
+
 function setSaveTransferStatus(text, ok) {
   var el = document.getElementById('save-transfer-status');
   if (!el) return;
