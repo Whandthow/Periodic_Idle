@@ -7,12 +7,15 @@ import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorRepository;
 import com.periodic.idle.content.Molecule;
 import com.periodic.idle.content.MoleculeRepository;
+import com.periodic.idle.content.Star;
+import com.periodic.idle.content.StarRepository;
 import com.periodic.idle.content.TierUnlockConditionRepository;
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
 import com.periodic.idle.engine.AchievementService;
 import com.periodic.idle.engine.AutoUpgradeService;
 import com.periodic.idle.engine.CollapseCycleBonus;
+import com.periodic.idle.engine.ElementBonus;
 import com.periodic.idle.engine.ExchangeService;
 import com.periodic.idle.engine.GameEngine;
 import com.periodic.idle.engine.GeneratorService;
@@ -22,6 +25,7 @@ import com.periodic.idle.engine.ParticleBonus;
 import com.periodic.idle.engine.PrestigeService;
 import com.periodic.idle.engine.SaveService;
 import com.periodic.idle.engine.SaveTransferService;
+import com.periodic.idle.engine.StarService;
 import com.periodic.idle.engine.SynthesisService;
 import com.periodic.idle.engine.UpgradeService;
 import com.periodic.idle.player.*;
@@ -44,6 +48,8 @@ public class GameController {
     private final ElementRepository elementRepository;
     private final MoleculeRepository moleculeRepository;
     private final PlayerMoleculeRepository playerMoleculeRepository;
+    private final StarRepository starRepository;
+    private final PlayerStarRepository playerStarRepository;
     private final TierUnlockConditionRepository tierUnlockConditionRepository;
     private final UpgradeService upgradeService;
     private final GeneratorService generatorService;
@@ -53,6 +59,7 @@ public class GameController {
     private final MatterService matterService;
     private final SynthesisService synthesisService;
     private final MoleculeService moleculeService;
+    private final StarService starService;
     private final SaveRepository saveRepository;
     private final SaveService saveService;
     private final SaveTransferService saveTransferService;
@@ -293,6 +300,13 @@ public class GameController {
         // єдиний місток до повторного колапсу матерії до VC_PERSISTS_AFTER_COLLAPSES.
         map.put("cycleBoost", CollapseCycleBonus.boost(save.getMatterCollapses()));
         map.put("vcPersistsAfterCollapses", CollapseCycleBonus.VC_PERSISTS_AFTER_COLLAPSES);
+        // Реальні поточні бонуси від синтезованих елементів (ElementBonus, розділ 7.1 CLAUDE.md) —
+        // той самий принцип, що й ParticleBonus вище, лише вхід — Тір 2, а не Тір 1.
+        List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
+        map.put("elementDiversityMult", ElementBonus.diversityMult(elements));
+        map.put("elementAtomCountMult", ElementBonus.atomCountMult(elements));
+        map.put("distinctElementsSynthesized", ElementBonus.distinctCount(elements));
+        map.put("totalAtomsSynthesized", ElementBonus.totalAtomCount(elements));
         return map;
     }
 
@@ -486,6 +500,68 @@ public class GameController {
         long amount = amt == null ? 1 : ((Number) amt).longValue(); // -1 = max
         long synthesized = moleculeService.synthesizeBulk(saveId, moleculeId, amount);
         return Map.of("status", "ok", "synthesized", synthesized);
+    }
+
+    // === Тір 4: Зорі головної послідовності ===
+
+    @GetMapping("/stars/{saveId}")
+    public Map<String, Object> getStars(@PathVariable Long saveId) {
+        List<PlayerStar> playerStars = playerStarRepository.findBySaveId(saveId);
+        List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
+        long hydrogenAvailable = elements.stream()
+                .filter(pe -> pe.getElement().getAtomicNumber() == 1)
+                .findFirst()
+                .map(PlayerElement::getCount)
+                .orElse(0L);
+        Save save = saveRepository.findById(saveId)
+                .orElseThrow(() -> new RuntimeException("Save not found"));
+        // CNO-каталіз (ElementBonus, реальна астрофізика): C+N+O синтезовані -> зоря
+        // пропускає пропорційно більше подій за секунду (StarService.processStarTick).
+        double cnoMult = ElementBonus.cnoCatalystMult(elements);
+
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Star star : starRepository.findAll()) {
+            int level = playerStars.stream()
+                    .filter(ps -> ps.getStar().getId().equals(star.getId()))
+                    .findFirst()
+                    .map(PlayerStar::getLevel)
+                    .orElse(0);
+
+            long nextLevelCost = (long) Math.ceil(
+                    star.getBaseCostHydrogen() * Math.pow(star.getCostMultiplier(), level));
+            double fuelPerSec = star.getEventsPerSecPerLevel() * level * star.getFuelHPerEvent() * cnoMult;
+            double outputPerSec = star.getEventsPerSecPerLevel() * level * star.getOutputHePerEvent() * cnoMult;
+
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", star.getId());
+            map.put("code", star.getCode());
+            map.put("name", star.getName());
+            map.put("level", level);
+            map.put("nextLevelCostHydrogen", nextLevelCost);
+            map.put("fuelHPerSec", fuelPerSec);
+            map.put("outputHePerSec", outputPerSec);
+            map.put("fuelHPerEvent", star.getFuelHPerEvent());
+            map.put("outputHePerEvent", star.getOutputHePerEvent());
+            out.add(map);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("stars", out);
+        result.put("hydrogenAvailable", hydrogenAvailable);
+        result.put("hypernovaCount", save.getHypernovaCount());
+        result.put("cnoCatalystMult", cnoMult);
+        result.put("cnoCatalystActive", cnoMult > 1.0);
+        return result;
+    }
+
+    @PostMapping("/buy-star")
+    public Map<String, Object> buyStar(@RequestBody Map<String, Object> request) {
+        Long saveId = ((Number) request.get("saveId")).longValue();
+        Long starId = ((Number) request.get("starId")).longValue();
+        Object amt = request.get("amount");
+        int amount = amt == null ? 1 : ((Number) amt).intValue(); // -1 = max
+        int bought = starService.buyLevel(saveId, starId, amount);
+        return Map.of("status", "ok", "bought", bought);
     }
 
     @PostMapping("/buy-upgrade")

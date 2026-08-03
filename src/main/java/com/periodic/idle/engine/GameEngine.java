@@ -67,6 +67,7 @@ public class GameEngine {
     private final PlayerResourceRepository playerResourceRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
     private final PlayerUpgradeRepository playerUpgradeRepository;
+    private final PlayerElementRepository playerElementRepository;
 
     /** Dev-швидкість: множник часу, який додається за один тік. */
     private double tickSpeedMultiplier = 1.0;
@@ -202,6 +203,7 @@ public class GameEngine {
         double coreBoost = calcCoreBoost(upgrades, resources);
         double protonMult = ParticleBonus.protonEnergyMult(resources);
         double cycleBoost = calcCycleBoost(saveId);
+        double elementMult = calcElementMult(saveId);
         Map<Long, Double> genSpecific = calcGenSpecificMults(upgrades, generators);
         double energyPow = calcEnergyPow(upgrades);
         Map<Long, Double> genStack = calcGenStackMults(upgrades, generators);
@@ -221,7 +223,7 @@ public class GameEngine {
                 double perGen = genSpecific.getOrDefault(gid, 1.0);
                 double stack = genStack.getOrDefault(gid, 1.0);
                 double rate = output.getRatePerLevel() * pg.getLevel()
-                        * genMult * energyMult * coreBoost * protonMult * cycleBoost * perGen * stack;
+                        * genMult * energyMult * coreBoost * protonMult * cycleBoost * elementMult * perGen * stack;
                 if (phantom > 0) rate *= (1.0 + phantom);
                 if (energyPow != 1.0 && rate > 1.0) {
                     rate = Math.pow(rate, energyPow);
@@ -243,6 +245,7 @@ public class GameEngine {
         double coreBoost = calcCoreBoost(upgrades, resources);
         double protonMult = ParticleBonus.protonEnergyMult(resources);
         double cycleBoost = calcCycleBoost(saveId);
+        double elementMult = calcElementMult(saveId);
         Map<Long, Double> genSpecific = calcGenSpecificMults(upgrades, generators);
         double energyPow = calcEnergyPow(upgrades);
         Map<Long, Double> genStack = calcGenStackMults(upgrades, generators);
@@ -256,7 +259,7 @@ public class GameEngine {
                 double perGen = genSpecific.getOrDefault(pg.getGenerator().getId(), 1.0);
                 double stack = genStack.getOrDefault(pg.getGenerator().getId(), 1.0);
                 double ratePerSec = output.getRatePerLevel() * pg.getLevel()
-                        * genMult * energyMult * coreBoost * protonMult * cycleBoost * perGen * stack;
+                        * genMult * energyMult * coreBoost * protonMult * cycleBoost * elementMult * perGen * stack;
                 if ("E".equals(output.getResource().getCode())) {
                     double bonus = phantomBonus.getOrDefault(pg.getGenerator().getId(), 0.0);
                     if (bonus > 0) ratePerSec *= (1.0 + bonus);
@@ -459,6 +462,15 @@ public class GameEngine {
                 .orElse(1.0);
     }
 
+    /**
+     * Бонус від синтезованих елементів (Тір 2) до виробництва Тіру 0/1 (ElementBonus) —
+     * різноманіття РІЗНИХ елементів × сумарна кількість атомів (двоступенева softcap/hardcap-крива).
+     */
+    private double calcElementMult(Long saveId) {
+        List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
+        return ElementBonus.diversityMult(elements) * ElementBonus.atomCountMult(elements);
+    }
+
     private PlayerResource findResource(List<PlayerResource> resources, Long resourceId) {
         return resources.stream()
                 .filter(r -> r.getResource().getId().equals(resourceId))
@@ -495,6 +507,12 @@ public class GameEngine {
         double electronCrystalMult = ParticleBonus.electronCrystalMult(resources);
         long matterCollapses = saveRepository.findById(saveId).map(Save::getMatterCollapses).orElse(0L);
 
+        List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
+        long distinctElements = ElementBonus.distinctCount(elements);
+        long totalAtoms = ElementBonus.totalAtomCount(elements);
+        double diversityMult = ElementBonus.diversityMult(elements);
+        double atomCountMult = ElementBonus.atomCountMult(elements);
+
         // Множники з ярликами джерел.
         List<Map<String, Object>> mults = new ArrayList<>();
         mults.add(multEntry("Енергомножник", energyMult,
@@ -514,6 +532,12 @@ public class GameEngine {
                 "+" + pct(ParticleBonus.ELECTRON_VC_PER) + " за кожен e", (int) eCount));
         mults.add(multEntry("Степінь енергії", energyPow,
                 "rate^pow при rate>1", upgradeLevel(upgrades, "ENERGY_POW")));
+        mults.add(multEntry("Різноманіття елементів", diversityMult,
+                "+" + pct(ElementBonus.DIVERSITY_PER) + " за кожен різний елемент (крива насичення)",
+                (int) distinctElements));
+        mults.add(multEntry("Кількість атомів", atomCountMult,
+                "+" + pct(ElementBonus.ATOM_COUNT_PER) + " за log10(атомів), софт/хард кап",
+                (int) Math.min(totalAtoms, Integer.MAX_VALUE)));
 
         // Per-generator розбивка.
         List<Map<String, Object>> perGen = new ArrayList<>();

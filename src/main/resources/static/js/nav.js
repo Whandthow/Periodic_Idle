@@ -195,6 +195,7 @@ function activatePage(name) {
   if ((name === 'periodic_table' || name === 'molecules') && typeof fetchMatterInfo === 'function') fetchMatterInfo();
   if (name === 'periodic_table' && typeof fetchElements === 'function') fetchElements();
   if (name === 'molecules' && typeof fetchMolecules === 'function') fetchMolecules();
+  if (name === 'stars' && typeof fetchStars === 'function') fetchStars();
   if (name === 'achievements' && typeof fetchAchievements === 'function') fetchAchievements();
   if (name === 'settings' && typeof renderDevTierJumpButtons === 'function') renderDevTierJumpButtons();
 }
