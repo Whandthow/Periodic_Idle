@@ -8,12 +8,33 @@ var matterState = {
   energyCapLog10: 308,
   breakInfinityRequired: 10,
   collapseReady: false,
-  autobuyEnabled: true
+  autobuyEnabled: true,
+  protonEnergyMult: 1,
+  neutronCostReduction: 0,
+  electronCrystalMult: 1
 };
 var selectedParticle = 'p';
 var matterFetchInFlight = false;
 
 var PARTICLE_NAMES = { p: 'Протон', n: 'Нейтрон', e: 'Електрон' };
+
+// Що саме дає кожна частинка — щоб не доводилось здогадуватись (розділ 7.1 CLAUDE.md).
+// Значення рахуються на бекенді (ParticleBonus), тут лише форматуємо текст.
+function _particleEffectText(code) {
+  if (code === 'p') {
+    var pPct = Math.round((matterState.protonEnergyMult - 1) * 100);
+    return '+' + pPct + '% до енергії';
+  }
+  if (code === 'n') {
+    var nAbs = (matterState.neutronCostReduction || 0).toFixed(2);
+    return '−' + nAbs + ' до ціни генераторів';
+  }
+  if (code === 'e') {
+    var ePct = Math.round((matterState.electronCrystalMult - 1) * 100);
+    return '+' + ePct + '% кристалів при престижі';
+  }
+  return '';
+}
 
 async function fetchMatterInfo() {
   if (matterFetchInFlight) return;
@@ -44,7 +65,8 @@ function renderMatterPage() {
 
   if (matterState.collapseReady) {
     intro.innerHTML = 'Енергія досягла межі! Обери частинку і сколапсуй — ' +
-      'це скине Тір 0 (енергію й генератори) та додасть +1 обраної частинки.' +
+      'це повністю скине Тір 0 (енергію, генератори, апгрейди й кристали пустоти) ' +
+      'та додасть +1 обраної частинки — вона залишиться назавжди.' +
       '<div class="matter-intro-sub">Колапсів виконано: ' + matterState.matterCollapses + '</div>';
   } else {
     var curExp = Math.floor(matterState.energyLog10 || 0);
@@ -59,6 +81,7 @@ function renderMatterPage() {
       '<img src="' + pngPath(ICONS[code]) + '" alt="" width="40" height="40" loading="lazy" decoding="async">' +
       '<div class="matter-particle-name">' + PARTICLE_NAMES[code] + '</div>' +
       '<div class="matter-particle-count">' + count + '</div>' +
+      '<div class="matter-particle-bonus">' + _particleEffectText(code) + '</div>' +
     '</div>';
   }).join('');
 

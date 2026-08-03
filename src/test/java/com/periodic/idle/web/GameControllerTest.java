@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.*;
+import static org.hamcrest.Matchers.closeTo;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -193,7 +194,30 @@ class GameControllerTest {
                 .andExpect(jsonPath("$.energyCapLog10").value(308))
                 .andExpect(jsonPath("$.particles.p").value(0))
                 .andExpect(jsonPath("$.particles.n").value(0))
-                .andExpect(jsonPath("$.particles.e").value(0));
+                .andExpect(jsonPath("$.particles.e").value(0))
+                .andExpect(jsonPath("$.protonEnergyMult").value(1.0))
+                .andExpect(jsonPath("$.neutronCostReduction").value(0.0))
+                .andExpect(jsonPath("$.electronCrystalMult").value(1.0));
+    }
+
+    @Test
+    @DisplayName("GET /api/matter-info/1 — рахує реальні бонуси частинок (ParticleBonus)")
+    void matterInfo_includesParticleBonusValues() throws Exception {
+        Save save = newSave(1L);
+
+        Resource pRes = newResource(3L, "p");
+        PlayerResource p = new PlayerResource();
+        p.setResource(pRes);
+        p.setNumber(5.0);
+        p.setExponent(0);
+
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(p));
+
+        mockMvc.perform(get("/api/matter-info/1"))
+                .andExpect(status().isOk())
+                // saturating(5) = 5/(1+5/1000) ≈ 4.9751; mult = 1 + 0.25 * 4.9751 ≈ 2.2438
+                .andExpect(jsonPath("$.protonEnergyMult", closeTo(2.243781, 0.000001)));
     }
 
     @Test
