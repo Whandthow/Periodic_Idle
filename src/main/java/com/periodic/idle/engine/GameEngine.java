@@ -27,10 +27,32 @@ public class GameEngine {
 
     /**
      * Softcap для експоненти Core-бусту: при сирій експоненті &gt; цього порогу
-     * далі росте як sqrt(excess), щоб <code>Math.pow(10, ...)</code> ніколи
-     * не overflow-ив у Infinity і гравець не падав у cliff (буст ставав 1.0).
+     * буст переходить у режим справжньої асимптоти (tanh), а не просто сповільненого
+     * росту — інакше при достатньо великих Кристалах Пустоти (VC ніколи не скидається
+     * колапсом матерії) експонента однаково рано чи пізно перевищує ~308 і
+     * <code>Math.pow(10, ...)</code> overflow-ить у Infinity.
      */
     private static final double CORE_EXP_SOFTCAP = 200.0;
+
+    /**
+     * Ширина "хвоста" softcap-у: за формулою
+     * {@code effectiveExponent = CORE_EXP_SOFTCAP + CORE_EXP_RANGE * tanh(excess / CORE_EXP_RANGE)}
+     * ефективна експонента асимптотично прямує до
+     * {@code CORE_EXP_SOFTCAP + CORE_EXP_RANGE} (тут — 280) і НІКОЛИ його не перевищує,
+     * скільки б не росла сира експонента — на відміну від sqrt-росту, який теж
+     * сповільнюється, але не має стелі й рано чи пізно проб'є 308 (double overflow).
+     */
+    private static final double CORE_EXP_RANGE = 80.0;
+
+    /**
+     * Коли rate переповнюється в Infinity вже ПІСЛЯ Break Infinity (капу 1e308 більше
+     * нема, нікуди "телепортувати" energy як для capEnergy=true режиму) — замість
+     * пропуску тіку (що назавжди зависало б, бо причина переповнення сама не зникає),
+     * даємо ресурсу один явний "вибуховий" стрибок експоненти. Це не точне число (Infinity
+     * все одно не несе точної інформації), а свідомий скінченний замінник, який не дає
+     * стану застигнути.
+     */
+    private static final long INFINITE_RATE_EXPONENT_JUMP = 50L;
 
     /** Кап енергії: 1e308. Знімається флагом save.brokenInfinity. */
     public static final long ENERGY_CAP_EXPONENT = 308L;
@@ -112,10 +134,19 @@ public class GameEngine {
             }
 
             double rate = entry.getValue();
-            // Energy + Infinity rate → одразу clamp до капу (інакше нескінченно "застрягне").
+            // Energy + Infinity rate до капу → одразу clamp до капу (інакше нескінченно "застрягне").
             if (capEnergy && isEnergy && Double.isInfinite(rate) && rate > 0) {
                 pr.setNumber(1.0);
                 pr.setExponent(ENERGY_CAP_EXPONENT);
+                continue;
+            }
+            // Той самий overflow ПІСЛЯ Break Infinity: капу більше нема, куди "телепортувати"
+            // енергію, а причина переповнення (величезні множники) сама по собі не зникає —
+            // тому звичайний skip (нижче) назавжди заморозив би виробництво. Замість цього —
+            // явний скінченний стрибок експоненти: гравець бачить прогрес, а не завислий 0/с.
+            if (!capEnergy && isEnergy && Double.isInfinite(rate) && rate > 0) {
+                pr.setNumber(1.0);
+                pr.setExponent(pr.getExponent() + INFINITE_RATE_EXPONENT_JUMP);
                 continue;
             }
             if (!Double.isFinite(rate) || rate <= 0) continue; // захист від NaN/Infinity
@@ -124,6 +155,11 @@ public class GameEngine {
             if (capEnergy && isEnergy && Double.isInfinite(addPerTick) && addPerTick > 0) {
                 pr.setNumber(1.0);
                 pr.setExponent(ENERGY_CAP_EXPONENT);
+                continue;
+            }
+            if (!capEnergy && isEnergy && Double.isInfinite(addPerTick) && addPerTick > 0) {
+                pr.setNumber(1.0);
+                pr.setExponent(pr.getExponent() + INFINITE_RATE_EXPONENT_JUMP);
                 continue;
             }
             if (!Double.isFinite(addPerTick) || addPerTick <= 0) continue;
@@ -400,12 +436,15 @@ public class GameEngine {
         if (!Double.isFinite(crystalsLog10) || crystalsLog10 <= 0) return 1.0;
         double rawExponent = coreLevel * coreCoeff * crystalsLog10;
         if (!Double.isFinite(rawExponent) || rawExponent <= 0) return 1.0;
-        // Softcap на експоненту: до порогу — лінійно, після — sqrt(надлишок).
+        // Softcap на експоненту: до порогу — лінійно, після — tanh-асимптота, що
+        // ніколи не перевищує CORE_EXP_SOFTCAP + CORE_EXP_RANGE (280 < 308).
         // Це не дає Math.pow(10, ...) overflow-нути в Infinity і прибирає cliff,
-        // де при сирій експоненті > 308 буст падав з ~1e300 до 1.0.
+        // де раніше буст міг впасти з ~1e300 до 1.0 (sqrt-softcap сповільнював ріст,
+        // але не мав стелі — рано чи пізно все одно впирався в 308).
         double effectiveExponent = rawExponent;
         if (rawExponent > CORE_EXP_SOFTCAP) {
-            effectiveExponent = CORE_EXP_SOFTCAP + Math.sqrt(rawExponent - CORE_EXP_SOFTCAP);
+            double excess = rawExponent - CORE_EXP_SOFTCAP;
+            effectiveExponent = CORE_EXP_SOFTCAP + CORE_EXP_RANGE * Math.tanh(excess / CORE_EXP_RANGE);
         }
         double result = Math.pow(10, effectiveExponent);
         return Double.isFinite(result) ? result : 1.0;

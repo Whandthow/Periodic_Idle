@@ -180,12 +180,12 @@ class GeneratorServiceTest {
         PlayerResource neutrons = instantiate(PlayerResource.class);
         neutrons.setResource(nRes);
         neutrons.setNumber(2.0);
-        neutrons.setExponent(1L); // 20 нейтронів → знижка 20 * 0.02 = 0.4
+        neutrons.setExponent(1L); // 20 нейтронів → saturating(20)=19.6078...→ знижка 0.02*19.6078=0.39216
 
-        // baseMult=1.5, без апгрейдів → 1.5 - 0.4 = 1.1
+        // baseMult=1.5, без апгрейдів → 1.5 - 0.39215686... = 1.10784314...
         double effective = generatorService.effectiveCostMultiplier(1.5,
                 new ArrayList<>(), List.of(neutrons));
-        assertEquals(1.1, effective, 1e-9);
+        assertEquals(1.1078431372549019, effective, 1e-9);
     }
 
     @Test

@@ -878,7 +878,7 @@ class GameEngineTest {
     // === Бонус протонів ===
 
     @Test
-    @DisplayName("processSave: 5 протонів дає +125% до енергії (mult=2.25)")
+    @DisplayName("processSave: 5 протонів дають насичений бонус (mult≈2.2438)")
     void processSave_protonBonus_appliedToEnergy() {
         Resource pRes = createResource(3L, "p", "Протон", 1);
         PlayerResource pp = instantiate(PlayerResource.class);
@@ -893,19 +893,19 @@ class GameEngineTest {
 
         gameEngine.tick();
 
-        // 0.5 (rate) * 2.25 (proton mult) = 1.125/сек, tick (0.1с) → 0.1125 енергії.
+        // 0.5 (rate) * 2.2437810945273633 (saturating proton mult) ≈ 1.12189/сек, tick (0.1с) → 0.112189.
         double total = playerEnergy.getNumber() * Math.pow(10, playerEnergy.getExponent());
-        assertEquals(0.1125, total, 1e-9);
+        assertEquals(0.11218905472636816, total, 1e-9);
     }
 
     @Test
-    @DisplayName("calculateGeneratorBreakdown: protonMult множить energyPerSec")
+    @DisplayName("calculateGeneratorBreakdown: protonMult (saturating) множить energyPerSec")
     void breakdown_protonBonus_appliedToBreakdown() {
         Resource pRes = createResource(3L, "p", "Протон", 1);
         PlayerResource pp = instantiate(PlayerResource.class);
         pp.setResource(pRes);
         pp.setNumber(2.0);
-        pp.setExponent(0L); // 2 protons → mult 1.5
+        pp.setExponent(0L); // 2 protons → saturating(2)=1.996007984... → mult≈1.499002
 
         when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy, pp));
         when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
@@ -913,7 +913,7 @@ class GameEngineTest {
 
         Map<Long, GameEngine.GenBreakdown> result = gameEngine.calculateGeneratorBreakdown(1L);
 
-        assertEquals(0.5 * 1.5, result.get(1L).energyPerSec(), 1e-6);
+        assertEquals(0.5 * 1.499001996007984, result.get(1L).energyPerSec(), 1e-6);
     }
 
     // === calculateStats ===
@@ -961,8 +961,8 @@ class GameEngineTest {
                 .filter(m -> "Протони → енергія".equals(m.get("name")))
                 .findFirst().orElseThrow();
         assertEquals(7, ((Number) protonRow.get("level")).intValue());
-        // value = 1 + 7 * 0.25 = 2.75
-        assertEquals(2.75, ((Number) protonRow.get("value")).doubleValue(), 1e-6);
+        // saturating(7) = 7/(1+7/1000) = 6.95134...; value = 1 + 0.25 * 6.95134... = 2.73784...
+        assertEquals(2.7378351539225423, ((Number) protonRow.get("value")).doubleValue(), 1e-6);
     }
 
     @Test
@@ -1010,6 +1010,30 @@ class GameEngineTest {
         assertDoesNotThrow(() -> gameEngine.tick());
         // p залишився на 0 (Infinity rate пропущено, бо це не energy).
         assertEquals(0, pp.getNumber(), 1e-9);
+    }
+
+    @Test
+    @DisplayName("processSave: ENERGY_POW overflow ПІСЛЯ Break Infinity → не зависає, а стрибає " +
+            "на INFINITE_RATE_EXPONENT_JUMP (баг з відгуку гравця: виробництво застигало)")
+    void processSave_energyPowOverflow_afterBreakInfinity_jumpsInsteadOfFreezing() {
+        save.setBrokenInfinity(true);
+        playerEnergy.setNumber(1.0);
+        playerEnergy.setExponent(400); // вже давно за колишнім капом 1e308
+        playerVoidGen.setLevel(1_000_000); // base rate = 5e5
+        PlayerUpgrade pow = createPlayerUpgrade(save,
+                createUpgradeContent(40L, "ENERGY_POW", 1.0), 100); // pow = 101 → rate=5e5^101=Infinity
+
+        when(saveRepository.findAll()).thenReturn(List.of(save));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(pow));
+
+        assertDoesNotThrow(() -> gameEngine.tick());
+
+        // Раніше (до фіксу): rate=Infinity, capEnergy=false → skip назавжди, exponent лишався 400.
+        // Тепер: явний стрибок на INFINITE_RATE_EXPONENT_JUMP (50) відносно поточної експоненти.
+        assertEquals(450L, playerEnergy.getExponent());
+        assertEquals(1.0, playerEnergy.getNumber(), 1e-9);
     }
 
     // === Helper методи ===

@@ -25,6 +25,7 @@ public class MatterService {
     private final SaveRepository saveRepository;
     private final PlayerResourceRepository playerResourceRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
+    private final PlayerUpgradeRepository playerUpgradeRepository;
 
     @Transactional
     public void collapse(Long saveId, String particle) {
@@ -46,7 +47,11 @@ public class MatterService {
             throw new RuntimeException("Потрібно 1e308 енергії");
         }
 
-        // Скидаємо Тір 0: енергія -> стартова, рівні генераторів -> 0 (апгрейди лишаються).
+        // Повний ресет Тіру 0: енергія -> стартова, рівні генераторів і апгрейдів -> 0,
+        // Кристали Пустоти -> 0. Єдине, що переживає колапс, — самі частинки (p/n/e):
+        // саме вони тепер єдина "вічна" валюта прогресу Тіру 1 (ParticleBonus, розділ 7.1).
+        // Без цього Ядро (CORE), яке масштабується від log10(VC), могло необмежено
+        // накопичуватись між колапсами й переповнювати double у GameEngine.calcCoreBoost.
         energy.setNumber(PrestigeService.STARTER_ENERGY_NUMBER);
         energy.setExponent(PrestigeService.STARTER_ENERGY_EXPONENT);
         playerResourceRepository.save(energy);
@@ -56,6 +61,19 @@ public class MatterService {
             pg.setLevel(0);
         }
         playerGeneratorRepository.saveAll(gens);
+
+        List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
+        for (PlayerUpgrade pu : upgrades) {
+            pu.setLevel(0);
+        }
+        playerUpgradeRepository.saveAll(upgrades);
+
+        PlayerResource crystals = findByCode(resources, "VC");
+        if (crystals != null) {
+            crystals.setNumber(0);
+            crystals.setExponent(0);
+            playerResourceRepository.save(crystals);
+        }
 
         // +1 частинка обраного типу.
         PlayerResource target = findByCode(resources, particle);
