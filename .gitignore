@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Project-specific (CLAUDE.md 5.5) ###
+data/
+.ua/
+.env
+logs/

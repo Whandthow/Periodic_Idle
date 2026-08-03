@@ -11,6 +11,7 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    locations: classpath:db/migration/{vendor}
   web:
     resources:
       cache:
@@ -19,7 +20,7 @@ spring:
           cache-public: true
 
 server:
-  port: ${PORT:8070}
+  port: ${PORT:8080}
   compression:
     enabled: true
     min-response-size: 1024
