@@ -56,7 +56,7 @@ class PrestigeServiceTest {
     }
 
     @Test
-    @DisplayName("Energy < 1e9: 0 кристалів")
+    @DisplayName("Energy < 1e18 (поріг): 0 кристалів")
     void calcPotentialGain_belowThreshold() {
         energy.setNumber(5.0);
         energy.setExponent(8); // 5e8
@@ -69,31 +69,31 @@ class PrestigeServiceTest {
     }
 
     @Test
-    @DisplayName("Energy = 1e25 (поріг): baseLog10 = 1 → 10 кристалів")
+    @DisplayName("Energy = 1e18 (поріг): baseLog10 = 1 → 10 кристалів")
     void calcPotentialGain_atThreshold() {
         energy.setNumber(1.0);
-        energy.setExponent(25);
+        energy.setExponent(18);
         when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(energy, crystals));
         when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
 
         BigNum gain = prestigeService.calcPotentialGain(1L);
 
-        // base_log10 = (25-25)/3 + 1 = 1 → 10^1 = 10
+        // base_log10 = (18-18)/2.5 + 1 = 1 → 10^1 = 10
         assertEquals(1.0, gain.getNumber(), 0.01);
         assertEquals(1, gain.getExponent());
     }
 
     @Test
-    @DisplayName("Energy = 1e31: base_log10 = 3 → 1000 кристалів")
+    @DisplayName("Energy = 1e23: base_log10 = 3 → 1000 кристалів")
     void calcPotentialGain_higherEnergy() {
         energy.setNumber(1.0);
-        energy.setExponent(31);
+        energy.setExponent(23);
         when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(energy, crystals));
         when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
 
         BigNum gain = prestigeService.calcPotentialGain(1L);
 
-        // base_log10 = (31-25)/3 + 1 = 3 → 10^3 = 1000
+        // base_log10 = (23-18)/2.5 + 1 = 3 → 10^3 = 1000
         assertEquals(1.0, gain.getNumber(), 0.01);
         assertEquals(3, gain.getExponent());
     }
@@ -102,7 +102,7 @@ class PrestigeServiceTest {
     @DisplayName("CRYSTAL_GAIN: multiplier збільшує приріст")
     void calcPotentialGain_withCrystalGain() {
         energy.setNumber(1.0);
-        energy.setExponent(25);
+        energy.setExponent(18);
         Upgrade cg = instantiate(Upgrade.class);
         ReflectionTestUtils.setField(cg, "effectType", "CRYSTAL_GAIN");
         ReflectionTestUtils.setField(cg, "effectValue", 0.1);
@@ -124,7 +124,7 @@ class PrestigeServiceTest {
     @DisplayName("prestige(): скидає енергію та рівні генераторів, додає кристали")
     void prestige_resetsState() {
         energy.setNumber(1.0);
-        energy.setExponent(28); // base_log10 = (28-25)/3+1 = 2 → 100 кристалів
+        energy.setExponent(28); // base_log10 = (28-18)/2.5+1 = 5 → 100 000 кристалів
 
         Generator g = instantiate(Generator.class);
         ReflectionTestUtils.setField(g, "id", 1L);
@@ -142,9 +142,9 @@ class PrestigeServiceTest {
         assertEquals(PrestigeService.STARTER_ENERGY_NUMBER, energy.getNumber(), 0.001);
         assertEquals(PrestigeService.STARTER_ENERGY_EXPONENT, energy.getExponent());
         assertEquals(0, pg.getLevel());
-        // crystals ~= 100
+        // crystals ~= 100 000
         double crystalsTotal = crystals.getNumber() * Math.pow(10, crystals.getExponent());
-        assertEquals(100.0, crystalsTotal, 1.0);
+        assertEquals(100000.0, crystalsTotal, 1000.0);
     }
 
     @Test
@@ -262,7 +262,7 @@ class PrestigeServiceTest {
     @DisplayName("Електрони бустять crystalGain (electronCrystalMult)")
     void calcPotentialGain_electronBoost() {
         energy.setNumber(1.0);
-        energy.setExponent(25); // base = 10 кристалів
+        energy.setExponent(18); // base = 10 кристалів (поріг)
 
         Resource eRes = instantiate(Resource.class);
         ReflectionTestUtils.setField(eRes, "code", "e");
