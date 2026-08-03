@@ -269,7 +269,7 @@ class PrestigeServiceTest {
         PlayerResource electrons = instantiate(PlayerResource.class);
         electrons.setResource(eRes);
         electrons.setNumber(2.0);
-        electrons.setExponent(1); // 20 електронів → +300% (mult=4.0)
+        electrons.setExponent(1); // 20 електронів → saturating(20)=19.6078... → mult≈3.9412
 
         when(playerResourceRepository.findBySaveId(1L))
                 .thenReturn(List.of(energy, crystals, electrons));
@@ -277,9 +277,9 @@ class PrestigeServiceTest {
 
         BigNum gain = prestigeService.calcPotentialGain(1L);
 
-        // Очікуємо ~40 кристалів (10 base × 4.0 електрон-мульт).
+        // Очікуємо ~39.41 кристалів (10 base × 3.9412 електрон-мульт).
         double total = gain.getNumber() * Math.pow(10, gain.getExponent());
-        assertEquals(40.0, total, 0.5);
+        assertEquals(39.411764705882355, total, 0.5);
     }
 
     @SuppressWarnings("unchecked")

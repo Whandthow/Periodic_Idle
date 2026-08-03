@@ -27,10 +27,11 @@ class ParticleBonusTest {
     }
 
     @Test
-    @DisplayName("protonEnergyMult: 1 + count * 0.25")
+    @DisplayName("protonEnergyMult: 1 + saturating(count) * 0.25, count=5 << SATURATION_SCALE -> ≈лінійно")
     void protonEnergyMult_formula() {
         PlayerResource p = makePlayerResource("p", 5.0, 0);
-        assertEquals(2.25, ParticleBonus.protonEnergyMult(List.of(p)), 1e-9);
+        // saturating(5) = 5 / (1 + 5/1000) = 4.97512437...; mult = 1 + 0.25 * 4.97512437...
+        assertEquals(2.2437810945273633, ParticleBonus.protonEnergyMult(List.of(p)), 1e-9);
     }
 
     @Test
@@ -40,17 +41,28 @@ class ParticleBonusTest {
     }
 
     @Test
-    @DisplayName("neutronCostReduction: count * 0.02")
-    void neutronCostReduction_formula() {
-        PlayerResource n = makePlayerResource("n", 2.0, 1); // 20 нейтронів
-        assertEquals(0.4, ParticleBonus.neutronCostReduction(List.of(n)), 1e-9);
+    @DisplayName("protonEnergyMult: насичення — стеля 1 + 0.25*1000 при астрономічній кількості протонів")
+    void protonEnergyMult_saturatesAtHighCount() {
+        PlayerResource p = makePlayerResource("p", 9.223372036854776, 18); // count -> Long.MAX_VALUE
+        double mult = ParticleBonus.protonEnergyMult(List.of(p));
+        assertTrue(Double.isFinite(mult));
+        assertTrue(mult < 1.0 + 0.25 * 1_000.0 + 1e-6, "мультиплікатор має бути обмежений стелею насичення");
     }
 
     @Test
-    @DisplayName("electronCrystalMult: 1 + count * 0.15")
+    @DisplayName("neutronCostReduction: saturating(count) * 0.02, count=20 << SATURATION_SCALE -> ≈лінійно")
+    void neutronCostReduction_formula() {
+        PlayerResource n = makePlayerResource("n", 2.0, 1); // 20 нейтронів
+        // saturating(20) = 20 / (1 + 20/1000) = 19.60784314...; reduction = 0.02 * 19.60784314...
+        assertEquals(0.39215686274509803, ParticleBonus.neutronCostReduction(List.of(n)), 1e-9);
+    }
+
+    @Test
+    @DisplayName("electronCrystalMult: 1 + saturating(count) * 0.15, count=20 << SATURATION_SCALE -> ≈лінійно")
     void electronCrystalMult_formula() {
         PlayerResource e = makePlayerResource("e", 2.0, 1); // 20 електронів
-        assertEquals(4.0, ParticleBonus.electronCrystalMult(List.of(e)), 1e-9);
+        // saturating(20) = 19.60784314...; mult = 1 + 0.15 * 19.60784314...
+        assertEquals(3.9411764705882355, ParticleBonus.electronCrystalMult(List.of(e)), 1e-9);
     }
 
     private PlayerResource makePlayerResource(String code, double number, long exponent) {

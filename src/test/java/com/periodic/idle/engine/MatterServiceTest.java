@@ -24,6 +24,7 @@ class MatterServiceTest {
     @Mock private SaveRepository saveRepository;
     @Mock private PlayerResourceRepository playerResourceRepository;
     @Mock private PlayerGeneratorRepository playerGeneratorRepository;
+    @Mock private PlayerUpgradeRepository playerUpgradeRepository;
 
     @InjectMocks
     private MatterService matterService;
@@ -41,19 +42,27 @@ class MatterServiceTest {
     }
 
     @Test
-    @DisplayName("collapse: енергія на капі (1e308) -> скид Тіру 0, +1 частинка, matterCollapses++")
+    @DisplayName("collapse: енергія на капі (1e308) -> повний ресет Тіру 0 (енергія, генератори, " +
+            "апгрейди, VC), +1 частинка, matterCollapses++")
     void collapse_atCap_success() {
+        PlayerResource crystals = makePlayerResource("VC", 5.76, 95); // 5.76e95, як у гравця з відгуку
         when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
-        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(energy, p));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(energy, p, crystals));
         PlayerGenerator gen = instantiate(PlayerGenerator.class);
         gen.setLevel(5);
         when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(gen));
+        PlayerUpgrade upgrade = instantiate(PlayerUpgrade.class);
+        upgrade.setLevel(20);
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(upgrade));
 
         matterService.collapse(1L, "p");
 
         assertEquals(PrestigeService.STARTER_ENERGY_NUMBER, energy.getNumber(), 1e-9);
         assertEquals(PrestigeService.STARTER_ENERGY_EXPONENT, energy.getExponent());
         assertEquals(0, gen.getLevel());
+        assertEquals(0, upgrade.getLevel());
+        assertEquals(0, crystals.getNumber(), 1e-9);
+        assertEquals(0, crystals.getExponent());
         assertEquals(1, p.getNumber() * Math.pow(10, p.getExponent()), 1e-9);
         assertEquals(1L, save.getMatterCollapses());
     }
