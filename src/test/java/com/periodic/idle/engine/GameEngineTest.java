@@ -663,7 +663,7 @@ class GameEngineTest {
     void coreBoost_largeExponent_softcappedNoCliff() {
         // Сценарій з відгуку гравця: lvl 400, coeff 0.15, VC=1e6 → rawExp = 360.
         // Без softcap Math.pow(10, 360) = Infinity → guard повертав 1.0 (cliff).
-        // Із softcap (поріг 200): effective = 200 + sqrt(160) ≈ 212.65 → boost ≈ 4.45e212.
+        // Із softcap (поріг 60, V23): effective = 60 + 40*tanh(300/40) ≈ 99.9999 → boost ≈ 1e100.
         Resource crystals = createResource(2L, "VC", "Кристал пустоти", 0);
         PlayerResource playerCrystals = instantiate(PlayerResource.class);
         ReflectionTestUtils.setField(playerCrystals, "id", 2L);
@@ -679,7 +679,7 @@ class GameEngineTest {
                 List.of(coreUpgrade), List.of(playerEnergy, playerCrystals));
 
         assertTrue(Double.isFinite(coreBoost), "coreBoost має бути скінченним");
-        assertTrue(coreBoost > 1e100,
+        assertTrue(coreBoost > 1e90,
                 "coreBoost має бути великим (без cliff до 1.0); отримали " + coreBoost);
         assertTrue(coreBoost < 1e308,
                 "coreBoost має бути обмежений softcap (не Infinity); отримали " + coreBoost);

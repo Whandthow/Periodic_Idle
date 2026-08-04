@@ -52,14 +52,16 @@ class PrestigeControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/prestige-info/1 — інфо про потенційний престиж")
+    @DisplayName("GET /api/prestige-info/1 — інфо про потенційний престиж, включно з поточним (зростаючим) порогом")
     void prestigeInfo() throws Exception {
         when(prestigeService.calcPotentialGain(1L))
                 .thenReturn(new com.periodic.idle.common.BigNum(5.0, 3));
+        when(prestigeService.effectiveMinLog10Energy(1L)).thenReturn(58.0);
 
         mockMvc.perform(get("/api/prestige-info/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.number").value(5.0))
-                .andExpect(jsonPath("$.exponent").value(3));
+                .andExpect(jsonPath("$.exponent").value(3))
+                .andExpect(jsonPath("$.minLog10Energy").value(58.0));
     }
 }

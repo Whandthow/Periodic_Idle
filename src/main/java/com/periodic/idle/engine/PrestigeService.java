@@ -12,8 +12,9 @@ import java.util.List;
  * Скидання прогресу задля кристалів пустоти (Void Crystals, VC).
  * Формула:
  *   log10Energy = exponent + log10(number)
- *   якщо < PRESTIGE_MIN_LOG10_ENERGY → 0 кристалів
- *   base_log10 = (log10Energy - PRESTIGE_MIN_LOG10_ENERGY) / PRESTIGE_DIVISOR + 1.0
+ *   minLog10Energy = PRESTIGE_MIN_LOG10_ENERGY + PRESTIGE_MIN_LOG10_GROWTH * save.prestigeCount (V23, росте з кожним престижем)
+ *   якщо log10Energy < minLog10Energy → 0 кристалів
+ *   base_log10 = (log10Energy - minLog10Energy) / PRESTIGE_DIVISOR + 1.0
  *   final = base_log10 + log10(CRYSTAL_GAIN multiplier)
  *   кристали = 10^final
  */
@@ -28,6 +29,30 @@ public class PrestigeService {
     // Було 25.0 / 3.0 (до цього — 9.0 / 2.0) — див. docs/balance.md.
     public static final double PRESTIGE_MIN_LOG10_ENERGY = 18.0;
     public static final double PRESTIGE_DIVISOR = 2.5;
+
+    /**
+     * V23 (docs/balance.md): поріг престижу тепер РОСТЕ з кожним наступним престижем
+     * ({@code effectiveMinLog10Energy = PRESTIGE_MIN_LOG10_ENERGY + PRESTIGE_MIN_LOG10_GROWTH * prestigeCount}),
+     * а не лишається фіксованим 18.0. Жива бот-верифікація зниженої CORE-стелі (V23,
+     * {@code UpgradeMultipliers}) показала: сама стеля НЕ була коренем "снігової
+     * кулі" повторних престижів — навіть з набагато меншим максимальним CORE-бустом
+     * (~1e100 замість ~1e280) жадібний бот і далі робив престиж кожні ~2с
+     * безперервно (як і в V17/V18), бо фіксований поріг 18.0 тривіально долається
+     * БУДЬ-яким ненульовим CORE-бустом після 1-го престижу. Задокументована ціль
+     * "кожна наступна реінкарнація вимагає істотно більше" (розділ 1 CLAUDE.md)
+     * вимагає саме зростаючого порогу, а не лише капу самого буста — це і є
+     * рішення "в" із трьох запропонованих у V17 (§ "Нова знахідка: снігова куля").
+     *
+     * <p><b>Перший прохід зі значенням 20.0 виявився занадто агресивним</b> (жива
+     * перевірка, docs/balance.md): досяжна без CORE-допомоги стеля (як і в V17,
+     * ~23-27) опинилась НИЖЧЕ порогу вже 2-го престижу (18+20=38) — і оскільки
+     * зниження CORE-стелі (вище) саме позбавило CORE спроможності "пробити" цю
+     * різницю грубою силою, 2-й престиж не вдавався жодного разу за 5+ хвилин
+     * бот-прогону. Знижено до 5.0, щоб перші кілька престижів лишались досяжними
+     * звичайним реінвестуванням, а CORE ставав по-справжньому необхідним лише
+     * через кілька циклів, коли поріг переростає базову стелю.
+     */
+    private static final double PRESTIGE_MIN_LOG10_GROWTH = 5.0;
     /** Стартова енергія після resetу, щоб можна було одразу купити 1-й генератор. */
     public static final double STARTER_ENERGY_NUMBER = 1.0;
     public static final long   STARTER_ENERGY_EXPONENT = 1L; // 10 E
@@ -42,19 +67,30 @@ public class PrestigeService {
         PlayerResource energy = findByCode(resources, "E");
         if (energy == null || energy.getNumber() <= 0) return new BigNum(0, 0);
 
+        double minLog10Energy = effectiveMinLog10Energy(saveId);
         double log10Energy = Math.log10(energy.getNumber()) + energy.getExponent();
-        if (log10Energy < PRESTIGE_MIN_LOG10_ENERGY) return new BigNum(0, 0);
+        if (log10Energy < minLog10Energy) return new BigNum(0, 0);
 
         List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
         double crystalMult = calcCrystalGainMultiplier(upgrades)
                 * ParticleBonus.electronCrystalMult(resources);
 
-        double baseLog10 = (log10Energy - PRESTIGE_MIN_LOG10_ENERGY) / PRESTIGE_DIVISOR + 1.0;
+        double baseLog10 = (log10Energy - minLog10Energy) / PRESTIGE_DIVISOR + 1.0;
         double finalLog10 = baseLog10 + Math.log10(crystalMult);
 
         long exp = (long) Math.floor(finalLog10);
         double num = Math.pow(10, finalLog10 - exp);
         return new BigNum(num, exp);
+    }
+
+    /**
+     * Поріг `log10(E)` для НАСТУПНОГО престижу цього save — росте лінійно з кожним
+     * уже виконаним престижем (розділ вище). Публічний, щоб UI (`/api/prestige-info`)
+     * міг показати гравцеві актуальну вимогу, а не застарілу константу.
+     */
+    public double effectiveMinLog10Energy(Long saveId) {
+        long prestigeCount = saveRepository.findById(saveId).map(Save::getPrestigeCount).orElse(0L);
+        return PRESTIGE_MIN_LOG10_ENERGY + PRESTIGE_MIN_LOG10_GROWTH * prestigeCount;
     }
 
     @Transactional
