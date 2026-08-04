@@ -34,20 +34,6 @@ class GameEngineTest {
     private PlayerUpgradeRepository playerUpgradeRepository;
     @Mock
     private PlayerElementRepository playerElementRepository;
-    @Mock
-    private PlayerMoleculeRepository playerMoleculeRepository;
-    @Mock
-    private PlayerStarRepository playerStarRepository;
-    @Mock
-    private PlayerAchievementRepository playerAchievementRepository;
-    @Mock
-    private com.periodic.idle.content.ElementRepository elementRepository;
-    @Mock
-    private com.periodic.idle.content.MoleculeRepository moleculeRepository;
-    @Mock
-    private com.periodic.idle.content.StarRepository starRepository;
-    @Mock
-    private com.periodic.idle.content.AchievementRepository achievementRepository;
 
     @InjectMocks
     private GameEngine gameEngine;
@@ -689,19 +675,9 @@ class GameEngineTest {
         PlayerUpgrade coreUpgrade = createPlayerUpgrade(save,
                 createUpgradeContent(20L, "CORE", 0.15), 400);
 
-        when(playerResourceRepository.findBySaveId(1L))
-                .thenReturn(List.of(playerEnergy, playerCrystals));
-        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
-        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(List.of(coreUpgrade));
+        double coreBoost = UpgradeMultipliers.calcCoreBoost(
+                List.of(coreUpgrade), List.of(playerEnergy, playerCrystals));
 
-        Map<String, Object> stats = gameEngine.calculateStats(1L);
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> mults = (List<Map<String, Object>>) stats.get("multipliers");
-        Map<String, Object> coreRow = mults.stream()
-                .filter(m -> "Ядро (Core)".equals(m.get("name")))
-                .findFirst().orElseThrow();
-
-        double coreBoost = ((Number) coreRow.get("value")).doubleValue();
         assertTrue(Double.isFinite(coreBoost), "coreBoost має бути скінченним");
         assertTrue(coreBoost > 1e100,
                 "coreBoost має бути великим (без cliff до 1.0); отримали " + coreBoost);
@@ -971,102 +947,8 @@ class GameEngineTest {
         assertEquals(0.5 * 1.499001996007984, result.get(1L).energyPerSec(), 1e-6);
     }
 
-    // === calculateStats ===
-
-    @Test
-    @DisplayName("calculateStats: повертає список множників і per-generator розбивку")
-    void calculateStats_basicShape() {
-        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
-        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
-        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
-
-        Map<String, Object> stats = gameEngine.calculateStats(1L);
-
-        assertNotNull(stats.get("multipliers"));
-        assertNotNull(stats.get("generators"));
-        assertNotNull(stats.get("totalEnergyPerSec"));
-
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> mults = (List<Map<String, Object>>) stats.get("multipliers");
-        // Очікуємо щонайменше 7 рядків (energyMult, genMult, core, p, n, e, energyPow).
-        assertTrue(mults.size() >= 7, "повинно бути ≥7 множників, отримали " + mults.size());
-        assertTrue(mults.stream().anyMatch(m -> "Протони → енергія".equals(m.get("name"))));
-        assertTrue(mults.stream().anyMatch(m -> "Нейтрони → ціна".equals(m.get("name"))));
-        assertTrue(mults.stream().anyMatch(m -> "Електрони → VC".equals(m.get("name"))));
-    }
-
-    @Test
-    @DisplayName("calculateStats: рівень рядка для протонів = кількості протонів")
-    void calculateStats_particleLevelEqualsCount() {
-        Resource pRes = createResource(3L, "p", "Протон", 1);
-        PlayerResource pp = instantiate(PlayerResource.class);
-        pp.setResource(pRes);
-        pp.setNumber(7.0);
-        pp.setExponent(0L);
-
-        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy, pp));
-        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
-        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
-
-        Map<String, Object> stats = gameEngine.calculateStats(1L);
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> mults = (List<Map<String, Object>>) stats.get("multipliers");
-
-        Map<String, Object> protonRow = mults.stream()
-                .filter(m -> "Протони → енергія".equals(m.get("name")))
-                .findFirst().orElseThrow();
-        assertEquals(7, ((Number) protonRow.get("level")).intValue());
-        // saturating(7) = 7/(1+7/1000) = 6.95134...; value = 1 + 0.25 * 6.95134... = 2.73784...
-        assertEquals(2.7378351539225423, ((Number) protonRow.get("value")).doubleValue(), 1e-6);
-    }
-
-    @Test
-    @DisplayName("calculateStats: секція lifetime — playtime, prestigeCount і прогрес по вмісту")
-    void calculateStats_lifetimeSection() {
-        save.setCreatedAt(LocalDateTime.now().minusSeconds(3600));
-        save.setPrestigeCount(3L);
-        save.setMatterCollapses(5L);
-        save.setHypernovaCount(2L);
-        save.setBrokenInfinity(true);
-
-        PlayerMolecule collectedMolecule = instantiate(PlayerMolecule.class);
-        collectedMolecule.setCount(4L);
-        PlayerMolecule emptyMolecule = instantiate(PlayerMolecule.class);
-        emptyMolecule.setCount(0L);
-
-        PlayerStar ignitedStar = instantiate(PlayerStar.class);
-        ignitedStar.setLevel(2);
-
-        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
-        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(playerVoidGen));
-        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
-        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
-        when(playerMoleculeRepository.findBySaveId(1L)).thenReturn(List.of(collectedMolecule, emptyMolecule));
-        when(playerStarRepository.findBySaveId(1L)).thenReturn(List.of(ignitedStar));
-        when(playerAchievementRepository.findBySaveId(1L)).thenReturn(List.of(instantiate(PlayerAchievement.class)));
-        when(elementRepository.count()).thenReturn(36L);
-        when(moleculeRepository.count()).thenReturn(10L);
-        when(starRepository.count()).thenReturn(1L);
-        when(achievementRepository.count()).thenReturn(15L);
-
-        Map<String, Object> stats = gameEngine.calculateStats(1L);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> lifetime = (Map<String, Object>) stats.get("lifetime");
-
-        assertNotNull(lifetime);
-        assertTrue(((Number) lifetime.get("playtimeSeconds")).doubleValue() >= 3599);
-        assertEquals(3L, ((Number) lifetime.get("prestigeCount")).longValue());
-        assertEquals(5L, ((Number) lifetime.get("matterCollapses")).longValue());
-        assertEquals(2L, ((Number) lifetime.get("hypernovaCount")).longValue());
-        assertEquals(true, lifetime.get("brokenInfinity"));
-        assertEquals(1L, ((Number) lifetime.get("distinctMolecules")).longValue());
-        assertEquals(10L, ((Number) lifetime.get("totalMolecules")).longValue());
-        assertEquals(1L, ((Number) lifetime.get("starsIgnited")).longValue());
-        assertEquals(1L, ((Number) lifetime.get("totalStars")).longValue());
-        assertEquals(1L, ((Number) lifetime.get("achievementsUnlocked")).longValue());
-        assertEquals(15L, ((Number) lifetime.get("totalAchievements")).longValue());
-        assertEquals(36L, ((Number) lifetime.get("totalElements")).longValue());
-    }
+    // calculateStats/calculateLifetimeStats тепер живуть у GameStatsService —
+    // відповідні тести перенесено в GameStatsServiceTest.
 
     @Test
     @DisplayName("processSave: ENERGY_POW overflow → rate стає Infinity → енергія одразу на капі (1.0, 308)")
