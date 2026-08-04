@@ -293,3 +293,10 @@
 .upg-ne { top: 22%; left: 78%; }
 .upg-sw { top: 78%; left: 22%; }
 .upg-se { top: 78%; left: 78%; }
+
+/* На вузькому екрані компас (min(640px,85vmin)) стає набагато меншим —
+   зменшуємо іконки, щоб вони не тулились одна до одної на позиціях 10%/90%. */
+@media (max-width: 900px) {
+    .upg img { width: 48px; height: 48px; }
+    .upg-center img { width: 76px; height: 76px; }
+}

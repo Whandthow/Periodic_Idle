@@ -78,3 +78,13 @@
     font-size: 11px;
     color: #94a3b8;
 }
+
+/* На вузькому екрані 3-колонковий grid (1.4fr 0.8fr 2fr) стискає кожну колонку
+   до нечитабельної ширини — складаємо рядок в один стовпець замість цього. */
+@media (max-width: 640px) {
+    .stats-row, .stats-gen {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+    .stats-row-value, .stats-gen-rate { font-size: 15px; }
+}

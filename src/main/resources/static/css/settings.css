@@ -106,3 +106,8 @@
     transform: translateX(18px);
     background: #7dd3fc;
 }
+
+@media (max-width: 640px) {
+    .settings-row { flex-wrap: wrap; gap: 8px 16px; }
+    .settings-ctrl { margin-left: auto; }
+}
