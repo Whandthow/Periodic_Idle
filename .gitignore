@@ -38,3 +38,4 @@ data/
 .env
 logs/
 CLAUDE.md
+docs/claude/

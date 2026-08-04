@@ -9,10 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,27 +19,6 @@ public class GameEngine {
 
     private static final long TICK_INTERVAL_MS = 100;
     private static final double TICK_INTERVAL_SEC = TICK_INTERVAL_MS / 1000.0;
-    /** Поріг, після якого ENERGY_MULT переходить у softcap (sqrt-ріст). */
-    private static final int ENERGY_MULT_SOFTCAP_THRESHOLD = 20;
-
-    /**
-     * Softcap для експоненти Core-бусту: при сирій експоненті &gt; цього порогу
-     * буст переходить у режим справжньої асимптоти (tanh), а не просто сповільненого
-     * росту — інакше при достатньо великих Кристалах Пустоти (VC ніколи не скидається
-     * колапсом матерії) експонента однаково рано чи пізно перевищує ~308 і
-     * <code>Math.pow(10, ...)</code> overflow-ить у Infinity.
-     */
-    private static final double CORE_EXP_SOFTCAP = 200.0;
-
-    /**
-     * Ширина "хвоста" softcap-у: за формулою
-     * {@code effectiveExponent = CORE_EXP_SOFTCAP + CORE_EXP_RANGE * tanh(excess / CORE_EXP_RANGE)}
-     * ефективна експонента асимптотично прямує до
-     * {@code CORE_EXP_SOFTCAP + CORE_EXP_RANGE} (тут — 280) і НІКОЛИ його не перевищує,
-     * скільки б не росла сира експонента — на відміну від sqrt-росту, який теж
-     * сповільнюється, але не має стелі й рано чи пізно проб'є 308 (double overflow).
-     */
-    private static final double CORE_EXP_RANGE = 80.0;
 
     /**
      * Коли rate переповнюється в Infinity вже ПІСЛЯ Break Infinity (капу 1e308 більше
@@ -68,13 +44,6 @@ public class GameEngine {
     private final PlayerGeneratorRepository playerGeneratorRepository;
     private final PlayerUpgradeRepository playerUpgradeRepository;
     private final PlayerElementRepository playerElementRepository;
-    private final PlayerMoleculeRepository playerMoleculeRepository;
-    private final PlayerStarRepository playerStarRepository;
-    private final PlayerAchievementRepository playerAchievementRepository;
-    private final com.periodic.idle.content.ElementRepository elementRepository;
-    private final com.periodic.idle.content.MoleculeRepository moleculeRepository;
-    private final com.periodic.idle.content.StarRepository starRepository;
-    private final com.periodic.idle.content.AchievementRepository achievementRepository;
 
     /** Dev-швидкість: множник часу, який додається за один тік. */
     private double tickSpeedMultiplier = 1.0;
@@ -205,16 +174,16 @@ public class GameEngine {
         List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
 
-        double energyMult = calcEnergyMult(upgrades);
-        double genMult = calcMultiplier(upgrades, "GENERATOR_MULT");
-        double coreBoost = calcCoreBoost(upgrades, resources);
+        double energyMult = UpgradeMultipliers.calcEnergyMult(upgrades);
+        double genMult = UpgradeMultipliers.calcMultiplier(upgrades, "GENERATOR_MULT");
+        double coreBoost = UpgradeMultipliers.calcCoreBoost(upgrades, resources);
         double protonMult = ParticleBonus.protonEnergyMult(resources);
         double cycleBoost = calcCycleBoost(saveId);
         double elementMult = calcElementMult(saveId);
-        Map<Long, Double> genSpecific = calcGenSpecificMults(upgrades, generators);
-        double energyPow = calcEnergyPow(upgrades);
-        Map<Long, Double> genStack = calcGenStackMults(upgrades, generators);
-        Map<Long, Double> phantomBonus = calcPhantomBonus(upgrades, generators);
+        Map<Long, Double> genSpecific = UpgradeMultipliers.calcGenSpecificMults(upgrades, generators);
+        double energyPow = UpgradeMultipliers.calcEnergyPow(upgrades);
+        Map<Long, Double> genStack = UpgradeMultipliers.calcGenStackMults(upgrades, generators);
+        Map<Long, Double> phantomBonus = UpgradeMultipliers.calcPhantomBonus(upgrades, generators);
 
         Map<Long, GenBreakdown> result = new HashMap<>();
         for (PlayerGenerator pg : generators) {
@@ -247,16 +216,16 @@ public class GameEngine {
         List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
 
-        double energyMult = calcEnergyMult(upgrades);
-        double genMult = calcMultiplier(upgrades, "GENERATOR_MULT");
-        double coreBoost = calcCoreBoost(upgrades, resources);
+        double energyMult = UpgradeMultipliers.calcEnergyMult(upgrades);
+        double genMult = UpgradeMultipliers.calcMultiplier(upgrades, "GENERATOR_MULT");
+        double coreBoost = UpgradeMultipliers.calcCoreBoost(upgrades, resources);
         double protonMult = ParticleBonus.protonEnergyMult(resources);
         double cycleBoost = calcCycleBoost(saveId);
         double elementMult = calcElementMult(saveId);
-        Map<Long, Double> genSpecific = calcGenSpecificMults(upgrades, generators);
-        double energyPow = calcEnergyPow(upgrades);
-        Map<Long, Double> genStack = calcGenStackMults(upgrades, generators);
-        Map<Long, Double> phantomBonus = calcPhantomBonus(upgrades, generators);
+        Map<Long, Double> genSpecific = UpgradeMultipliers.calcGenSpecificMults(upgrades, generators);
+        double energyPow = UpgradeMultipliers.calcEnergyPow(upgrades);
+        Map<Long, Double> genStack = UpgradeMultipliers.calcGenStackMults(upgrades, generators);
+        Map<Long, Double> phantomBonus = UpgradeMultipliers.calcPhantomBonus(upgrades, generators);
 
         Map<Long, Double> production = new HashMap<>();
         for (PlayerGenerator pg : generators) {
@@ -278,188 +247,6 @@ public class GameEngine {
             }
         }
         return production;
-    }
-
-    private double calcMultiplier(List<PlayerUpgrade> upgrades, String effectType) {
-        double mult = 1.0;
-        for (PlayerUpgrade pu : upgrades) {
-            if (pu.getLevel() <= 0) continue;
-            if (pu.getUpgrade().getEffectType().equals(effectType)) {
-                mult += pu.getUpgrade().getEffectValue() * pu.getLevel();
-            }
-        }
-        return mult;
-    }
-
-    /** ENERGY_MULT із softcap: до порогу — лінійно, після — sqrt від надлишку. */
-    private double calcEnergyMult(List<PlayerUpgrade> upgrades) {
-        double mult = 1.0;
-        for (PlayerUpgrade pu : upgrades) {
-            if (pu.getLevel() <= 0) continue;
-            if (!"ENERGY_MULT".equals(pu.getUpgrade().getEffectType())) continue;
-            int level = pu.getLevel();
-            double effective = level;
-            if (level > ENERGY_MULT_SOFTCAP_THRESHOLD) {
-                effective = ENERGY_MULT_SOFTCAP_THRESHOLD
-                        + Math.sqrt(level - ENERGY_MULT_SOFTCAP_THRESHOLD);
-            }
-            mult += pu.getUpgrade().getEffectValue() * effective;
-        }
-        return mult;
-    }
-
-    /**
-     * PHANTOM_GEN: тір T покриває перші 2*T генераторів. Починаючи з T3 швидкість зростає.
-     * Фантоми дають бонус для ЕНЕРГІЇ: rate *= (1 + phantomBonus).
-     * bonus = max(1, T - 2) — T1=1, T2=1, T3=2, T4=3.
-     */
-    private Map<Long, Double> calcPhantomBonus(List<PlayerUpgrade> upgrades,
-                                                List<PlayerGenerator> generators) {
-        Map<Long, Double> bonusByGen = new HashMap<>();
-        int T = 0;
-        for (PlayerUpgrade pu : upgrades) {
-            if (pu.getLevel() <= 0) continue;
-            if ("PHANTOM_GEN".equals(pu.getUpgrade().getEffectType())) {
-                T = pu.getLevel();
-                break;
-            }
-        }
-        if (T <= 0) return bonusByGen;
-
-        double bonus = Math.max(1, T - 2);
-        int coverCount = 2 * T;
-        List<PlayerGenerator> sorted = generators.stream()
-                .sorted(Comparator.comparing(pg -> pg.getGenerator().getId()))
-                .toList();
-        for (int i = 0; i < sorted.size() && i < coverCount; i++) {
-            bonusByGen.put(sorted.get(i).getGenerator().getId(), bonus);
-        }
-        return bonusByGen;
-    }
-
-    /**
-     * GEN_STACK: кожен тір апдейта вмикає стек для наступного генератора (за id ASC).
-     * Для активних генераторів множник = їх власний level (зі стелей пізніше).
-     */
-    private Map<Long, Double> calcGenStackMults(List<PlayerUpgrade> upgrades,
-                                                 List<PlayerGenerator> generators) {
-        Map<Long, Double> multByGen = new HashMap<>();
-        for (PlayerGenerator pg : generators) {
-            multByGen.put(pg.getGenerator().getId(), 1.0);
-        }
-
-        int upLevel = 0;
-        for (PlayerUpgrade pu : upgrades) {
-            if (pu.getLevel() <= 0) continue;
-            if ("GEN_STACK".equals(pu.getUpgrade().getEffectType())) {
-                upLevel = pu.getLevel();
-                break;
-            }
-        }
-        if (upLevel <= 0) return multByGen;
-
-        List<PlayerGenerator> sorted = generators.stream()
-                .sorted(Comparator.comparing(pg -> pg.getGenerator().getId()))
-                .toList();
-
-        for (int i = 0; i < sorted.size() && i < upLevel; i++) {
-            PlayerGenerator pg = sorted.get(i);
-            if (pg.getLevel() > 0) {
-                multByGen.put(pg.getGenerator().getId(), (double) pg.getLevel());
-            }
-        }
-        return multByGen;
-    }
-
-    /** ENERGY_POW: сума тірів * coeff дає степінь піднесення. */
-    private double calcEnergyPow(List<PlayerUpgrade> upgrades) {
-        double pow = 1.0;
-        for (PlayerUpgrade pu : upgrades) {
-            if (pu.getLevel() <= 0) continue;
-            if ("ENERGY_POW".equals(pu.getUpgrade().getEffectType())) {
-                pow += pu.getUpgrade().getEffectValue() * pu.getLevel();
-            }
-        }
-        return pow;
-    }
-
-    /**
-     * GEN_SPECIFIC_MULT: кожен тір T відкриває буст для генератора T (за порядком id ASC)
-     * і додає +coeff до кожного попереднього. Для генератора на позиції pos з level >= pos:
-     * mult приріст = (level - pos + 1) * coeff.
-     */
-    private Map<Long, Double> calcGenSpecificMults(List<PlayerUpgrade> upgrades,
-                                                    List<PlayerGenerator> generators) {
-        Map<Long, Double> multByGen = new HashMap<>();
-        for (PlayerGenerator pg : generators) {
-            multByGen.put(pg.getGenerator().getId(), 1.0);
-        }
-
-        int level = 0;
-        double coeff = 0.0;
-        for (PlayerUpgrade pu : upgrades) {
-            if (pu.getLevel() <= 0) continue;
-            if ("GEN_SPECIFIC_MULT".equals(pu.getUpgrade().getEffectType())) {
-                level = pu.getLevel();
-                coeff = pu.getUpgrade().getEffectValue();
-                break;
-            }
-        }
-        if (level <= 0 || coeff <= 0) return multByGen;
-
-        List<PlayerGenerator> sorted = generators.stream()
-                .sorted(Comparator.comparing(pg -> pg.getGenerator().getId()))
-                .toList();
-
-        for (int i = 0; i < sorted.size(); i++) {
-            int pos = i + 1;
-            if (level < pos) break;
-            int tiersAffecting = level - pos + 1;
-            Long genId = sorted.get(i).getGenerator().getId();
-            multByGen.merge(genId, tiersAffecting * coeff, Double::sum);
-        }
-        return multByGen;
-    }
-
-    /** Ядро: буст від кількості кристалів пустоти. 0 кристалів -> 1.0. */
-    private double calcCoreBoost(List<PlayerUpgrade> upgrades, List<PlayerResource> resources) {
-        int coreLevel = 0;
-        double coreCoeff = 0.0;
-        for (PlayerUpgrade pu : upgrades) {
-            if (pu.getLevel() <= 0) continue;
-            if ("CORE".equals(pu.getUpgrade().getEffectType())) {
-                coreLevel = pu.getLevel();
-                coreCoeff = pu.getUpgrade().getEffectValue();
-                break;
-            }
-        }
-        if (coreLevel <= 0 || coreCoeff <= 0) return 1.0;
-        double crystalsLog10 = 0.0;
-        for (PlayerResource pr : resources) {
-            if (pr.getResource() != null && "VC".equals(pr.getResource().getCode())) {
-                double mantissa = pr.getNumber();
-                long exp = pr.getExponent();
-                // Захист від NaN/Infinity у DB: трактуємо як 0 кристалів.
-                if (!Double.isFinite(mantissa) || mantissa <= 0) break;
-                crystalsLog10 = Math.log10(mantissa) + exp;
-                break;
-            }
-        }
-        if (!Double.isFinite(crystalsLog10) || crystalsLog10 <= 0) return 1.0;
-        double rawExponent = coreLevel * coreCoeff * crystalsLog10;
-        if (!Double.isFinite(rawExponent) || rawExponent <= 0) return 1.0;
-        // Softcap на експоненту: до порогу — лінійно, після — tanh-асимптота, що
-        // ніколи не перевищує CORE_EXP_SOFTCAP + CORE_EXP_RANGE (280 < 308).
-        // Це не дає Math.pow(10, ...) overflow-нути в Infinity і прибирає cliff,
-        // де раніше буст міг впасти з ~1e300 до 1.0 (sqrt-softcap сповільнював ріст,
-        // але не мав стелі — рано чи пізно все одно впирався в 308).
-        double effectiveExponent = rawExponent;
-        if (rawExponent > CORE_EXP_SOFTCAP) {
-            double excess = rawExponent - CORE_EXP_SOFTCAP;
-            effectiveExponent = CORE_EXP_SOFTCAP + CORE_EXP_RANGE * Math.tanh(excess / CORE_EXP_RANGE);
-        }
-        double result = Math.pow(10, effectiveExponent);
-        return Double.isFinite(result) ? result : 1.0;
     }
 
     /** Цикл-буст від кількості колапсів матерії (CollapseCycleBonus) — 0 колапсів -> 1.0. */
@@ -485,158 +272,4 @@ public class GameEngine {
                 .orElse(null);
     }
 
-    /**
-     * Розгорнута статистика множників і їх джерел для UI вкладки "Статистика".
-     * Сюди НЕ додаються прихильні до часу значення (поточна енергія) — лише множники.
-     */
-    public Map<String, Object> calculateStats(Long saveId) {
-        List<PlayerGenerator> generators = playerGeneratorRepository.findBySaveId(saveId);
-        List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
-        List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
-
-        double energyMult = calcEnergyMult(upgrades);
-        double genMult = calcMultiplier(upgrades, "GENERATOR_MULT");
-        double coreBoost = calcCoreBoost(upgrades, resources);
-        double protonMult = ParticleBonus.protonEnergyMult(resources);
-        double cycleBoost = calcCycleBoost(saveId);
-        double energyPow = calcEnergyPow(upgrades);
-        Map<Long, Double> genSpecific = calcGenSpecificMults(upgrades, generators);
-        Map<Long, Double> genStack = calcGenStackMults(upgrades, generators);
-        Map<Long, Double> phantomBonus = calcPhantomBonus(upgrades, generators);
-        Map<Long, GenBreakdown> breakdown = calculateGeneratorBreakdown(saveId);
-        double totalEnergy = breakdown.values().stream()
-                .mapToDouble(GenBreakdown::energyPerSec).sum();
-
-        long pCount = ParticleBonus.count(resources, "p");
-        long nCount = ParticleBonus.count(resources, "n");
-        long eCount = ParticleBonus.count(resources, "e");
-        double neutronCostCut = ParticleBonus.neutronCostReduction(resources);
-        double electronCrystalMult = ParticleBonus.electronCrystalMult(resources);
-        long matterCollapses = saveRepository.findById(saveId).map(Save::getMatterCollapses).orElse(0L);
-
-        List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
-        long distinctElements = ElementBonus.distinctCount(elements);
-        long totalAtoms = ElementBonus.totalAtomCount(elements);
-        double diversityMult = ElementBonus.diversityMult(elements);
-        double atomCountMult = ElementBonus.atomCountMult(elements);
-
-        // Множники з ярликами джерел.
-        List<Map<String, Object>> mults = new ArrayList<>();
-        mults.add(multEntry("Енергомножник", energyMult,
-                "ENERGY_MULT × рівень (softcap після 20)", upgradeLevel(upgrades, "ENERGY_MULT")));
-        mults.add(multEntry("Генератори ×", genMult,
-                "GENERATOR_MULT × рівень", upgradeLevel(upgrades, "GENERATOR_MULT")));
-        mults.add(multEntry("Ядро (Core)", coreBoost,
-                "10^(Core × VC log10)", upgradeLevel(upgrades, "CORE")));
-        mults.add(multEntry("Цикл колапсів", cycleBoost,
-                "10^(2.5 × log10(колапсів+1)), не залежить від VC", (int) matterCollapses));
-        mults.add(multEntry("Протони → енергія", protonMult,
-                "+" + pct(ParticleBonus.PROTON_ENERGY_PER) + " за кожен p", (int) pCount));
-        mults.add(multEntry("Нейтрони → ціна", 1.0 - neutronCostCut,
-                "−" + fmt3(ParticleBonus.NEUTRON_COST_PER) + " до cost-mult за кожен n",
-                (int) nCount));
-        mults.add(multEntry("Електрони → VC", electronCrystalMult,
-                "+" + pct(ParticleBonus.ELECTRON_VC_PER) + " за кожен e", (int) eCount));
-        mults.add(multEntry("Степінь енергії", energyPow,
-                "rate^pow при rate>1", upgradeLevel(upgrades, "ENERGY_POW")));
-        mults.add(multEntry("Різноманіття елементів", diversityMult,
-                "+" + pct(ElementBonus.DIVERSITY_PER) + " за кожен різний елемент (крива насичення)",
-                (int) distinctElements));
-        mults.add(multEntry("Кількість атомів", atomCountMult,
-                "+" + pct(ElementBonus.ATOM_COUNT_PER) + " за log10(атомів), софт/хард кап",
-                (int) Math.min(totalAtoms, Integer.MAX_VALUE)));
-
-        // Per-generator розбивка.
-        List<Map<String, Object>> perGen = new ArrayList<>();
-        List<PlayerGenerator> sorted = generators.stream()
-                .sorted(Comparator.comparing(pg -> pg.getGenerator().getId()))
-                .toList();
-        for (PlayerGenerator pg : sorted) {
-            Long gid = pg.getGenerator().getId();
-            GenBreakdown gb = breakdown.getOrDefault(gid, new GenBreakdown(0.0, 0.0));
-            double share = totalEnergy > 0 ? gb.energyPerSec() / totalEnergy : 0.0;
-
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("id", gid);
-            row.put("name", pg.getGenerator().getName());
-            row.put("level", pg.getLevel());
-            row.put("energyPerSec", gb.energyPerSec());
-            row.put("share", share);
-            row.put("phantomBonus", gb.phantomBonus());
-            row.put("genSpecificMult", genSpecific.getOrDefault(gid, 1.0));
-            row.put("genStackMult", genStack.getOrDefault(gid, 1.0));
-            perGen.add(row);
-        }
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("multipliers", mults);
-        result.put("generators", perGen);
-        result.put("totalEnergyPerSec", totalEnergy);
-        result.put("lifetime", calculateLifetimeStats(saveId));
-        return result;
-    }
-
-    /**
-     * Сумарна ("lifetime") статистика гравця — незалежна від поточного тіру/множників:
-     * час гри, кількість реінкарнацій/колапсів/гіпернов, прогрес по вмісту (елементи,
-     * молекули, зорі, досягнення). На відміну від {@code multipliers}/{@code generators}
-     * (актуальний стан виробництва Тіру 0), ці числа монотонно ростуть (окрім
-     * distinct-показників, які можуть впасти після Колапсу матерії чи Гіпернови).
-     */
-    private Map<String, Object> calculateLifetimeStats(Long saveId) {
-        Save save = saveRepository.findById(saveId).orElse(null);
-
-        double playtimeSeconds = 0.0;
-        if (save != null && save.getCreatedAt() != null) {
-            playtimeSeconds = java.time.Duration.between(save.getCreatedAt(), LocalDateTime.now()).toMillis() / 1000.0;
-            if (playtimeSeconds < 0) playtimeSeconds = 0.0;
-        }
-
-        List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
-        long distinctElements = ElementBonus.distinctCount(elements);
-
-        List<PlayerMolecule> molecules = playerMoleculeRepository.findBySaveId(saveId);
-        long distinctMolecules = molecules.stream().filter(pm -> pm.getCount() > 0).count();
-
-        List<PlayerStar> stars = playerStarRepository.findBySaveId(saveId);
-        long starsIgnited = stars.stream().filter(ps -> ps.getLevel() > 0).count();
-
-        long achievementsUnlocked = playerAchievementRepository.findBySaveId(saveId).size();
-
-        Map<String, Object> lifetime = new LinkedHashMap<>();
-        lifetime.put("playtimeSeconds", playtimeSeconds);
-        lifetime.put("prestigeCount", save != null ? save.getPrestigeCount() : 0L);
-        lifetime.put("matterCollapses", save != null ? save.getMatterCollapses() : 0L);
-        lifetime.put("hypernovaCount", save != null ? save.getHypernovaCount() : 0L);
-        lifetime.put("brokenInfinity", save != null && save.isBrokenInfinity());
-        lifetime.put("distinctElements", distinctElements);
-        lifetime.put("totalElements", elementRepository.count());
-        lifetime.put("distinctMolecules", distinctMolecules);
-        lifetime.put("totalMolecules", moleculeRepository.count());
-        lifetime.put("starsIgnited", starsIgnited);
-        lifetime.put("totalStars", starRepository.count());
-        lifetime.put("achievementsUnlocked", achievementsUnlocked);
-        lifetime.put("totalAchievements", achievementRepository.count());
-        return lifetime;
-    }
-
-    private static Map<String, Object> multEntry(String name, double value, String formula, int level) {
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("name", name);
-        m.put("value", Double.isFinite(value) ? value : 0.0);
-        m.put("formula", formula);
-        m.put("level", level);
-        return m;
-    }
-
-    private static String pct(double v) { return Math.round(v * 100.0) + "%"; }
-    private static String fmt3(double v) { return String.format(java.util.Locale.ROOT, "%.3f", v); }
-
-    private static int upgradeLevel(List<PlayerUpgrade> upgrades, String effectType) {
-        for (PlayerUpgrade pu : upgrades) {
-            if (pu.getLevel() <= 0) continue;
-            if (effectType.equals(pu.getUpgrade().getEffectType())) return pu.getLevel();
-        }
-        return 0;
-    }
 }
