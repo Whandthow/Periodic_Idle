@@ -218,6 +218,42 @@ class SynthesisServiceTest {
         assertFalse(synthesisService.isStellarIgnited(1L));
     }
 
+    // === Наукова концепція: r-process гейт (важчі за залізо потребують Гіпернови) ===
+
+    @Test
+    @DisplayName("synthesizeBulk: важкий елемент (Z>26) без пережитої Гіпернови -> кидає помилку, частинки не списані")
+    void synthesize_heavyElement_withoutHypernova_throws() {
+        p.setNumber(1.0); p.setExponent(2);
+        n.setNumber(1.0); n.setExponent(2);
+        e.setNumber(1.0); e.setExponent(2);
+        energy.setNumber(1.0); energy.setExponent(308);
+        save.setHypernovaCount(0L); // ще жодної Гіпернови
+
+        PlayerElement existingPrev = new PlayerElement();
+        Element prev = createElement(29L, 29, "Cu*", 29, 34, 29);
+        existingPrev.setElement(prev);
+        existingPrev.setCount(1);
+        PlayerElement ignitedStar = ignitedStarHelium();
+
+        when(elementRepository.findById(30L)).thenReturn(Optional.of(zincLike));
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(existingPrev, ignitedStar));
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+
+        assertThrows(RuntimeException.class, () -> synthesisService.synthesizeBulk(1L, 30L, 1));
+        verifyNoInteractions(playerResourceRepository);
+    }
+
+    @Test
+    @DisplayName("isHeavyElementSynthesisUnlocked: false без Гіпернови, true після хоча б однієї")
+    void isHeavyElementSynthesisUnlocked_reflectsHypernovaCount() {
+        save.setHypernovaCount(0L);
+        when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
+        assertFalse(synthesisService.isHeavyElementSynthesisUnlocked(1L));
+
+        save.setHypernovaCount(1L);
+        assertTrue(synthesisService.isHeavyElementSynthesisUnlocked(1L));
+    }
+
     // === Наукова концепція: енергія зв'язку ядра (SEMF) ===
 
     @Test
@@ -228,6 +264,7 @@ class SynthesisServiceTest {
         n.setNumber(1.0); n.setExponent(2);
         e.setNumber(1.0); e.setExponent(2);
         energy.setNumber(1.0); energy.setExponent(308); // на капі — багато енергії про запас
+        save.setHypernovaCount(1L); // r-process гейт (розділ 7.7): важчі за залізо потребують пережитої Гіпернови
 
         PlayerElement existingPrev = new PlayerElement();
         Element prev = createElement(29L, 29, "Cu*", 29, 34, 29);
@@ -256,6 +293,7 @@ class SynthesisServiceTest {
         n.setNumber(1.0); n.setExponent(2);
         e.setNumber(1.0); e.setExponent(2);
         energy.setNumber(0); energy.setExponent(0); // фактично 0 енергії
+        save.setHypernovaCount(1L); // r-process гейт (розділ 7.7): важчі за залізо потребують пережитої Гіпернови
 
         PlayerElement existingPrev = new PlayerElement();
         Element prev = createElement(29L, 29, "Cu*", 29, 34, 29);

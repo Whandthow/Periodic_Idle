@@ -35,10 +35,21 @@ public class SynthesisService {
     private static final long BULK_HARD_CAP = 100_000L;
 
     /** Залізо-56 — пік кривої енергії зв'язку: межа "самопідтримного" термоядерного синтезу зорі. */
-    private static final int IRON_ATOMIC_NUMBER = 26;
+    public static final int IRON_ATOMIC_NUMBER = 26;
 
     /** H, He, Li — усе, що встиг дати первинний нуклеосинтез за перші ~20хв після Великого вибуху. */
     public static final int PRIMORDIAL_MAX_ATOMIC_NUMBER = 3;
+
+    /**
+     * Скільки Гіпернов (StarService — катастрофічний вибух зорі через нестачу палива) потрібно
+     * пережити, щоб відкрити синтез елементів важчих за залізо. Реальна фізика: елементи важчі
+     * за залізо-56 не утворюються у звичайному термоядерному синтезі головної послідовності —
+     * лише r-process (rapid neutron capture) у катастрофічних подіях (наднові, злиття
+     * нейтронних зірок) здатен подолати ендотермічний бар'єр (розділ 7.7 CLAUDE.md). Гіпернова
+     * StarService — ігровий еквівалент такої події; save.hypernovaCount ніколи не скидається,
+     * тож ця умова, на відміну від "запаленої зорі" (heliumCount), не може бути втрачена.
+     */
+    public static final long HEAVY_ELEMENT_HYPERNOVA_REQUIRED = 1L;
 
     /**
      * Скільки атомів гелію потрібно накопичити, щоб "запалити зорю" (умовний поріг критичної
@@ -77,6 +88,10 @@ public class SynthesisService {
                 && heliumCount(saveId) < STELLAR_IGNITION_HELIUM_COUNT) {
             throw new RuntimeException("Потрібна зоря: накопичте " + STELLAR_IGNITION_HELIUM_COUNT
                     + " гелію, щоб запустити зоряний нуклеосинтез (C-N-O-цикл)");
+        }
+        if (element.getAtomicNumber() > IRON_ATOMIC_NUMBER && !isHeavyElementSynthesisUnlocked(saveId)) {
+            throw new RuntimeException("Потрібна наднова: елементи важчі за залізо утворюються лише "
+                    + "через r-process — переживіть Гіпернову зорі (Тір 4), перш ніж синтезувати цей елемент");
         }
 
         Save save = saveRepository.findById(saveId)
@@ -203,6 +218,13 @@ public class SynthesisService {
     /** Чи відкритий зоряний нуклеосинтез (Z&gt;=4) для цього save. */
     public boolean isStellarIgnited(Long saveId) {
         return heliumCount(saveId) >= STELLAR_IGNITION_HELIUM_COUNT;
+    }
+
+    /** Чи відкритий r-process синтез важких елементів (Z&gt;26) — гравець пережив Гіпернову. */
+    public boolean isHeavyElementSynthesisUnlocked(Long saveId) {
+        return saveRepository.findById(saveId)
+                .map(Save::getHypernovaCount)
+                .orElse(0L) >= HEAVY_ELEMENT_HYPERNOVA_REQUIRED;
     }
 
     private long maxAffordable(long available, long cost) {
