@@ -548,6 +548,45 @@ class GameControllerTest {
                 .andExpect(jsonPath("$[0].lockedReason").value(org.hamcrest.Matchers.containsString("зоря")));
     }
 
+    @Test
+    @DisplayName("GET /api/elements/1 — елемент Z=27 (важче за залізо) locked без Гіпернови, з поясненням")
+    void getElements_hypernovaGate_lockedWithReason() throws Exception {
+        Element cobalt = newElementWithAtomicNumber(11L, 27);
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(elementRepository.findAll()).thenReturn(List.of(cobalt));
+        when(synthesisService.heliumCount(1L)).thenReturn(5000L);
+
+        mockMvc.perform(get("/api/elements/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].requiresHypernova").value(true))
+                .andExpect(jsonPath("$[0].heavyElementsUnlocked").value(false))
+                .andExpect(jsonPath("$[0].unlocked").value(false))
+                .andExpect(jsonPath("$[0].lockedReason").value(org.hamcrest.Matchers.containsString("наднова")));
+    }
+
+    @Test
+    @DisplayName("GET /api/elements/1 — елемент Z=27 розблокований, коли save.hypernovaCount >= 1")
+    void getElements_hypernovaGate_unlockedAfterHypernova() throws Exception {
+        Element cobalt = newElementWithAtomicNumber(11L, 27);
+        Element prev = newElementWithAtomicNumber(12L, 26);
+        PlayerElement discoveredPrev = new PlayerElement();
+        discoveredPrev.setElement(prev);
+        discoveredPrev.setCount(1);
+
+        Save save = new Save();
+        save.setHypernovaCount(1L);
+
+        when(playerElementRepository.findBySaveId(1L)).thenReturn(List.of(discoveredPrev));
+        when(elementRepository.findAll()).thenReturn(List.of(cobalt));
+        when(synthesisService.heliumCount(1L)).thenReturn(5000L);
+        when(saveRepository.findById(1L)).thenReturn(java.util.Optional.of(save));
+
+        mockMvc.perform(get("/api/elements/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].heavyElementsUnlocked").value(true))
+                .andExpect(jsonPath("$[0].unlocked").value(true));
+    }
+
     private Element newElementWithAtomicNumber(Long id, int atomicNumber) {
         try {
             var c = Element.class.getDeclaredConstructor();
