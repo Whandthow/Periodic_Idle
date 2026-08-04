@@ -53,4 +53,12 @@ public class Save {
      */
     @Column(name = "client_token", unique = true)
     private String clientToken;
+
+    /** Скільки разів гравець виконав "Реінкарнацію" (престиж, Тір 0). Ніколи не скидається. */
+    @Column(name = "prestige_count", nullable = false)
+    private long prestigeCount;
+
+    /** Момент створення save — база для розрахунку сумарного часу гри (розділ 7 CLAUDE.md). */
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 }

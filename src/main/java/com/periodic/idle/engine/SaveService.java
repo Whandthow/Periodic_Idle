@@ -47,6 +47,7 @@ public class SaveService {
         draft.setPlayerName("Player");
         draft.setClientToken(token);
         draft.setLastTick(LocalDateTime.now());
+        draft.setCreatedAt(LocalDateTime.now());
         final Save save = saveRepository.save(draft);
 
         for (Resource r : resourceRepository.findAll()) {

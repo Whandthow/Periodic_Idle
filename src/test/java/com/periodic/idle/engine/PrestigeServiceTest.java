@@ -239,6 +239,7 @@ class PrestigeServiceTest {
         ReflectionTestUtils.setField(save, "id", 1L);
         save.setBrokenInfinity(true);
         save.setMatterCollapses(7L);
+        save.setPrestigeCount(4L);
 
         when(playerResourceRepository.findBySaveId(1L))
                 .thenReturn(List.of(energy, crystals, protons, neutrons));
@@ -254,8 +255,29 @@ class PrestigeServiceTest {
         assertEquals(0L, neutrons.getExponent());
         assertFalse(save.isBrokenInfinity());
         assertEquals(0L, save.getMatterCollapses());
+        assertEquals(0L, save.getPrestigeCount());
         // Енергія повертається до стартової — старий тест уже це покриває, але швидка перевірка:
         assertEquals(PrestigeService.STARTER_ENERGY_NUMBER, energy.getNumber(), 0.001);
+    }
+
+    @Test
+    @DisplayName("prestige(): інкрементує save.prestigeCount")
+    void prestige_incrementsPrestigeCount() {
+        energy.setNumber(1.0);
+        energy.setExponent(28);
+
+        Save save = instantiate(Save.class);
+        ReflectionTestUtils.setField(save, "id", 1L);
+        save.setPrestigeCount(2L);
+
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(energy, crystals));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(saveRepository.findById(1L)).thenReturn(java.util.Optional.of(save));
+
+        prestigeService.prestige(1L);
+
+        assertEquals(3L, save.getPrestigeCount());
     }
 
     @Test
