@@ -78,6 +78,7 @@ class SaveServiceTest {
         Save result = saveService.findOrCreateByToken("uuid-new");
 
         assertEquals("uuid-new", result.getClientToken());
+        assertNotNull(result.getCreatedAt(), "createdAt має виставлятись одразу для нового save");
 
         ArgumentCaptor<PlayerResource> prCaptor = ArgumentCaptor.forClass(PlayerResource.class);
         verify(playerResourceRepository, times(2)).save(prCaptor.capture());

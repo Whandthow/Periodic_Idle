@@ -68,6 +68,13 @@ public class GameEngine {
     private final PlayerGeneratorRepository playerGeneratorRepository;
     private final PlayerUpgradeRepository playerUpgradeRepository;
     private final PlayerElementRepository playerElementRepository;
+    private final PlayerMoleculeRepository playerMoleculeRepository;
+    private final PlayerStarRepository playerStarRepository;
+    private final PlayerAchievementRepository playerAchievementRepository;
+    private final com.periodic.idle.content.ElementRepository elementRepository;
+    private final com.periodic.idle.content.MoleculeRepository moleculeRepository;
+    private final com.periodic.idle.content.StarRepository starRepository;
+    private final com.periodic.idle.content.AchievementRepository achievementRepository;
 
     /** Dev-швидкість: множник часу, який додається за один тік. */
     private double tickSpeedMultiplier = 1.0;
@@ -565,7 +572,52 @@ public class GameEngine {
         result.put("multipliers", mults);
         result.put("generators", perGen);
         result.put("totalEnergyPerSec", totalEnergy);
+        result.put("lifetime", calculateLifetimeStats(saveId));
         return result;
+    }
+
+    /**
+     * Сумарна ("lifetime") статистика гравця — незалежна від поточного тіру/множників:
+     * час гри, кількість реінкарнацій/колапсів/гіпернов, прогрес по вмісту (елементи,
+     * молекули, зорі, досягнення). На відміну від {@code multipliers}/{@code generators}
+     * (актуальний стан виробництва Тіру 0), ці числа монотонно ростуть (окрім
+     * distinct-показників, які можуть впасти після Колапсу матерії чи Гіпернови).
+     */
+    private Map<String, Object> calculateLifetimeStats(Long saveId) {
+        Save save = saveRepository.findById(saveId).orElse(null);
+
+        double playtimeSeconds = 0.0;
+        if (save != null && save.getCreatedAt() != null) {
+            playtimeSeconds = java.time.Duration.between(save.getCreatedAt(), LocalDateTime.now()).toMillis() / 1000.0;
+            if (playtimeSeconds < 0) playtimeSeconds = 0.0;
+        }
+
+        List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
+        long distinctElements = ElementBonus.distinctCount(elements);
+
+        List<PlayerMolecule> molecules = playerMoleculeRepository.findBySaveId(saveId);
+        long distinctMolecules = molecules.stream().filter(pm -> pm.getCount() > 0).count();
+
+        List<PlayerStar> stars = playerStarRepository.findBySaveId(saveId);
+        long starsIgnited = stars.stream().filter(ps -> ps.getLevel() > 0).count();
+
+        long achievementsUnlocked = playerAchievementRepository.findBySaveId(saveId).size();
+
+        Map<String, Object> lifetime = new LinkedHashMap<>();
+        lifetime.put("playtimeSeconds", playtimeSeconds);
+        lifetime.put("prestigeCount", save != null ? save.getPrestigeCount() : 0L);
+        lifetime.put("matterCollapses", save != null ? save.getMatterCollapses() : 0L);
+        lifetime.put("hypernovaCount", save != null ? save.getHypernovaCount() : 0L);
+        lifetime.put("brokenInfinity", save != null && save.isBrokenInfinity());
+        lifetime.put("distinctElements", distinctElements);
+        lifetime.put("totalElements", elementRepository.count());
+        lifetime.put("distinctMolecules", distinctMolecules);
+        lifetime.put("totalMolecules", moleculeRepository.count());
+        lifetime.put("starsIgnited", starsIgnited);
+        lifetime.put("totalStars", starRepository.count());
+        lifetime.put("achievementsUnlocked", achievementsUnlocked);
+        lifetime.put("totalAchievements", achievementRepository.count());
+        return lifetime;
     }
 
     private static Map<String, Object> multEntry(String name, double value, String formula, int level) {

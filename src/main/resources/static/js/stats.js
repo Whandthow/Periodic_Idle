@@ -1,7 +1,42 @@
-// Вкладка "Статистика" — множники й per-generator розбивка з /api/stats
+// Вкладка "Статистика" — lifetime-показники + множники й per-generator розбивка з /api/stats
 
-var statsState = { multipliers: [], generators: [], totalEnergyPerSec: 0 };
+var statsState = { multipliers: [], generators: [], totalEnergyPerSec: 0, lifetime: null };
 var statsFetchInFlight = false;
+
+function _fmtPlaytime(totalSeconds) {
+  var s = Math.max(0, Math.floor(totalSeconds || 0));
+  var days = Math.floor(s / 86400);
+  var hours = Math.floor((s % 86400) / 3600);
+  var minutes = Math.floor((s % 3600) / 60);
+  var seconds = s % 60;
+  if (days > 0) return days + 'д ' + hours + 'г ' + minutes + 'хв';
+  if (hours > 0) return hours + 'г ' + minutes + 'хв';
+  if (minutes > 0) return minutes + 'хв ' + seconds + 'с';
+  return seconds + 'с';
+}
+
+function renderLifetimeStats(lifetime) {
+  if (!lifetime) return '';
+  var tiles = [
+    { label: 'Час гри', value: _fmtPlaytime(lifetime.playtimeSeconds) },
+    { label: 'Реінкарнацій', value: lifetime.prestigeCount },
+    { label: 'Колапсів матерії', value: lifetime.matterCollapses },
+    { label: 'Гіпернов', value: lifetime.hypernovaCount },
+    { label: 'Стіна нескінченності', value: lifetime.brokenInfinity ? 'пройдена' : '—' },
+    { label: 'Елементи', value: lifetime.distinctElements + ' / ' + lifetime.totalElements },
+    { label: 'Молекули', value: lifetime.distinctMolecules + ' / ' + lifetime.totalMolecules },
+    { label: 'Зорі запалено', value: lifetime.starsIgnited + ' / ' + lifetime.totalStars },
+    { label: 'Досягнення', value: lifetime.achievementsUnlocked + ' / ' + lifetime.totalAchievements }
+  ];
+  var tilesHtml = tiles.map(function(t) {
+    return '<div class="stats-lifetime-tile">' +
+      '<div class="stats-lifetime-value">' + t.value + '</div>' +
+      '<div class="stats-lifetime-label">' + t.label + '</div>' +
+    '</div>';
+  }).join('');
+  return '<div class="stats-section-title">Загальна статистика</div>' +
+    '<div class="stats-lifetime-grid">' + tilesHtml + '</div>';
+}
 
 async function fetchStats() {
   if (statsFetchInFlight) return;
@@ -55,6 +90,7 @@ function renderStatsPage() {
   }).join('');
 
   container.innerHTML =
+    renderLifetimeStats(statsState.lifetime) +
     '<div class="stats-total">Загальне виробництво: <strong>' + fmtRate(statsState.totalEnergyPerSec) + '</strong></div>' +
     '<div class="stats-section-title">Множники</div>' +
     '<div class="stats-list">' + (multsHtml || '<div class="empty-hint">Немає даних</div>') + '</div>' +

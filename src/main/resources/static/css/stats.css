@@ -54,3 +54,27 @@
 .stats-particle.done { border-color: rgba(134, 239, 172, 0.5); }
 .stats-particle-count { font-variant-numeric: tabular-nums; color: #e0e0e0; margin-left: auto; }
 .stats-note { color: #94a3b8; font-size: 12px; margin-top: 6px; }
+
+.stats-lifetime-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+}
+.stats-lifetime-tile {
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(125, 211, 252, 0.1);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.stats-lifetime-value {
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+    color: #86efac;
+}
+.stats-lifetime-label {
+    font-size: 11px;
+    color: #94a3b8;
+}

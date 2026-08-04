@@ -90,6 +90,11 @@ public class PrestigeService {
         }
         playerGeneratorRepository.saveAll(gens);
 
+        saveRepository.findById(saveId).ifPresent(save -> {
+            save.setPrestigeCount(save.getPrestigeCount() + 1);
+            saveRepository.save(save);
+        });
+
         return gain;
     }
 
@@ -141,6 +146,7 @@ public class PrestigeService {
         saveRepository.findById(saveId).ifPresent(save -> {
             save.setBrokenInfinity(false);
             save.setMatterCollapses(0L);
+            save.setPrestigeCount(0L);
             saveRepository.save(save);
         });
     }
