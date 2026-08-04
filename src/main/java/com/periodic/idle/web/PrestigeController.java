@@ -21,7 +21,7 @@ public class PrestigeController {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("number", gain.getNumber());
         map.put("exponent", gain.getExponent());
-        map.put("minLog10Energy", PrestigeService.PRESTIGE_MIN_LOG10_ENERGY);
+        map.put("minLog10Energy", prestigeService.effectiveMinLog10Energy(saveId));
         return map;
     }
 

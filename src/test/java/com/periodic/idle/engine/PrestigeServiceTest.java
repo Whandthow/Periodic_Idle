@@ -263,8 +263,10 @@ class PrestigeServiceTest {
     @Test
     @DisplayName("prestige(): інкрементує save.prestigeCount")
     void prestige_incrementsPrestigeCount() {
+        // Поріг тепер росте з prestigeCount (V23): 18 + 20*2 = 58, тож енергія
+        // мусить бути помітно вищою за старий фіксований поріг (28).
         energy.setNumber(1.0);
-        energy.setExponent(28);
+        energy.setExponent(70);
 
         Save save = instantiate(Save.class);
         ReflectionTestUtils.setField(save, "id", 1L);
@@ -278,6 +280,39 @@ class PrestigeServiceTest {
         prestigeService.prestige(1L);
 
         assertEquals(3L, save.getPrestigeCount());
+    }
+
+    @Test
+    @DisplayName("effectiveMinLog10Energy: росте лінійно з prestigeCount (18 + 5*count)")
+    void effectiveMinLog10Energy_growsWithPrestigeCount() {
+        Save save = instantiate(Save.class);
+        ReflectionTestUtils.setField(save, "id", 1L);
+        save.setPrestigeCount(4L);
+        when(saveRepository.findById(1L)).thenReturn(java.util.Optional.of(save));
+
+        assertEquals(18.0 + 5.0 * 4, prestigeService.effectiveMinLog10Energy(1L), 1e-9);
+    }
+
+    @Test
+    @DisplayName("calcPotentialGain: енергія, що долала СТАРИЙ фіксований поріг (18), " +
+            "більше не вистачає після кількох престижів (зростаючий поріг)")
+    void calcPotentialGain_growingThreshold_rejectsFormerlyEnoughEnergy() {
+        // log10Energy=28 колись давало гейн (старий фіксований поріг 18); після
+        // 3 престижів новий поріг = 18 + 5*3 = 33 > 28 -> 0 кристалів.
+        energy.setNumber(1.0);
+        energy.setExponent(28);
+
+        Save save = instantiate(Save.class);
+        ReflectionTestUtils.setField(save, "id", 1L);
+        save.setPrestigeCount(3L);
+
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(energy, crystals));
+        when(saveRepository.findById(1L)).thenReturn(java.util.Optional.of(save));
+
+        BigNum gain = prestigeService.calcPotentialGain(1L);
+
+        assertEquals(0, gain.getNumber(), 0.001);
+        assertEquals(0, gain.getExponent());
     }
 
     @Test
