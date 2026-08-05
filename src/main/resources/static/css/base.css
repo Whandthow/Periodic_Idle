@@ -1,5 +1,6 @@
 /* === Глобальні =============================================== */
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { overflow-x: hidden; }
 body {
     font-family: system-ui, sans-serif;
     /* Дефолт до першого JS-виклику refreshBackgroundStage (nav.js) — далі керується
@@ -11,7 +12,7 @@ body {
 }
 
 /* === Основна панель (розмітка спільна для всіх вкладок) ======= */
-.main { flex: 1; padding: 24px; overflow-y: auto; }
+.main { flex: 1; padding: 24px; overflow-y: auto; overflow-x: hidden; min-width: 0; }
 
 .panel {
     padding: 8px 4px 16px;
