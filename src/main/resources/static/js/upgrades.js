@@ -9,33 +9,46 @@ function _coreLevel() {
   return c ? (c.currentLevel || 0) : 0;
 }
 
+// Безпечно рахує cost = costNumber * costMultiplier^level у log10-просторі —
+// дзеркалить BigNum.scaledByLevel на бекенді, щоб не переповнити double через
+// Math.pow(costMultiplier, level) на високих рівнях (напр. CORE, mult=3.2,
+// переповнює вже на рівні ~610 — задовго до max_level=999 в БД).
+function _scaledUpgradeCost(costNumber, costExponent, costMultiplier, level) {
+  if (!costNumber || costNumber <= 0 || !costMultiplier || costMultiplier <= 0) {
+    return { num: 0, exp: 0, logValue: -Infinity };
+  }
+  var logValue = Math.log10(costNumber) + (costExponent || 0) + level * Math.log10(costMultiplier);
+  var exp = Math.floor(logValue);
+  return { num: Math.pow(10, logValue - exp), exp: exp, logValue: logValue };
+}
+
 function _currentEnergyLog10() {
   if (typeof resourceState === 'undefined' || !resourceState) return -Infinity;
   var e = resourceState['E'];
   if (!e || !e.number || e.number <= 0) return -Infinity;
-  // Рахуємо з урахуванням накопиченого приросту між синками (щоб кнопка миттєво активувалась)
+  // Рахуємо з урахуванням накопиченого приросту між синками (щоб кнопка миттєво активувалась).
+  // _addRateIncrement (resources.js) рахує в log10-просторі — безпечно навіть коли
+  // e.exponent астрономічний (після Break Infinity).
   var now = performance.now();
   var dt = (now - (e.lastSync || now)) / 1000;
-  var base = e.number * Math.pow(10, e.exponent);
-  var curr = base + (e.ratePerSec || 0) * dt;
-  if (curr <= 0) return -Infinity;
-  return Math.log10(curr);
+  var incr = (e.ratePerSec || 0) * dt;
+  var curr = (typeof _addRateIncrement === 'function')
+    ? _addRateIncrement(e.number, e.exponent, incr)
+    : { num: e.number, exp: e.exponent };
+  if (curr.num <= 0) return -Infinity;
+  return Math.log10(curr.num) + curr.exp;
 }
 
 function _upgradeCostLog10(u) {
   var lvl = u.currentLevel || 0;
-  var scaled = (u.costNumber || 0) * Math.pow(u.costMultiplier || 1, lvl);
-  if (scaled <= 0) return Infinity;
-  return Math.log10(scaled) + (u.costExponent || 0);
+  return _scaledUpgradeCost(u.costNumber, u.costExponent, u.costMultiplier, lvl).logValue;
 }
 
 function _fmtUpgradeCost(u) {
   var lvl = u.currentLevel || 0;
-  var scaled = u.costNumber * Math.pow(u.costMultiplier, lvl);
-  if (!isFinite(scaled) || scaled <= 0) return '—';
-  var extraExp = Math.floor(Math.log10(scaled));
-  var mantissa = scaled / Math.pow(10, extraExp);
-  return fmt(mantissa, u.costExponent + extraExp);
+  var c = _scaledUpgradeCost(u.costNumber, u.costExponent, u.costMultiplier, lvl);
+  if (!isFinite(c.num) || c.num <= 0) return '—';
+  return fmt(c.num, c.exp);
 }
 
 function _resourceLabel(u) {

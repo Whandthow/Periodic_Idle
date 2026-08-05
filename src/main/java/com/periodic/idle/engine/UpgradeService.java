@@ -76,9 +76,8 @@ public class UpgradeService {
         int bought = 0;
         int level = currentLevel;
         while (bought < target && level < maxLevel) {
-            double costNum = upgrade.getCostNumber() * Math.pow(upgrade.getCostMultiplier(), level);
-            if (!Double.isFinite(costNum) || costNum <= 0) break;
-            BigNum cost = new BigNum(costNum, upgrade.getCostExponent());
+            BigNum cost = BigNum.scaledByLevel(upgrade.getCostNumber(), upgrade.getCostExponent(),
+                    upgrade.getCostMultiplier(), level);
             if (current.compareTo(cost) < 0) break;
             current = current.subtract(cost);
             level++;

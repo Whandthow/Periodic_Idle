@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class BigNumTest {
 
@@ -374,5 +375,48 @@ public class BigNumTest {
         BigNum n = new BigNum(Double.NaN, 10);
         assertEquals(0, n.getNumber(), 0.001);
         assertEquals(0, n.getExponent());
+    }
+
+    // === scaledByLevel (безпечна геометрична ціна для великих level) ===
+
+    @Test
+    @DisplayName("scaledByLevel(level=0) = base * 10^baseExponent")
+    void scaledByLevelZero() {
+        BigNum result = BigNum.scaledByLevel(5.0, 3, 2.0, 0);
+        assertEquals(5, result.getNumber(), 0.001);
+        assertEquals(3, result.getExponent());
+    }
+
+    @Test
+    @DisplayName("scaledByLevel співпадає з наївним base*mult^level на малих level")
+    void scaledByLevelMatchesNaiveAtSmallLevel() {
+        // 10 * 3.2^5 = 10 * 335.54... = 3355.4432
+        BigNum result = BigNum.scaledByLevel(10.0, 0, 3.2, 5);
+        assertEquals(3.3554, result.getNumber(), 0.001);
+        assertEquals(3, result.getExponent());
+    }
+
+    @Test
+    @DisplayName("scaledByLevel на рівні 700 з mult=3.2 НЕ переповнюється " +
+            "(наївний base*Math.pow(mult,level) тут уже дає Infinity)")
+    void scaledByLevelDoesNotOverflowWhereNaiveMathPowWould() {
+        assertEquals(Double.POSITIVE_INFINITY, Math.pow(3.2, 700),
+                "тест припускає, що наївний Math.pow тут справді переповнюється");
+
+        BigNum result = BigNum.scaledByLevel(1000.0, 3, 3.2, 700);
+        assertTrue(Double.isFinite(result.getNumber()));
+        assertTrue(result.getNumber() >= 1.0 && result.getNumber() < 10.0);
+        // log10(1000*3.2^700) = 3 + 3 + 700*log10(3.2) ≈ 359.5
+        assertEquals(359, result.getExponent());
+    }
+
+    @Test
+    @DisplayName("scaledByLevel(level=1) множить рівно на mult")
+    void scaledByLevelOneStep() {
+        BigNum lvl0 = BigNum.scaledByLevel(2.0, 5, 1.1, 0);
+        BigNum lvl1 = BigNum.scaledByLevel(2.0, 5, 1.1, 1);
+        double ratio = (lvl1.getNumber() * Math.pow(10, lvl1.getExponent()))
+                / (lvl0.getNumber() * Math.pow(10, lvl0.getExponent()));
+        assertEquals(1.1, ratio, 0.0001);
     }
 }

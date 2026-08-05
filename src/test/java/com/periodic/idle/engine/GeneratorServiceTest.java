@@ -239,6 +239,31 @@ class GeneratorServiceTest {
     }
 
     @Test
+    @DisplayName("Купівля з уже дуже високим рівнем (2000, mult=1.5) не ламається через " +
+            "переповнення double у ціні — регресія: Math.pow(1.5,level) переповнюється " +
+            "в Infinity вже близько рівня ~1750, генератори не мають max_level, тож у довгій " +
+            "грі це реально досяжно")
+    void buy_veryHighExistingLevel_doesNotSilentlyOverflow() {
+        PlayerGenerator pg = instantiate(PlayerGenerator.class);
+        pg.setSave(save);
+        pg.setGenerator(voidGen);
+        pg.setLevel(2000);
+
+        // Ціна на рівні 2000 (mult=1.5, base=1.0e1) ~ 10^353 — даємо гравцю з запасом.
+        playerEnergy.setNumber(1.0);
+        playerEnergy.setExponent(400);
+
+        when(generatorRepository.findById(1L)).thenReturn(Optional.of(voidGen));
+        when(playerGeneratorRepository.findBySaveId(1L)).thenReturn(List.of(pg));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
+
+        generatorService.buy(1L, 1L);
+
+        assertEquals(2001, pg.getLevel());
+    }
+
+    @Test
     @DisplayName("Генератор не знайдено — exception")
     void buyNotFound() {
         when(generatorRepository.findById(999L)).thenReturn(Optional.empty());
