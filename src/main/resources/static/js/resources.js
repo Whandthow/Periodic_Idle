@@ -83,23 +83,52 @@ async function fetchState() {
   }
 }
 
-// Плавне оновлення значень між синхронізаціями (60fps)
+// Додає приріст rate*dt (звичайний double) до (number, exponent) без переповнення,
+// навіть якщо exponent астрономічний (після Break Infinity — розділ 7.6 CLAUDE.md).
+// Той самий підхід "вирівняти менший показник степеня, потім скласти мантиси", що й
+// BigNum.add на бекенді — НІКОЛИ не множить 10^exponent напряму (це й переповнювало
+// double в Infinity, коли exponent перевищував ~308, і показник ресурсу мовчки
+// згортався в "0" замість реального значення).
+function _addRateIncrement(number, exponent, incr) {
+  if (incr === 0) return { num: number, exp: exponent };
+
+  var incrAbs = Math.abs(incr);
+  var incrExp = Math.floor(Math.log10(incrAbs));
+  var incrMantissa = (incr < 0 ? -1 : 1) * (incrAbs / Math.pow(10, incrExp));
+
+  var baseNum, baseExp, addNum, addExp;
+  if (exponent >= incrExp) {
+    baseNum = number; baseExp = exponent;
+    addNum = incrMantissa; addExp = incrExp;
+  } else {
+    baseNum = incrMantissa; baseExp = incrExp;
+    addNum = number; addExp = exponent;
+  }
+  var delta = addExp - baseExp; // <= 0
+  var summed = delta < -300 ? baseNum : baseNum + addNum * Math.pow(10, delta);
+
+  if (summed <= 0) return { num: 0, exp: 0 };
+  var norm = Math.floor(Math.log10(summed));
+  return { num: summed / Math.pow(10, norm), exp: baseExp + norm };
+}
+
+// Плавне оновлення значень між синхронізаціями
 function renderLoop() {
   var now = performance.now();
   Object.keys(resourceState).forEach(function(code) {
     var r = resourceState[code];
     var dt = (now - r.lastSync) / 1000;
-
-    var base = r.number * Math.pow(10, r.exponent);
-    var curr = base + r.ratePerSec * dt;
+    var incr = r.ratePerSec * dt;
 
     var dispNum, dispExp;
-    if (curr <= 0) {
+    if (r.number <= 0 && incr <= 0) {
       dispNum = 0;
       dispExp = 0;
     } else {
-      dispExp = Math.floor(Math.log10(curr));
-      dispNum = curr / Math.pow(10, dispExp);
+      var curr = r.number > 0 ? _addRateIncrement(r.number, r.exponent, incr)
+                               : _addRateIncrement(incr, 0, 0);
+      dispNum = curr.num;
+      dispExp = curr.exp;
     }
 
     var dom = resourceDom[code];

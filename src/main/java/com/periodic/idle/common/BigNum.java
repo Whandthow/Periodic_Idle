@@ -116,4 +116,25 @@ public class BigNum implements Comparable<BigNum> {
         double finalExponent = bigNumToDouble(pow(postLog));
         return new BigNum(Math.pow(10,finalExponent%1),(long)finalExponent);
     }
+
+    /**
+     * {@code base * 10^baseExponent * mult^level}, безпечно для великих {@code level}.
+     * Рахує в log10-просторі замість {@code Math.pow(mult, level)} напряму — той вираз
+     * переповнює double (Infinity) вже при помірних level (напр. mult=3.2 переповнює
+     * на рівні ~610, задовго до типового max_level=999 в upgrades), через що виклики на
+     * кшталт {@code new BigNum(base*Math.pow(mult,level), baseExponent)} мовчки ламали
+     * подорожчання ціни (guard на !isFinite зупиняв купівлю навічно, а не рахував ціну).
+     */
+    public static BigNum scaledByLevel(double base, long baseExponent, double mult, long level) {
+        if (level <= 0) return new BigNum(base, baseExponent);
+        double logValue = Math.log10(base) + baseExponent + level * Math.log10(mult);
+        if (!Double.isFinite(logValue)) {
+            // base<=0 чи mult<=0 — невалідний контент; величезна ціна замість "безкоштовно"
+            // (BigNum(NaN,_) нормалізується в 0, що зробило б купівлю нескінченною).
+            return new BigNum(1.0, Long.MAX_VALUE / 2);
+        }
+        long exp = (long) Math.floor(logValue);
+        double mantissa = Math.pow(10, logValue - exp);
+        return new BigNum(mantissa, exp);
+    }
 }

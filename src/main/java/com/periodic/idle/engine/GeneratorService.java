@@ -60,9 +60,8 @@ public class GeneratorService {
         int bought = 0;
         int level = currentLevel;
         while (bought < target) {
-            double costNum = generator.getBaseCostNumber() * Math.pow(effectiveMultiplier, level);
-            if (!Double.isFinite(costNum) || costNum <= 0) break;
-            BigNum cost = new BigNum(costNum, generator.getBaseCostExponent());
+            BigNum cost = BigNum.scaledByLevel(generator.getBaseCostNumber(), generator.getBaseCostExponent(),
+                    effectiveMultiplier, level);
             if (current.compareTo(cost) < 0) break;
             current = current.subtract(cost);
             level++;
@@ -131,9 +130,8 @@ public class GeneratorService {
         List<PlayerUpgrade> playerUpgrades = playerUpgradeRepository.findBySaveId(saveId);
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
         double effectiveMultiplier = effectiveCostMultiplier(generator.getCostMultiplier(), playerUpgrades, resources);
-        double costNum = generator.getBaseCostNumber() * Math.pow(effectiveMultiplier, currentLevel);
-        long costExp = generator.getBaseCostExponent();
-        BigNum cost = new BigNum(costNum, costExp);
+        BigNum cost = BigNum.scaledByLevel(generator.getBaseCostNumber(), generator.getBaseCostExponent(),
+                effectiveMultiplier, currentLevel);
 
         // Перевіряємо ресурси
         PlayerResource pr = resources.stream()

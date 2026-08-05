@@ -166,6 +166,31 @@ class UpgradeServiceTest {
     }
 
     @Test
+    @DisplayName("Купівля з уже високим рівнем (700, mult=3.2) не ламається через переповнення " +
+            "double у ціні — регресія: раніше Math.pow(mult,level) переповнювалась в Infinity " +
+            "вже близько рівня ~610, і buyBulk мовчки зупинявся з 'Not enough resources'")
+    void buyBulk_highExistingLevel_doesNotSilentlyOverflow() {
+        Upgrade steep = createUpgrade(2L, "core_like", "CORE", 0.05,
+                energy, 1.0, 3L, 3.2, 999);
+        PlayerUpgrade existingPu = new PlayerUpgrade();
+        existingPu.setSave(save);
+        existingPu.setUpgrade(steep);
+        existingPu.setLevel(700);
+
+        // Ціна на рівні 700 (mult=3.2, base=1.0e3) ~ 10^356.6 — даємо гравцю з великим запасом.
+        PlayerResource huge = createPlayerResource(2L, save, energy, 1.0, 400);
+
+        when(upgradeRepository.findById(2L)).thenReturn(Optional.of(steep));
+        when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>(List.of(existingPu)));
+        when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(huge));
+
+        int bought = upgradeService.buyBulk(1L, 2L, 1);
+
+        assertEquals(1, bought);
+        assertEquals(701, existingPu.getLevel());
+    }
+
+    @Test
     @DisplayName("Ресурс гравця не знайдено — RuntimeException")
     void buy_playerResourceNotFound_throws() {
         // Апгрейд коштує енергію, але у гравця немає запису про енергію
