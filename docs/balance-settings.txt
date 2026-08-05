@@ -1,0 +1,202 @@
+PERIODIC IDLE — УСІ НАЛАШТУВАННЯ БАЛАНСУ В ОДНОМУ МІСЦІ
+Знято живим дампом з застосунку 2026-08-05 (сервер localhost:8080, save id 3,
+чиста БД, усі 22 Flyway-міграції застосовані) + grep по Java-константах.
+Це знімок поточних ЕФЕКТИВНИХ значень (після всіх V1-V22 міграцій) — не
+історія змін. Де саме кожне число редагувати — колонка "ДЕ" праворуч.
+
+Формат: якщо значення живе в БД (Flyway-контент) — редагувати НОВОЮ
+міграцією (db/migration/{h2,postgresql}/V{N}__*.sql, обидва вендори).
+Якщо в Java — звичайна зміна коду.
+
+
+================================================================
+1. ГЕНЕРАТОРИ (Тір 0) — БД, таблиця `generator`
+================================================================
+id  code              назва                    base_cost   cost_mult  rate/lvl (E/с)
+1   void_gen          Генератор пустоти        10 (1e1)    1.10       1
+2   quantum_loop      Квантова петля           100 (1e2)   1.13       10
+3   vacuum_resonator  Вакуумний резонатор      1000 (1e3)  1.16       100
+4   dark_condenser    Темний конденсатор       1e4         1.20       1 000
+5   entropy_engine    Ентропійний двигун       1e5         1.24       10 000
+6   singularity_core  Ядро сингулярності       1e6         1.28       100 000
+
+ДЕ: db/migration/{h2,postgresql}/V5__more_generators.sql (база),
+    V17__balance_tuning_v2.sql (поточний cost_multiplier).
+
+
+================================================================
+2. АПГРЕЙДИ (Тір 0) — БД, таблиця `upgrades`
+================================================================
+id  code              effect_type        effect_value  base_cost  cost_mult  max_lvl  unlockCoreTier
+6   core              CORE               0.05          1e3        3.2        999      0
+7   upg_energy_mult   ENERGY_MULT        0.30           50         1.7        999      1
+8   upg_gen_specific  GEN_SPECIFIC_MULT  0.30          1e2         1.7        999      1
+9   upg_crystal_gain  CRYSTAL_GAIN       0.25          1e3         2.0        999      2
+10  upg_autobuy       AUTOBUY            1.00          1e4         2.1          6      2
+11  upg_energy_pow    ENERGY_POW         0.05          1e5         2.2          8      3
+12  upg_phantom       PHANTOM_GEN        1.00          1e6         2.2          3      3
+13  upg_cost_scale    COST_SCALE_REDUCE  0.02          1e7         2.0        999      4
+14  upg_gen_stack     GEN_STACK          1.00          1e8         2.0        999      4
+
+ДЕ: db/migration/{h2,postgresql}/V4__upgrades.sql, V6__core_and_upgrades.sql
+    (база), V17__balance_tuning_v2.sql (core: попередній тюнинг),
+    V18__core_snowball_tempering.sql (core: cost_mult 2.2->3.2,
+    effect_value 0.10->0.05 — останній живий тюнинг CORE).
+
+Формули ефектів (UpgradeMultipliers.java, engine/):
+  ENERGY_MULT       1 + value * effective_level (softcap після рівня 20,
+                     ENERGY_MULT_SOFTCAP_THRESHOLD = 20 — Java-константа)
+  GENERATOR_MULT    1 + value * level
+  COST_SCALE_REDUCE max(MIN_COST_MULTIPLIER=1.03, baseMult - value*level)
+                     — Java-константа GeneratorService.MIN_COST_MULTIPLIER
+  CRYSTAL_GAIN      1 + value * level
+  CORE              10^softcap(level * value * log10(VC))
+                     softcap-стеля: CORE_EXP_SOFTCAP=60.0 + CORE_EXP_RANGE=40.0
+                     = 100 (tanh-асимптота, макс буст ~1e100)
+                     ДЕ: UpgradeMultipliers.java (Java-константи)
+  ENERGY_POW        rate^(1 + value*level), лише якщо rate > 1
+  PHANTOM_GEN       rate *= (1 + bonus), покриває 2*level генів
+  AUTOBUY           перші level генів купуються щосекунди
+
+
+================================================================
+3. ПРЕСТИЖ (PrestigeService.java) — Java-константи
+================================================================
+PRESTIGE_MIN_LOG10_ENERGY   = 18.0     поріг log10(E) для 1-го престижу
+PRESTIGE_MIN_LOG10_GROWTH   = 5.0      +5.0 до порогу за кожен наступний
+                                        (effectiveMin = 18.0 + 5.0*prestigeCount)
+PRESTIGE_DIVISOR            = 2.5      ділить (log10E - poріг) перед 10^
+STARTER_ENERGY_NUMBER/EXP   = 1.0 / 1  стартова енергія після престижу = 10 E
+
+ЖИВО ПЕРЕВІРЕНО (docs/balance.md, V20): з GROWTH=5.0 бот зробив 31 престиж
+за ~1130с (tick-speed 20000x), потім плато на порозі 173 (energyLog10
+застряг ~171-172). GROWTH=20.0 (перша спроба) — занадто жорстко, стіна вже
+на 2-му престижі.
+
+
+================================================================
+4. МАТЕРІЯ / КОЛАПС / BREAK INFINITY (Тір 1)
+================================================================
+MatterService.BREAK_INFINITY_REQUIRED   = 10       колапсів матерії для Break Infinity
+GameEngine.ENERGY_CAP_EXPONENT          = 308       "стіна нескінченності" (1e308)
+GameEngine.INFINITE_RATE_EXPONENT_JUMP  = 50        стрибок E при переповненні (Infinity-rate)
+ExchangeService.BULK_HARD_CAP           = 1 000 000  макс. розщеплення VC за раз
+
+ParticleBonus (Тір 1 -> Тір 0), формула: saturating(count) = count/(1+count/1000)
+  SATURATION_SCALE      = 1 000
+  PROTON_ENERGY_PER     = 0.25   -> 1 + saturating(p)*0.25   (стеля x251)
+  NEUTRON_COST_PER      = 0.02   -> saturating(n)*0.02       (стеля -20 cost_mult)
+  ELECTRON_VC_PER       = 0.15   -> 1 + saturating(e)*0.15   (стеля x151)
+
+CollapseCycleBonus (буст від save.matterCollapses, незалежний від VC):
+  COEFF                       = 2.5    rawExponent = 2.5 * log10(collapses+1)
+  EXP_SOFTCAP                 = 10.0
+  EXP_RANGE                   = 10.0   -> стеля буста ~1e20 (tanh)
+  VC_PERSISTS_AFTER_COLLAPSES = 10 000 колапсів -> VC більше НЕ скидається колапсом
+
+
+================================================================
+5. СИНТЕЗ АТОМІВ (Тір 2, SynthesisService.java) — Java-константи
+================================================================
+PRIMORDIAL_MAX_ATOMIC_NUMBER    = 3       H/He/Li — доступні одразу
+STELLAR_IGNITION_HELIUM_COUNT   = 1 000   He потрібно накопичити для "запаленої зорі" (Z 4-26)
+IRON_ATOMIC_NUMBER              = 26      екзотермічно <= 26, ендотермічно > 26
+HEAVY_ELEMENT_HYPERNOVA_REQUIRED= 1       гіпернов потрібно пережити для Z > 26
+ENERGY_SCALE_EXPONENT           = 298     МеВ -> BigNum(meV, 298), єдина шкала E для Тір 2/3/4
+BULK_HARD_CAP                   = 100 000 макс. синтезу за раз
+
+BindingEnergy.java (SEMF/Вайцзеккер, реальна фізика, НЕ балансний важіль):
+  A_VOLUME=15.8  A_SURFACE=18.3  A_COULOMB=0.714  A_ASYMMETRY=23.2  A_PAIRING=12.0
+
+ElementBonus (Тір 2 -> Тір 0/1) — Java-константи:
+  DIVERSITY_PER            = 0.06   1 + saturating(distinct,15)*0.06  (стеля x1.9 при 36)
+  ATOM_COUNT_PER           = 0.15   двоступенева tanh, softcap log10=6, hardcap +6
+  ATOM_SOFTCAP_LOG10       = 6.0
+  ATOM_HARD_RANGE_LOG10    = 6.0    -> макс. стеля x2.8
+  CNO_CATALYST_MULT        = 2.0    x2 пропускної здатності StarService (C+N+O синтезовано)
+
+Елементи (36 рядків, Z=1..36, H..Kr) — НЕ балансні числа, а реальна
+періодична таблиця (atomic_weight, cost_protons=Z, cost_neutrons=масове
+число ізотопу - Z). ДЕ: db/migration/{h2,postgresql}/V11__periodic_table.sql.
+
+
+================================================================
+6. МОЛЕКУЛИ (Тір 3, MoleculeService.java) — Java-константи + БД
+================================================================
+EV_PER_MEV           = 1 000 000   переведення еВ -> МеВ
+ENERGY_SCALE_EXPONENT= 298         та сама шкала, що й SynthesisService
+BULK_HARD_CAP         = 100 000
+
+10 молекул (formula, bond_energy_ev — реальні довідникові значення):
+  H2=4.52  O2=5.12  N2=9.79  H2O=9.51  CO2=16.67  CH4=17.23
+  NH3=12.06  CO=11.11  HCl=4.43  NaCl=3.79 (eV)
+ДЕ: db/migration/{h2,postgresql}/V15__molecules.sql — рецепти
+(molecule_components) там само.
+
+
+================================================================
+7. ЗОРІ (Тір 4, StarService.java) — Java-константи + БД
+================================================================
+STAR_TICK_INTERVAL_MS = 1000
+ENERGY_SCALE_EXPONENT = 298
+HYDROGEN_ATOMIC_NUMBER= 1,  HELIUM_ATOMIC_NUMBER = 2
+
+main_sequence (єдина зоря v1):
+  nextLevelCostHydrogen (рівень 1) = 1 000 000 атомів H
+  fuelHPerEvent  = 4     (4 H -> 1 He, реальний proton-proton chain)
+  outputHePerEvent = 1
+ДЕ: db/migration/{h2,postgresql}/V20__tier4_stars.sql (base_cost_hydrogen,
+    cost_multiplier, events_per_sec_per_level).
+
+Гіпернова (ризик): якщо Гідрогену не вистачає на тік — обнуляє всі
+player_elements/player_molecules + player_stars.level, save.hypernovaCount++
+(ніколи не скидається; перша гіпернова відкриває Z>26 назавжди).
+
+
+================================================================
+8. УМОВИ РОЗБЛОКУВАННЯ ТІРІВ — БД, `tier_unlock_conditions` (OR за тіром)
+================================================================
+tier=1: E >= 1e308  АБО  p > 0  АБО  n > 0  АБО  e > 0  АБО  VC > 0
+tier=2: p >= 1e3      (1 000+ протонів)
+tier=3: p >= 1e4      (10 000+ протонів)
+tier=4: p >= 1e6      (1 000 000+ протонів)
+ДЕ: db/migration/{h2,postgresql}/V13__tier_unlock_conditions.sql (база),
+    V22__rebalance_3day_first_atom.sql (додано VC-умову для tier=1).
+
+
+================================================================
+9. ГЛОБАЛЬНІ ЦИКЛИ / ІНТЕРВАЛИ — Java-константи
+================================================================
+GameEngine:            tick кожні 100 мс (TICK_INTERVAL_MS)
+                        офлайн-прогрес: мін. 2с / кап 24 год (OFFLINE_MIN/MAX_SECONDS)
+AutoBuyService:         автокупівля генераторів кожні 250 мс
+AutoSynthesizeService:  автосинтез елементів+молекул кожну 1000 мс
+AutoUpgradeService:     автокупівля апгрейдів кожну 1000 мс,
+                        розблокована від AUTO_UPGRADE_UNLOCK_COLLAPSES=4 колапсів
+StarService:            тік зорі кожну 1000 мс
+GeneratorService:       BULK_HARD_CAP=100 000, MIN_COST_MULTIPLIER=1.03
+UpgradeService:         BULK_HARD_CAP=100 000
+SynthesisService/MoleculeService: BULK_HARD_CAP=100 000
+
+
+================================================================
+10. ЖИВІ РЕЗУЛЬТАТИ БОТ-ТЕСТІВ (для контексту, повна історія — docs/balance.md)
+================================================================
+V17: 1-й престиж ~8с/20000x (~1.85 ігр.дня) — ціль досягнута.
+V18: CORE-снігова куля НЕ виправлена (241 престиж/480с без сповільнення);
+     CollapseCycleBonus практично працює (4 колапси/480с).
+V20: знижена CORE-стеля (280->100) сама по собі НЕ фіксить снігову кулю;
+     зростаючий поріг престижу (GROWTH=5.0) фіксить частково — 31 престиж/
+     1130с з чітким сповільненням, потім плато (поріг 173).
+V21: без престижу взагалі — природна стеля log10(E)~23-24, колапс матерії
+     СТРУКТУРНО недосяжний без хоча б 1 престижу (VC/CORE).
+V22 (2026-08-05, ця сесія): гібридний бот — 5 престижів (бутстрап VC до
+     10^54.36), потім УТРИМАННЯ від престижу + чисте реінвестування в Тір 0
+     на ~1200с. Результат: energyLog10 плато ~168 (164.6-168.9), колапс
+     матерії ЖОДНОГО РАЗУ не досягнутий (colapseReady завжди False,
+     cycleBoost=1 весь час — matterCollapses=0). Висновок: 5 престижів
+     (VC~10^54) недостатньо для CORE-буста, що пробив би 308 — потрібен
+     або набагато глибший бутстрап (десятки престижів, як у V20), або
+     дизайн-рішення. Сирі дані: hybrid_bot.py/hybrid_full_run.csv
+     (сесійний scratchpad, не в репо) — не збережено постійно, за потреби
+     повторити тим самим скриптом (методика описана вище).
