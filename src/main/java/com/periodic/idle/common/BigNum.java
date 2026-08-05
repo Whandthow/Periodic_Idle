@@ -76,17 +76,28 @@ public class BigNum implements Comparable<BigNum> {
     }
 
     public BigNum subtract(BigNum subtractNum) {
-        double finalNumber=getNumber();
-        long finalExponent= getExponent();
-        if (subtractNum.exponent < finalExponent && Math.abs(finalExponent - subtractNum.exponent) <= 308) {
-            double tmp = subtractNum.number * Math.pow(10, (subtractNum.exponent - finalExponent));
-            return new BigNum(finalNumber - tmp, finalExponent);
-        } else if (subtractNum.exponent > finalExponent) {
+        double finalNumber = getNumber();
+        long finalExponent = getExponent();
+
+        if (subtractNum.exponent > finalExponent) {
             throw new canNotSubtractBigNumException(subtractNum);
-        } else {
-            if (finalNumber < subtractNum.number) throw new canNotSubtractBigNumException(subtractNum);
-            return new BigNum(finalNumber-subtractNum.number,finalExponent);
         }
+        long gap = finalExponent - subtractNum.exponent;
+        if (gap == 0) {
+            if (finalNumber < subtractNum.number) throw new canNotSubtractBigNumException(subtractNum);
+            return new BigNum(finalNumber - subtractNum.number, finalExponent);
+        }
+        if (gap > 308) {
+            // subtractNum більше ніж на 308 порядків менший за this — віднімання
+            // не змінює значення (дзеркалить те саме "гейт" в add(), розділ вище).
+            // Без цієї гілки код падав у "else" нижче й напряму порівнював мантиси
+            // при НЕОДНАКОВИХ (лише "не оброблених явно") показниках степеня —
+            // напр. 2.5e2010 - 3.8e10 хибно кидало canNotSubtractBigNumException,
+            // бо 2.5 < 3.8 порівнювались як мантиси однієї шкали.
+            return new BigNum(this.number, this.exponent);
+        }
+        double tmp = subtractNum.number * Math.pow(10, subtractNum.exponent - finalExponent);
+        return new BigNum(finalNumber - tmp, finalExponent);
     }
 
     public BigNum multiply(double multNum){

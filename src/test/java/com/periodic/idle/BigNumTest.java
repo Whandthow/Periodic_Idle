@@ -137,6 +137,27 @@ public class BigNumTest {
     }
 
     @Test
+    @DisplayName("2.5e2010 - 3.78e10 = 2.5e2010 (розрив >308 порядків — віднімання незначного " +
+            "не змінює значення; регресія: раніше кидало canNotSubtractBigNumException, бо " +
+            "мантиси 2.5 і 3.78 хибно порівнювались напряму, ігноруючи 2000-порядковий розрив " +
+            "у показнику степеня)")
+    void subtractNegligibleAcrossHugeGap() {
+        BigNum n = new BigNum(2.5042493960898966, 2010);
+        BigNum m = new BigNum(3.7778931862957235, 10);
+        BigNum result = n.subtract(m);
+        assertEquals(2.5042493960898966, result.getNumber(), 1e-9);
+        assertEquals(2010, result.getExponent());
+    }
+
+    @Test
+    @DisplayName("1e400 - 1e91 = 1e400 (розрив рівно 309 — щойно за межею safe-gap 308)")
+    void subtractNegligibleJustOverGapThreshold() {
+        BigNum result = new BigNum(1, 400).subtract(new BigNum(1, 91));
+        assertEquals(1, result.getNumber(), 0.0001);
+        assertEquals(400, result.getExponent());
+    }
+
+    @Test
     @DisplayName("6e-2 - 2e-4 = 5.98e-2")
     void negativeNumberSubtract(){
         BigNum n = new BigNum(6,-2);
