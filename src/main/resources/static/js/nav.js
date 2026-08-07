@@ -198,6 +198,7 @@ function activatePage(name) {
   if (name === 'stars' && typeof fetchStars === 'function') fetchStars();
   if (name === 'achievements' && typeof fetchAchievements === 'function') fetchAchievements();
   if (name === 'settings' && typeof renderDevTierJumpButtons === 'function') renderDevTierJumpButtons();
+  if (name === 'settings' && typeof renderDevGrantOptions === 'function') renderDevGrantOptions();
 }
 
 function toggleTierDrawer() {
@@ -245,6 +246,22 @@ function showPage(name, el, keepDrawerOpen) {
   if (el) el.classList.add('active');
   if (!keepDrawerOpen && isCompactNav()) closeTierDrawer();
   activatePage(name);
+}
+
+// Відкриття статистики: ховаємо другу панель + показуємо сторінку статистики (як openSettings).
+// Статистика — не Тір 0-специфічна вкладка (lifetime-показники охоплюють усю гру), тому
+// живе окремою кнопкою внизу сайдбару поруч із Досягненнями/Налаштуваннями, а не в sub-nav.
+function openStats(el) {
+  document.body.classList.add('settings-open');
+  document.body.classList.remove('subnav-pinned');
+  closeTierDrawer();
+  document.querySelectorAll('.tier-btn').forEach(function(b) { b.classList.remove('active'); });
+  if (el) el.classList.add('active');
+
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  var page = document.getElementById('page-stats');
+  if (page) page.classList.add('active');
+  activatePage('stats');
 }
 
 // Відкриття досягнень: ховаємо другу панель + показуємо сторінку досягнень (як openSettings).

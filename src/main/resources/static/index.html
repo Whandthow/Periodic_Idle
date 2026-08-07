@@ -69,6 +69,13 @@
 
   <div class="sidebar-spacer"></div>
 
+  <div class="tier-btn stats-btn" onclick="openStats(this)" title="Статистика">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+      <path d="M5,9.2H8V19H5V9.2M10.6,5H13.4V19H10.6V5M16.2,13H19V19H16.2V13Z"/>
+    </svg>
+    <span>Статист.</span>
+  </div>
+
   <div class="tier-btn achievements-btn" onclick="openAchievements(this)" title="Досягнення">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
       <path d="M5,4V6H4A2,2 0 0,0 2,8V9A5,5 0 0,0 6.79,13.9C7.73,15.36 9.24,16.45 11,16.86V19H7V21H17V19H13V16.86C14.76,16.45 16.27,15.36 17.21,13.9A5,5 0 0,0 22,9V8A2,2 0 0,0 20,6H19V4H5M4,8H5V11.7C3.83,11.24 3,10.2 3,9V8H4M19,8H20V9C20,10.2 19.17,11.24 18,11.7V8H19Z"/>
@@ -90,7 +97,6 @@
   <div class="sub-nav-item active" onclick="showPage('generators', this)">Генератори</div>
   <div class="sub-nav-item" onclick="showPage('upgrades', this)">Апгрейди</div>
   <div class="sub-nav-item" onclick="showPage('prestige', this)">Престиж</div>
-  <div class="sub-nav-item" onclick="showPage('stats', this)">Статистика</div>
 </div>
 
 <!-- Основний контент -->
@@ -189,13 +195,12 @@
       <div class="panel-title">Реінкарнація</div>
 
       <div class="settings-row">
-        <div class="settings-label">Скинути прогрес за кристали пустоти
-          <div class="settings-hint" id="prestige-hint">Потрібно щонайменше 1e10 енергії</div>
-        </div>
-        <div class="settings-ctrl">
+        <div class="settings-label">Скинути прогрес за кристали пустоти</div>
+        <div class="settings-ctrl prestige-ctrl">
           <button class="btn-danger" id="prestige-btn"
                   style="background:rgba(88,28,135,0.9);color:#e9d5ff"
                   onclick="doPrestige()">Реінкарнація</button>
+          <div class="settings-hint" id="prestige-hint">Потрібно щонайменше 1e10 енергії</div>
         </div>
       </div>
     </div>
@@ -363,6 +368,49 @@
         </div>
         <div class="dev-tier-jump-row" id="dev-tier-jump-row"></div>
         <div id="dev-tier-jump-status" class="save-transfer-status"></div>
+      </div>
+
+      <div class="settings-row column">
+        <div class="settings-label">
+          Видати частинки
+          <div class="settings-hint">Додає точну кількість обраної частинки без обміну кристалів</div>
+        </div>
+        <div class="dev-grant-row">
+          <select id="dev-grant-particle-select">
+            <option value="p">Протон (p)</option>
+            <option value="n">Нейтрон (n)</option>
+            <option value="e">Електрон (e)</option>
+          </select>
+          <input type="number" id="dev-grant-particle-amount" value="1000" min="1" step="1">
+          <button class="btn-primary" onclick="grantParticle()">Видати</button>
+        </div>
+        <div id="dev-grant-particle-status" class="save-transfer-status"></div>
+      </div>
+
+      <div class="settings-row column">
+        <div class="settings-label">
+          Видати атоми елемента
+          <div class="settings-hint">Додає точну кількість уже синтезованих атомів обраного елемента</div>
+        </div>
+        <div class="dev-grant-row">
+          <select id="dev-grant-element-select"></select>
+          <input type="number" id="dev-grant-element-amount" value="100" min="1" step="1">
+          <button class="btn-primary" onclick="grantElement()">Видати</button>
+        </div>
+        <div id="dev-grant-element-status" class="save-transfer-status"></div>
+      </div>
+
+      <div class="settings-row column">
+        <div class="settings-label">
+          Видати молекули
+          <div class="settings-hint">Додає точну кількість уже зібраних молекул обраної формули</div>
+        </div>
+        <div class="dev-grant-row">
+          <select id="dev-grant-molecule-select"></select>
+          <input type="number" id="dev-grant-molecule-amount" value="100" min="1" step="1">
+          <button class="btn-primary" onclick="grantMolecule()">Видати</button>
+        </div>
+        <div id="dev-grant-molecule-status" class="save-transfer-status"></div>
       </div>
 
       <div class="settings-divider"></div>
