@@ -38,8 +38,6 @@ function renderPeriodicTable() {
     return '<div class="' + cls + '"' +
       ' style="grid-column:' + el.groupNumber + ';grid-row:' + el.period + '"' +
       ' data-id="' + el.id + '"' +
-      ' onmouseenter="hoverElement(' + el.id + ', this)"' +
-      ' onmouseleave="unhoverElement(' + el.id + ')"' +
       ' onclick="selectElement(' + el.id + ', this)">' +
       '<div class="element-card-number">' + el.atomicNumber + '</div>' +
       '<div class="element-card-symbol">' + el.symbol + '</div>' +
@@ -48,19 +46,6 @@ function renderPeriodicTable() {
       badge +
     '</div>';
   }).join('');
-}
-
-function hoverElement(id, cardEl) {
-  if (isCompactNav()) return; // на тачі — тільки клік/пін, щоб не заважати скролу
-  selectedElementId = id;
-  _positionDetailNear(cardEl);
-  _renderElementDetail(elementsState.byId[id]);
-}
-
-function unhoverElement(id) {
-  if (isCompactNav()) return;
-  var detail = document.getElementById('element-detail');
-  if (detail && !detail.classList.contains('pinned')) detail.classList.remove('visible');
 }
 
 function selectElement(id, cardEl) {
