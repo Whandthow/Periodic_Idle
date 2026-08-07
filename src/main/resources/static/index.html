@@ -245,8 +245,8 @@
     </div>
   </div>
 
-  <!-- Деталі елемента при наведенні/фокусі (модель Бора: оболонки + електрони) -->
-  <div class="element-detail" id="element-detail">
+  <!-- Деталі елемента по кліку, закривається наведенням курсора за межі вікна (модель Бора: оболонки + електрони) -->
+  <div class="element-detail" id="element-detail" onmouseleave="closeElementDetail()">
     <div class="element-detail-card">
       <div class="element-detail-number" id="element-detail-number"></div>
       <div class="element-detail-shells" id="element-detail-shells"></div>

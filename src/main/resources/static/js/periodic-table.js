@@ -50,10 +50,13 @@ function renderPeriodicTable() {
 
 function selectElement(id, cardEl) {
   selectedElementId = id;
-  var detail = document.getElementById('element-detail');
-  if (detail) detail.classList.add('pinned');
   _positionDetailNear(cardEl);
   _renderElementDetail(elementsState.byId[id]);
+}
+
+function closeElementDetail() {
+  var detail = document.getElementById('element-detail');
+  if (detail) detail.classList.remove('visible');
 }
 
 function _positionDetailNear(cardEl) {
@@ -154,13 +157,6 @@ async function synthesizeSelected() {
   }
 }
 
-document.addEventListener('click', function(e) {
-  var detail = document.getElementById('element-detail');
-  if (!detail || !detail.classList.contains('pinned')) return;
-  if (detail.contains(e.target)) return;
-  if (e.target.closest && e.target.closest('.element-card')) return;
-  detail.classList.remove('pinned', 'visible');
-});
 
 // === Автосинтез (Тір 2 елементи + Тір 3 молекули, спільний прапор save.autoSynthesizeEnabled) ===
 // Тоглиться однією дією на обох сторінках — не потребує окремого апгрейду,
