@@ -19,8 +19,7 @@ var TIERS = {
   0: { name: 'Пустота', tabs: [
     { id: 'generators', label: 'Генератори' },
     { id: 'upgrades', label: 'Апгрейди' },
-    { id: 'prestige', label: 'Престиж' },
-    { id: 'stats', label: 'Статистика' }
+    { id: 'prestige', label: 'Престиж' }
   ]},
   1: { name: 'Матерія', tabs: [
     { id: 'exchange', label: 'Колапс' },

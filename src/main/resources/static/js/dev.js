@@ -44,7 +44,6 @@ async function refreshPrestigeInfo() {
 }
 
 async function doPrestige() {
-  if (!confirm('Скинути генератори та всю енергію заради кристалів пустоти?')) return;
   try {
     var res = await fetch('/api/prestige', {
       method: 'POST',
@@ -75,6 +74,102 @@ async function addResourceExp(code, delta) {
     await fetchState();
   } catch (e) {
     console.error('addResourceExp failed', e);
+  }
+}
+
+/** Заповнює селекти елементів/молекул для dev-видачі (розділ "Dev-інструменти"). */
+var _devGrantOptionsLoaded = false;
+
+async function renderDevGrantOptions() {
+  if (_devGrantOptionsLoaded) return;
+  _devGrantOptionsLoaded = true;
+  try {
+    var res = await fetch('/api/elements/' + SAVE_ID);
+    var elements = await res.json();
+    var elSel = document.getElementById('dev-grant-element-select');
+    if (elSel) {
+      elSel.innerHTML = elements.map(function(el) {
+        return '<option value="' + el.id + '">' + el.symbol + ' — ' + el.name + '</option>';
+      }).join('');
+    }
+  } catch (e) {
+    console.error('renderDevGrantOptions elements failed', e);
+  }
+  try {
+    var res2 = await fetch('/api/molecules/' + SAVE_ID);
+    var molecules = await res2.json();
+    var molSel = document.getElementById('dev-grant-molecule-select');
+    if (molSel) {
+      molSel.innerHTML = molecules.map(function(m) {
+        return '<option value="' + m.id + '">' + m.formula + ' — ' + m.name + '</option>';
+      }).join('');
+    }
+  } catch (e) {
+    console.error('renderDevGrantOptions molecules failed', e);
+  }
+}
+
+async function grantParticle() {
+  var code = document.getElementById('dev-grant-particle-select').value;
+  var amount = parseInt(document.getElementById('dev-grant-particle-amount').value, 10) || 0;
+  var status = document.getElementById('dev-grant-particle-status');
+  if (amount <= 0) { if (status) status.textContent = 'Вкажи додатну кількість'; return; }
+  try {
+    var res = await fetch('/api/dev/grant-resource', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saveId: SAVE_ID, resourceCode: code, amount: amount })
+    });
+    if (!res.ok) { if (status) status.textContent = 'Помилка: ' + (await res.text()); return; }
+    if (status) status.textContent = 'Видано +' + amount + ' (' + code + ')';
+    await fetchState();
+  } catch (e) {
+    console.error('grantParticle failed', e);
+    if (status) status.textContent = 'Помилка: ' + e;
+  }
+}
+
+async function grantElement() {
+  var sel = document.getElementById('dev-grant-element-select');
+  var amount = parseInt(document.getElementById('dev-grant-element-amount').value, 10) || 0;
+  var status = document.getElementById('dev-grant-element-status');
+  if (!sel.value || amount <= 0) { if (status) status.textContent = 'Вкажи елемент і додатну кількість'; return; }
+  try {
+    var res = await fetch('/api/dev/grant-element', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saveId: SAVE_ID, elementId: Number(sel.value), amount: amount })
+    });
+    if (!res.ok) { if (status) status.textContent = 'Помилка: ' + (await res.text()); return; }
+    var data = await res.json();
+    if (status) status.textContent = 'Видано ' + data.element + ' x' + data.count;
+    await fetchState();
+    if (typeof fetchElements === 'function') await fetchElements();
+  } catch (e) {
+    console.error('grantElement failed', e);
+    if (status) status.textContent = 'Помилка: ' + e;
+  }
+}
+
+async function grantMolecule() {
+  var sel = document.getElementById('dev-grant-molecule-select');
+  var amount = parseInt(document.getElementById('dev-grant-molecule-amount').value, 10) || 0;
+  var status = document.getElementById('dev-grant-molecule-status');
+  if (!sel.value || amount <= 0) { if (status) status.textContent = 'Вкажи молекулу і додатну кількість'; return; }
+  try {
+    var res = await fetch('/api/dev/grant-molecule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saveId: SAVE_ID, moleculeId: Number(sel.value), amount: amount })
+    });
+    if (!res.ok) { if (status) status.textContent = 'Помилка: ' + (await res.text()); return; }
+    var data = await res.json();
+    if (status) status.textContent = 'Видано ' + data.molecule + ' x' + data.count;
+    await fetchState();
+    if (typeof fetchMolecules === 'function') await fetchMolecules();
+  } catch (e) {
+    console.error('grantMolecule failed', e);
+    if (status) status.textContent = 'Помилка: ' + e;
   }
 }
 
