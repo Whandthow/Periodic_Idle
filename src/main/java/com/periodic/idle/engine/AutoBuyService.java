@@ -17,9 +17,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AutoBuyService {
 
-    /** 4 рази на секунду — щоб устигати за швидко зростаючою енергією. */
-    private static final long AUTOBUY_INTERVAL_MS = 250;
-
     private final SaveRepository saveRepository;
     private final PlayerUpgradeRepository playerUpgradeRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
@@ -38,7 +35,7 @@ public class AutoBuyService {
      * позначилась би rollback-only від одного невдалого генератора ще до try/catch
      * нижче — тож прибираю анотацію про всяк випадок, а не лише реактивно.
      */
-    @Scheduled(fixedRate = AUTOBUY_INTERVAL_MS)
+    @Scheduled(fixedRateString = "${balance.auto-buy.interval-ms}")
     public void tickAutoBuy() {
         for (Save save : saveRepository.findAll()) {
             if (!save.isAutobuyEnabled()) continue;

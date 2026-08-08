@@ -1,6 +1,9 @@
 package com.periodic.idle.engine;
 
+import com.periodic.idle.engine.config.ParticleBonusProperties;
 import com.periodic.idle.player.PlayerResource;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -13,38 +16,29 @@ import java.util.List;
  * концептуально споріднене з виродженням Фермі-газу — тиск густого газу частинок
  * росте із концентрацією, але асимптотично, не необмежено). При малій кількості
  * частинок крива майже лінійна (той самий "відчуття" першого прогресу), але після
- * {@link #SATURATION_SCALE} додаткові частинки дають дедалі менше — і бонус ніколи
- * не перевищує {@code PER * SATURATION_SCALE}, що заразом убезпечує множники
+ * {@code saturationScale} додаткові частинки дають дедалі менше — і бонус ніколи
+ * не перевищує {@code PER * saturationScale}, що заразом убезпечує множники
  * виробництва (GameEngine) від переповнення double при астрономічній кількості
- * частинок, яка стає досяжною після Break Infinity.</p>
+ * частинок, яка стає досяжною після Break Infinity.
+ *
+ * <p>Коефіцієнти — {@link ParticleBonusProperties} ({@code balance.particle-bonus.*}
+ * у application.yml), не Java-константи — щоб баланс можна було швидко міняти без
+ * зміни коду (CLAUDE.md, розділ "Ключові рішення").
  */
-public final class ParticleBonus {
+@Component
+@RequiredArgsConstructor
+public class ParticleBonus {
 
-    /** +25% до ENERGY_MULT-подібного множника енергії за кожен "ефективний" протон. */
-    public static final double PROTON_ENERGY_PER = 0.25;
-    /** -0.02 до cost-multiplier генераторів за кожен "ефективний" нейтрон. */
-    public static final double NEUTRON_COST_PER = 0.02;
-    /** +15% до множника кристалів при престижі за кожен "ефективний" електрон. */
-    public static final double ELECTRON_VC_PER = 0.15;
+    private final ParticleBonusProperties props;
 
-    /**
-     * Масштаб насичення: кількість частинок, після якої крива відчутно вигинається.
-     * Для count &lt;&lt; SATURATION_SCALE ефект ≈ лінійний (як і раніше); для
-     * count → ∞ ефект → SATURATION_SCALE (жорстка асимптота).
-     */
-    private static final double SATURATION_SCALE = 1_000.0;
-
-    private ParticleBonus() {
-    }
-
-    /** "Ефективна" кількість частинок після насичення: count / (1 + count/SATURATION_SCALE). */
-    private static double saturating(long count) {
+    /** "Ефективна" кількість частинок після насичення: count / (1 + count/saturationScale). */
+    private double saturating(long count) {
         double c = (double) count;
-        return c / (1.0 + c / SATURATION_SCALE);
+        return c / (1.0 + c / props.saturationScale());
     }
 
     /** Ціла кількість частинки заданого коду (p/n/e) як BigNum -> long. */
-    public static long count(List<PlayerResource> resources, String code) {
+    public long count(List<PlayerResource> resources, String code) {
         for (PlayerResource pr : resources) {
             if (pr.getResource() == null || !code.equals(pr.getResource().getCode())) continue;
             double mantissa = pr.getNumber();
@@ -58,18 +52,31 @@ public final class ParticleBonus {
         return 0L;
     }
 
-    /** Множник енергії від протонів: 1 + saturating(count(p)) * PROTON_ENERGY_PER. */
-    public static double protonEnergyMult(List<PlayerResource> resources) {
-        return 1.0 + saturating(count(resources, "p")) * PROTON_ENERGY_PER;
+    /** Множник енергії від протонів: 1 + saturating(count(p)) * protonEnergyPer. */
+    public double protonEnergyMult(List<PlayerResource> resources) {
+        return 1.0 + saturating(count(resources, "p")) * props.protonEnergyPer();
     }
 
     /** Знижка cost-multiplier від нейтронів (застосовується підлогою назовні). */
-    public static double neutronCostReduction(List<PlayerResource> resources) {
-        return saturating(count(resources, "n")) * NEUTRON_COST_PER;
+    public double neutronCostReduction(List<PlayerResource> resources) {
+        return saturating(count(resources, "n")) * props.neutronCostPer();
     }
 
-    /** Множник кристалів при престижі від електронів: 1 + saturating(count(e)) * ELECTRON_VC_PER. */
-    public static double electronCrystalMult(List<PlayerResource> resources) {
-        return 1.0 + saturating(count(resources, "e")) * ELECTRON_VC_PER;
+    /** Множник кристалів при престижі від електронів: 1 + saturating(count(e)) * electronVcPer. */
+    public double electronCrystalMult(List<PlayerResource> resources) {
+        return 1.0 + saturating(count(resources, "e")) * props.electronVcPer();
+    }
+
+    /** Сирий коефіцієнт (не множник) — для відображення формули в UI (GameStatsService). */
+    public double protonEnergyPer() {
+        return props.protonEnergyPer();
+    }
+
+    public double neutronCostPer() {
+        return props.neutronCostPer();
+    }
+
+    public double electronVcPer() {
+        return props.electronVcPer();
     }
 }

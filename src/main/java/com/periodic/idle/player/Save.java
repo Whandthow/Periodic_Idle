@@ -33,7 +33,7 @@ public class Save {
 
     /**
      * Чи увімкнена автопокупка апгрейдів Тіру 0. Розблоковується у UI лише після
-     * {@link com.periodic.idle.engine.AutoUpgradeService#AUTO_UPGRADE_UNLOCK_COLLAPSES}
+     * {@code balance.auto-upgrade.unlock-collapses} (application.yml)
      * колапсів матерії. За замовчуванням вимкнено.
      */
     @Column(name = "auto_upgrade_enabled", nullable = false)

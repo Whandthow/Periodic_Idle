@@ -1,6 +1,7 @@
 package com.periodic.idle.engine;
 
 import com.periodic.idle.common.BigNum;
+import com.periodic.idle.engine.config.ExchangeProperties;
 import com.periodic.idle.player.PlayerResource;
 import com.periodic.idle.player.PlayerResourceRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ExchangeService {
 
-    private static final int BULK_HARD_CAP = 1_000_000;
+    private final ExchangeProperties props;
 
     private final PlayerResourceRepository playerResourceRepository;
 
@@ -43,9 +44,9 @@ public class ExchangeService {
 
         long target;
         if (amount < 0) {
-            target = Math.min(available, BULK_HARD_CAP);
+            target = Math.min(available, props.bulkHardCap());
         } else {
-            target = Math.min(Math.min(amount, available), BULK_HARD_CAP);
+            target = Math.min(Math.min(amount, available), props.bulkHardCap());
         }
         if (target <= 0) {
             throw new RuntimeException("Not enough crystals");

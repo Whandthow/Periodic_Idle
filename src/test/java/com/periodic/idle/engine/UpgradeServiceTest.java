@@ -4,12 +4,12 @@ import com.periodic.idle.common.BigNum;
 import com.periodic.idle.content.Resource;
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
+import com.periodic.idle.engine.config.UpgradeProperties;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -22,6 +22,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class UpgradeServiceTest {
 
+    private final UpgradeProperties props = new UpgradeProperties(100_000);
+
     @Mock
     private UpgradeRepository upgradeRepository;
     @Mock
@@ -29,7 +31,6 @@ class UpgradeServiceTest {
     @Mock
     private PlayerResourceRepository playerResourceRepository;
 
-    @InjectMocks
     private UpgradeService upgradeService;
 
     private Resource energy;
@@ -39,6 +40,8 @@ class UpgradeServiceTest {
 
     @BeforeEach
     void setUp() {
+        upgradeService = new UpgradeService(props, upgradeRepository, playerUpgradeRepository, playerResourceRepository);
+
         energy = createResource(1L, "E", "Енергія", 0);
         save = createSave(1L, "dev");
 

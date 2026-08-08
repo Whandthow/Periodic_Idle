@@ -2,12 +2,13 @@ package com.periodic.idle.engine;
 
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
+import com.periodic.idle.engine.config.AutoUpgradeProperties;
 import com.periodic.idle.player.Save;
 import com.periodic.idle.player.SaveRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -20,12 +21,18 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AutoUpgradeServiceTest {
 
+    private final AutoUpgradeProperties props = new AutoUpgradeProperties(1000L, 4L);
+
     @Mock private SaveRepository saveRepository;
     @Mock private UpgradeRepository upgradeRepository;
     @Mock private UpgradeService upgradeService;
 
-    @InjectMocks
     private AutoUpgradeService autoUpgradeService;
+
+    @BeforeEach
+    void setUp() {
+        autoUpgradeService = new AutoUpgradeService(props, saveRepository, upgradeRepository, upgradeService);
+    }
 
     private Upgrade upgrade(Long id) {
         Upgrade u = instantiate(Upgrade.class);
@@ -63,7 +70,7 @@ class AutoUpgradeServiceTest {
         Save disabled = instantiate(Save.class);
         ReflectionTestUtils.setField(disabled, "id", 99L);
         disabled.setAutoUpgradeEnabled(false);
-        disabled.setMatterCollapses(AutoUpgradeService.AUTO_UPGRADE_UNLOCK_COLLAPSES);
+        disabled.setMatterCollapses(props.unlockCollapses());
 
         when(saveRepository.findAll()).thenReturn(List.of(disabled));
 
@@ -79,7 +86,7 @@ class AutoUpgradeServiceTest {
         Save notYetUnlocked = instantiate(Save.class);
         ReflectionTestUtils.setField(notYetUnlocked, "id", 5L);
         notYetUnlocked.setAutoUpgradeEnabled(true);
-        notYetUnlocked.setMatterCollapses(AutoUpgradeService.AUTO_UPGRADE_UNLOCK_COLLAPSES - 1);
+        notYetUnlocked.setMatterCollapses(props.unlockCollapses() - 1);
 
         when(saveRepository.findAll()).thenReturn(List.of(notYetUnlocked));
 
@@ -95,7 +102,7 @@ class AutoUpgradeServiceTest {
         Save enabled = instantiate(Save.class);
         ReflectionTestUtils.setField(enabled, "id", 7L);
         enabled.setAutoUpgradeEnabled(true);
-        enabled.setMatterCollapses(AutoUpgradeService.AUTO_UPGRADE_UNLOCK_COLLAPSES);
+        enabled.setMatterCollapses(props.unlockCollapses());
 
         when(saveRepository.findAll()).thenReturn(List.of(enabled));
         when(upgradeRepository.findAll()).thenReturn(List.of(upgrade(1L)));

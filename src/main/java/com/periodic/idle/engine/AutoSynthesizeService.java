@@ -28,9 +28,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AutoSynthesizeService {
 
-    /** Рідше за game tick — синтез не такий чутливий до затримки, як генератори. */
-    private static final long AUTO_SYNTHESIZE_INTERVAL_MS = 1000;
-
     private final SaveRepository saveRepository;
     private final ElementRepository elementRepository;
     private final MoleculeRepository moleculeRepository;
@@ -49,7 +46,7 @@ public class AutoSynthesizeService {
      * саме так і поводилась гра наживо. Без анотації тут кожен {@code synthesizeBulk} відкриває
      * власну незалежну транзакцію (як і мало бути задумано).
      */
-    @Scheduled(fixedRate = AUTO_SYNTHESIZE_INTERVAL_MS)
+    @Scheduled(fixedRateString = "${balance.auto-synthesize.interval-ms}")
     public void tickAutoSynthesize() {
         for (Save save : saveRepository.findAll()) {
             if (!save.isAutoSynthesizeEnabled()) continue;

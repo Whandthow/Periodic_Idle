@@ -7,6 +7,7 @@ import com.periodic.idle.player.PlayerElement;
 import com.periodic.idle.player.PlayerElementRepository;
 import com.periodic.idle.player.Save;
 import com.periodic.idle.player.SaveRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,16 @@ class ElementControllerTest {
     @MockitoBean private PlayerElementRepository playerElementRepository;
     @MockitoBean private SaveRepository saveRepository;
     @MockitoBean private SynthesisService synthesisService;
+
+    @BeforeEach
+    void setUpBalanceDefaults() {
+        // Production defaults (balance.synthesis.* у application.yml) — контролер тепер читає
+        // ці пороги через injected SynthesisService замість статичних констант.
+        when(synthesisService.primordialMaxAtomicNumber()).thenReturn(3);
+        when(synthesisService.ironAtomicNumber()).thenReturn(26);
+        when(synthesisService.stellarIgnitionHeliumCount()).thenReturn(1_000L);
+        when(synthesisService.heavyElementHypernovaRequired()).thenReturn(1L);
+    }
 
     @Test
     @DisplayName("GET /api/elements/1 — повертає JSON масив із прапором unlocked")

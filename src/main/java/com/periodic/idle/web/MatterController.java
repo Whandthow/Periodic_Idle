@@ -4,9 +4,9 @@ import com.periodic.idle.engine.AutoUpgradeService;
 import com.periodic.idle.engine.CollapseCycleBonus;
 import com.periodic.idle.engine.ElementBonus;
 import com.periodic.idle.engine.ExchangeService;
-import com.periodic.idle.engine.GameEngine;
 import com.periodic.idle.engine.MatterService;
 import com.periodic.idle.engine.ParticleBonus;
+import com.periodic.idle.engine.config.GameEngineProperties;
 import com.periodic.idle.player.PlayerElement;
 import com.periodic.idle.player.PlayerElementRepository;
 import com.periodic.idle.player.PlayerResource;
@@ -30,6 +30,12 @@ import java.util.Map;
 @RequestMapping("/api")
 @RequiredArgsConstructor
 public class MatterController {
+
+    private final GameEngineProperties gameEngineProperties;
+    private final ParticleBonus particleBonus;
+    private final CollapseCycleBonus collapseCycleBonus;
+    private final ElementBonus elementBonus;
+    private final AutoUpgradeService autoUpgradeService;
 
     private final PlayerResourceRepository playerResourceRepository;
     private final PlayerElementRepository playerElementRepository;
@@ -83,32 +89,32 @@ public class MatterController {
         map.put("matterCollapses", save.getMatterCollapses());
         map.put("particles", particles);
         map.put("energyLog10", log10Energy);
-        map.put("energyCapLog10", GameEngine.ENERGY_CAP_EXPONENT);
-        map.put("breakInfinityRequired", MatterService.BREAK_INFINITY_REQUIRED);
+        map.put("energyCapLog10", gameEngineProperties.energyCapExponent());
+        map.put("breakInfinityRequired", matterService.breakInfinityRequired());
         map.put("collapseReady", save.isBrokenInfinity()
-                || log10Energy >= GameEngine.ENERGY_CAP_EXPONENT);
+                || log10Energy >= gameEngineProperties.energyCapExponent());
         map.put("autobuyEnabled", save.isAutobuyEnabled());
         map.put("autoSynthesizeEnabled", save.isAutoSynthesizeEnabled());
         map.put("autoUpgradeEnabled", save.isAutoUpgradeEnabled());
-        map.put("autoUpgradeUnlockCollapses", AutoUpgradeService.AUTO_UPGRADE_UNLOCK_COLLAPSES);
+        map.put("autoUpgradeUnlockCollapses", autoUpgradeService.unlockCollapses());
         map.put("autoUpgradeUnlocked",
-                save.getMatterCollapses() >= AutoUpgradeService.AUTO_UPGRADE_UNLOCK_COLLAPSES);
+                save.getMatterCollapses() >= autoUpgradeService.unlockCollapses());
         // Реальні поточні бонуси від накопичених частинок (ParticleBonus, розділ 7.1 CLAUDE.md) —
         // щоб гравець бачив НАЖИВО, що саме йому дають протони/нейтрони/електрони, а не здогадувався.
-        map.put("protonEnergyMult", ParticleBonus.protonEnergyMult(resources));
-        map.put("neutronCostReduction", ParticleBonus.neutronCostReduction(resources));
-        map.put("electronCrystalMult", ParticleBonus.electronCrystalMult(resources));
+        map.put("protonEnergyMult", particleBonus.protonEnergyMult(resources));
+        map.put("neutronCostReduction", particleBonus.neutronCostReduction(resources));
+        map.put("electronCrystalMult", particleBonus.electronCrystalMult(resources));
         // Цикл-буст від кількості колапсів (CollapseCycleBonus) — не залежить від VC,
-        // єдиний місток до повторного колапсу матерії до VC_PERSISTS_AFTER_COLLAPSES.
-        map.put("cycleBoost", CollapseCycleBonus.boost(save.getMatterCollapses()));
-        map.put("vcPersistsAfterCollapses", CollapseCycleBonus.VC_PERSISTS_AFTER_COLLAPSES);
+        // єдиний місток до повторного колапсу матерії до vcPersistsAfterCollapses.
+        map.put("cycleBoost", collapseCycleBonus.boost(save.getMatterCollapses()));
+        map.put("vcPersistsAfterCollapses", collapseCycleBonus.vcPersistsAfterCollapses());
         // Реальні поточні бонуси від синтезованих елементів (ElementBonus, розділ 7.1 CLAUDE.md) —
         // той самий принцип, що й ParticleBonus вище, лише вхід — Тір 2, а не Тір 1.
         List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
-        map.put("elementDiversityMult", ElementBonus.diversityMult(elements));
-        map.put("elementAtomCountMult", ElementBonus.atomCountMult(elements));
-        map.put("distinctElementsSynthesized", ElementBonus.distinctCount(elements));
-        map.put("totalAtomsSynthesized", ElementBonus.totalAtomCount(elements));
+        map.put("elementDiversityMult", elementBonus.diversityMult(elements));
+        map.put("elementAtomCountMult", elementBonus.atomCountMult(elements));
+        map.put("distinctElementsSynthesized", elementBonus.distinctCount(elements));
+        map.put("totalAtomsSynthesized", elementBonus.totalAtomCount(elements));
         return map;
     }
 

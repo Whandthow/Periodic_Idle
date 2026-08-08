@@ -4,6 +4,8 @@ import com.periodic.idle.common.BigNum;
 import com.periodic.idle.content.Molecule;
 import com.periodic.idle.content.MoleculeComponent;
 import com.periodic.idle.content.MoleculeRepository;
+import com.periodic.idle.engine.config.GameEngineProperties;
+import com.periodic.idle.engine.config.MoleculeProperties;
 import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,13 +30,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MoleculeService {
 
-    /** Жорсткий запобіжник нескінченного циклу при буст-синтезі. */
-    private static final long BULK_HARD_CAP = 100_000L;
-
-    private static final double EV_PER_MEV = 1_000_000.0;
-
-    /** Той самий масштаб, що й SynthesisService.ENERGY_SCALE_EXPONENT — єдина шкала енергії для гри. */
-    private static final long ENERGY_SCALE_EXPONENT = 298L;
+    private final MoleculeProperties props;
+    private final GameEngineProperties gameEngineProperties;
 
     private final MoleculeRepository moleculeRepository;
     private final PlayerMoleculeRepository playerMoleculeRepository;
@@ -74,8 +71,8 @@ public class MoleculeService {
         }
 
         long target = amount < 0
-                ? Math.min(maxAffordable, BULK_HARD_CAP)
-                : Math.min(Math.min(amount, maxAffordable), BULK_HARD_CAP);
+                ? Math.min(maxAffordable, props.bulkHardCap())
+                : Math.min(Math.min(amount, maxAffordable), props.bulkHardCap());
 
         if (target <= 0) {
             if (amount < 0) return 0;
@@ -91,13 +88,13 @@ public class MoleculeService {
             playerElementRepository.save(pe);
         }
 
-        double meVPerMolecule = molecule.getBondEnergyEv() / EV_PER_MEV;
+        double meVPerMolecule = molecule.getBondEnergyEv() / props.evPerMev();
         if (meVPerMolecule > 0) {
             PlayerResource energy = playerResourceRepository.findBySaveId(saveId).stream()
                     .filter(r -> r.getResource() != null && "E".equals(r.getResource().getCode()))
                     .findFirst()
                     .orElseThrow(() -> new RuntimeException("Resource E missing"));
-            BigNum delta = new BigNum(meVPerMolecule, ENERGY_SCALE_EXPONENT).multiply((double) target);
+            BigNum delta = new BigNum(meVPerMolecule, props.energyScaleExponent()).multiply((double) target);
             addEnergyRespectingCap(energy, delta, save.isBrokenInfinity());
             playerResourceRepository.save(energy);
         }
@@ -134,9 +131,9 @@ public class MoleculeService {
     private void addEnergyRespectingCap(PlayerResource energy, BigNum delta, boolean brokenInfinity) {
         BigNum current = new BigNum(energy.getNumber(), energy.getExponent());
         BigNum result = current.add(delta);
-        if (!brokenInfinity && result.getExponent() >= GameEngine.ENERGY_CAP_EXPONENT) {
+        if (!brokenInfinity && result.getExponent() >= gameEngineProperties.energyCapExponent()) {
             energy.setNumber(1.0);
-            energy.setExponent(GameEngine.ENERGY_CAP_EXPONENT);
+            energy.setExponent(gameEngineProperties.energyCapExponent());
         } else {
             energy.setNumber(result.getNumber());
             energy.setExponent(result.getExponent());

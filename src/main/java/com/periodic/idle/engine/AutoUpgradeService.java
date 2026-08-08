@@ -2,6 +2,7 @@ package com.periodic.idle.engine;
 
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
+import com.periodic.idle.engine.config.AutoUpgradeProperties;
 import com.periodic.idle.player.Save;
 import com.periodic.idle.player.SaveRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,22 +15,23 @@ import java.util.List;
  * Автопокупка апгрейдів Тіру 0 — дзеркалить {@link AutoBuyService} (генератори) і
  * {@link AutoSynthesizeService} (елементи/молекули), але для {@code upgrades}.
  * Player-driven toggle ({@link Save#isAutoUpgradeEnabled()}), розблокований у UI
- * лише після {@link #AUTO_UPGRADE_UNLOCK_COLLAPSES} колапсів матерії — до того часу
- * дерево апгрейдів Тіру 0 ще занадто мале й дороге, щоб автопокупка мала сенс.
+ * лише після {@code balance.auto-upgrade.unlock-collapses} колапсів матерії — до
+ * того часу дерево апгрейдів Тіру 0 ще занадто мале й дороге, щоб автопокупка мала сенс.
  */
 @Service
 @RequiredArgsConstructor
 public class AutoUpgradeService {
 
-    /** Скільки колапсів матерії потрібно, щоб у UI відкрився перемикач автопокупки апгрейдів. */
-    public static final long AUTO_UPGRADE_UNLOCK_COLLAPSES = 4L;
-
-    /** Рідше за game tick — апгрейди не такі чутливі до затримки, як генератори. */
-    private static final long AUTO_UPGRADE_INTERVAL_MS = 1000;
+    private final AutoUpgradeProperties props;
 
     private final SaveRepository saveRepository;
     private final UpgradeRepository upgradeRepository;
     private final UpgradeService upgradeService;
+
+    /** Скільки колапсів матерії потрібно, щоб у UI відкрився перемикач автопокупки апгрейдів. */
+    public long unlockCollapses() {
+        return props.unlockCollapses();
+    }
 
     /**
      * НЕ {@code @Transactional} тут навмисно — той самий структурний ризик, що й у
@@ -40,11 +42,11 @@ public class AutoUpgradeService {
      * "Already max level", гейт CORE-тіру тощо) позначив би її rollback-only ще до
      * try/catch, і жодна успішна покупка цього тіку не зберіглася б.
      */
-    @Scheduled(fixedRate = AUTO_UPGRADE_INTERVAL_MS)
+    @Scheduled(fixedRateString = "${balance.auto-upgrade.interval-ms}")
     public void tickAutoUpgrade() {
         for (Save save : saveRepository.findAll()) {
             if (!save.isAutoUpgradeEnabled()) continue;
-            if (save.getMatterCollapses() < AUTO_UPGRADE_UNLOCK_COLLAPSES) continue;
+            if (save.getMatterCollapses() < props.unlockCollapses()) continue;
             processSave(save.getId());
         }
     }

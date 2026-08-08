@@ -4,12 +4,14 @@ import com.periodic.idle.content.Element;
 import com.periodic.idle.content.Resource;
 import com.periodic.idle.content.Star;
 import com.periodic.idle.content.StarRepository;
+import com.periodic.idle.engine.config.ElementBonusProperties;
+import com.periodic.idle.engine.config.GameEngineProperties;
+import com.periodic.idle.engine.config.StarProperties;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -24,6 +26,12 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class StarServiceTest {
 
+    private final StarProperties props = new StarProperties(1000L, 298L, 1, 2);
+    private final GameEngineProperties gameEngineProperties =
+            new GameEngineProperties(100L, 50L, 308L, 2.0, 86400.0);
+    private final ElementBonus elementBonus =
+            new ElementBonus(new ElementBonusProperties(0.06, 15.0, 0.15, 6.0, 6.0, 2.0));
+
     @Mock private StarRepository starRepository;
     @Mock private PlayerStarRepository playerStarRepository;
     @Mock private PlayerElementRepository playerElementRepository;
@@ -31,7 +39,6 @@ class StarServiceTest {
     @Mock private PlayerResourceRepository playerResourceRepository;
     @Mock private SaveRepository saveRepository;
 
-    @InjectMocks
     private StarService starService;
 
     private Save save;
@@ -41,6 +48,10 @@ class StarServiceTest {
 
     @BeforeEach
     void setUp() {
+        starService = new StarService(props, gameEngineProperties, elementBonus, starRepository,
+                playerStarRepository, playerElementRepository, playerMoleculeRepository,
+                playerResourceRepository, saveRepository);
+
         save = instantiate(Save.class);
         ReflectionTestUtils.setField(save, "id", 1L);
 

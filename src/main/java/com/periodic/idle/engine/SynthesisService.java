@@ -4,6 +4,8 @@ import com.periodic.idle.common.BigNum;
 import com.periodic.idle.common.BindingEnergy;
 import com.periodic.idle.content.Element;
 import com.periodic.idle.content.ElementRepository;
+import com.periodic.idle.engine.config.GameEngineProperties;
+import com.periodic.idle.engine.config.SynthesisProperties;
 import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,14 +33,23 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SynthesisService {
 
-    /** Жорсткий запобіжник нескінченного циклу при буст-синтезі. */
-    private static final long BULK_HARD_CAP = 100_000L;
+    private final SynthesisProperties props;
+    private final GameEngineProperties gameEngineProperties;
+
+    private final ElementRepository elementRepository;
+    private final PlayerElementRepository playerElementRepository;
+    private final PlayerResourceRepository playerResourceRepository;
+    private final SaveRepository saveRepository;
 
     /** Залізо-56 — пік кривої енергії зв'язку: межа "самопідтримного" термоядерного синтезу зорі. */
-    public static final int IRON_ATOMIC_NUMBER = 26;
+    public int ironAtomicNumber() {
+        return props.ironAtomicNumber();
+    }
 
     /** H, He, Li — усе, що встиг дати первинний нуклеосинтез за перші ~20хв після Великого вибуху. */
-    public static final int PRIMORDIAL_MAX_ATOMIC_NUMBER = 3;
+    public int primordialMaxAtomicNumber() {
+        return props.primordialMaxAtomicNumber();
+    }
 
     /**
      * Скільки Гіпернов (StarService — катастрофічний вибух зорі через нестачу палива) потрібно
@@ -49,26 +60,18 @@ public class SynthesisService {
      * StarService — ігровий еквівалент такої події; save.hypernovaCount ніколи не скидається,
      * тож ця умова, на відміну від "запаленої зорі" (heliumCount), не може бути втрачена.
      */
-    public static final long HEAVY_ELEMENT_HYPERNOVA_REQUIRED = 1L;
+    public long heavyElementHypernovaRequired() {
+        return props.heavyElementHypernovaRequired();
+    }
 
     /**
      * Скільки атомів гелію потрібно накопичити, щоб "запалити зорю" (умовний поріг критичної
      * маси протозорі) і відкрити зоряний нуклеосинтез (Z&gt;=4). Перший прохід — потребує
      * живого тестування (docs/balance.md).
      */
-    public static final long STELLAR_IGNITION_HELIUM_COUNT = 1_000L;
-
-    /**
-     * Масштаб переведення МеВ у ігрові одиниці E. Перший прохід (як V12-баланс) —
-     * підібраний так, щоб внесок був відчутним на масштабі Тіру 2 (E типово ~1e308),
-     * але потребує живого тестування (див. docs/balance.md).
-     */
-    private static final long ENERGY_SCALE_EXPONENT = 298L;
-
-    private final ElementRepository elementRepository;
-    private final PlayerElementRepository playerElementRepository;
-    private final PlayerResourceRepository playerResourceRepository;
-    private final SaveRepository saveRepository;
+    public long stellarIgnitionHeliumCount() {
+        return props.stellarIgnitionHeliumCount();
+    }
 
     /**
      * Синтезувати до {@code amount} атомів (amount &lt; 0 = максимум за наявні частинки й енергію).
@@ -84,12 +87,12 @@ public class SynthesisService {
         if (element.getAtomicNumber() > 1 && !previousDiscovered(saveId, element)) {
             throw new RuntimeException("Спочатку синтезуйте попередній елемент у таблиці");
         }
-        if (element.getAtomicNumber() > PRIMORDIAL_MAX_ATOMIC_NUMBER
-                && heliumCount(saveId) < STELLAR_IGNITION_HELIUM_COUNT) {
-            throw new RuntimeException("Потрібна зоря: накопичте " + STELLAR_IGNITION_HELIUM_COUNT
+        if (element.getAtomicNumber() > props.primordialMaxAtomicNumber()
+                && heliumCount(saveId) < props.stellarIgnitionHeliumCount()) {
+            throw new RuntimeException("Потрібна зоря: накопичте " + props.stellarIgnitionHeliumCount()
                     + " гелію, щоб запустити зоряний нуклеосинтез (C-N-O-цикл)");
         }
-        if (element.getAtomicNumber() > IRON_ATOMIC_NUMBER && !isHeavyElementSynthesisUnlocked(saveId)) {
+        if (element.getAtomicNumber() > props.ironAtomicNumber() && !isHeavyElementSynthesisUnlocked(saveId)) {
             throw new RuntimeException("Потрібна наднова: елементи важчі за залізо утворюються лише "
                     + "через r-process — переживіть Гіпернову зорі (Тір 4), перш ніж синтезувати цей елемент");
         }
@@ -113,8 +116,8 @@ public class SynthesisService {
 
         int massNumber = (int) (element.getCostProtons() + element.getCostNeutrons());
         double meVPerAtom = BindingEnergy.totalMeV(element.getAtomicNumber(), massNumber);
-        boolean endothermic = meVPerAtom > 0 && element.getAtomicNumber() > IRON_ATOMIC_NUMBER;
-        BigNum energyPerAtom = meVPerAtom > 0 ? new BigNum(meVPerAtom, ENERGY_SCALE_EXPONENT) : null;
+        boolean endothermic = meVPerAtom > 0 && element.getAtomicNumber() > props.ironAtomicNumber();
+        BigNum energyPerAtom = meVPerAtom > 0 ? new BigNum(meVPerAtom, props.energyScaleExponent()) : null;
 
         long maxByEnergy = Long.MAX_VALUE;
         if (endothermic) {
@@ -124,8 +127,8 @@ public class SynthesisService {
         }
 
         long target = amount < 0
-                ? Math.min(maxAffordable, BULK_HARD_CAP)
-                : Math.min(Math.min(amount, maxAffordable), BULK_HARD_CAP);
+                ? Math.min(maxAffordable, props.bulkHardCap())
+                : Math.min(Math.min(amount, maxAffordable), props.bulkHardCap());
 
         if (target <= 0) {
             if (amount < 0) return 0;
@@ -191,9 +194,9 @@ public class SynthesisService {
     private void addEnergyRespectingCap(PlayerResource energy, BigNum delta, boolean brokenInfinity) {
         BigNum current = new BigNum(energy.getNumber(), energy.getExponent());
         BigNum result = current.add(delta);
-        if (!brokenInfinity && result.getExponent() >= GameEngine.ENERGY_CAP_EXPONENT) {
+        if (!brokenInfinity && result.getExponent() >= gameEngineProperties.energyCapExponent()) {
             energy.setNumber(1.0);
-            energy.setExponent(GameEngine.ENERGY_CAP_EXPONENT);
+            energy.setExponent(gameEngineProperties.energyCapExponent());
         } else {
             energy.setNumber(result.getNumber());
             energy.setExponent(result.getExponent());
@@ -217,14 +220,14 @@ public class SynthesisService {
 
     /** Чи відкритий зоряний нуклеосинтез (Z&gt;=4) для цього save. */
     public boolean isStellarIgnited(Long saveId) {
-        return heliumCount(saveId) >= STELLAR_IGNITION_HELIUM_COUNT;
+        return heliumCount(saveId) >= props.stellarIgnitionHeliumCount();
     }
 
     /** Чи відкритий r-process синтез важких елементів (Z&gt;26) — гравець пережив Гіпернову. */
     public boolean isHeavyElementSynthesisUnlocked(Long saveId) {
         return saveRepository.findById(saveId)
                 .map(Save::getHypernovaCount)
-                .orElse(0L) >= HEAVY_ELEMENT_HYPERNOVA_REQUIRED;
+                .orElse(0L) >= props.heavyElementHypernovaRequired();
     }
 
     private long maxAffordable(long available, long cost) {
