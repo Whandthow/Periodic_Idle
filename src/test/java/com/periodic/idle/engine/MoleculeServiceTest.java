@@ -5,12 +5,13 @@ import com.periodic.idle.content.Molecule;
 import com.periodic.idle.content.MoleculeComponent;
 import com.periodic.idle.content.MoleculeRepository;
 import com.periodic.idle.content.Resource;
+import com.periodic.idle.engine.config.GameEngineProperties;
+import com.periodic.idle.engine.config.MoleculeProperties;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -25,13 +26,16 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class MoleculeServiceTest {
 
+    private final MoleculeProperties props = new MoleculeProperties(100_000L, 1_000_000.0, 298L);
+    private final GameEngineProperties gameEngineProperties =
+            new GameEngineProperties(100L, 50L, 308L, 2.0, 86400.0);
+
     @Mock private MoleculeRepository moleculeRepository;
     @Mock private PlayerMoleculeRepository playerMoleculeRepository;
     @Mock private PlayerElementRepository playerElementRepository;
     @Mock private PlayerResourceRepository playerResourceRepository;
     @Mock private SaveRepository saveRepository;
 
-    @InjectMocks
     private MoleculeService moleculeService;
 
     private Save save;
@@ -42,6 +46,9 @@ class MoleculeServiceTest {
 
     @BeforeEach
     void setUp() {
+        moleculeService = new MoleculeService(props, gameEngineProperties, moleculeRepository,
+                playerMoleculeRepository, playerElementRepository, playerResourceRepository, saveRepository);
+
         save = instantiate(Save.class);
         ReflectionTestUtils.setField(save, "id", 1L);
 

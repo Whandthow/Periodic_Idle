@@ -4,6 +4,8 @@ import com.periodic.idle.common.BigNum;
 import com.periodic.idle.common.BindingEnergy;
 import com.periodic.idle.content.Star;
 import com.periodic.idle.content.StarRepository;
+import com.periodic.idle.engine.config.GameEngineProperties;
+import com.periodic.idle.engine.config.StarProperties;
 import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -31,14 +33,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StarService {
 
-    private static final long STAR_TICK_INTERVAL_MS = 1000;
-    private static final double STAR_TICK_INTERVAL_SEC = STAR_TICK_INTERVAL_MS / 1000.0;
-
-    /** Той самий масштаб, що й SynthesisService/MoleculeService.ENERGY_SCALE_EXPONENT. */
-    private static final long ENERGY_SCALE_EXPONENT = 298L;
-
-    private static final int HYDROGEN_ATOMIC_NUMBER = 1;
-    private static final int HELIUM_ATOMIC_NUMBER = 2;
+    private final StarProperties props;
+    private final GameEngineProperties gameEngineProperties;
+    private final ElementBonus elementBonus;
 
     private final StarRepository starRepository;
     private final PlayerStarRepository playerStarRepository;
@@ -59,7 +56,7 @@ public class StarService {
                 .orElseThrow(() -> new RuntimeException("Star not found"));
 
         List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
-        PlayerElement hydrogen = findByAtomicNumber(elements, HYDROGEN_ATOMIC_NUMBER);
+        PlayerElement hydrogen = findByAtomicNumber(elements, props.hydrogenAtomicNumber());
         long available = hydrogen == null ? 0 : hydrogen.getCount();
 
         PlayerStar ps = playerStarRepository.findBySaveId(saveId).stream()
@@ -106,7 +103,7 @@ public class StarService {
      * {@code processStarTick} — власна незалежна транзакція, тож гіпернова чи
      * будь-яка інша помилка на одній зорі/save не відкочує решту.
      */
-    @Scheduled(fixedRate = STAR_TICK_INTERVAL_MS)
+    @Scheduled(fixedRateString = "${balance.star.tick-interval-ms}")
     public void tick() {
         for (Save save : saveRepository.findAll()) {
             for (PlayerStar ps : playerStarRepository.findBySaveId(save.getId())) {
@@ -130,11 +127,11 @@ public class StarService {
         // CNO-каталіз (реальна астрофізика, ElementBonus): щойно синтезовано C+N+O,
         // вони каталізують протонний синтез не витрачаючись самі — зоря пропускає
         // пропорційно більше подій за секунду (і споживає, і виробляє більше).
-        double cnoMult = ElementBonus.cnoCatalystMult(elements);
-        double desiredEvents = star.getEventsPerSecPerLevel() * ps.getLevel() * STAR_TICK_INTERVAL_SEC * cnoMult;
+        double cnoMult = elementBonus.cnoCatalystMult(elements);
+        double desiredEvents = star.getEventsPerSecPerLevel() * ps.getLevel() * props.tickIntervalSec() * cnoMult;
         long requiredHydrogen = (long) Math.ceil(desiredEvents * star.getFuelHPerEvent());
 
-        PlayerElement hydrogen = findByAtomicNumber(elements, HYDROGEN_ATOMIC_NUMBER);
+        PlayerElement hydrogen = findByAtomicNumber(elements, props.hydrogenAtomicNumber());
         long hAvailable = hydrogen == null ? 0 : hydrogen.getCount();
 
         if (hAvailable < requiredHydrogen) {
@@ -145,7 +142,7 @@ public class StarService {
         hydrogen.setCount(hAvailable - requiredHydrogen);
         playerElementRepository.save(hydrogen);
 
-        PlayerElement helium = findByAtomicNumber(elements, HELIUM_ATOMIC_NUMBER);
+        PlayerElement helium = findByAtomicNumber(elements, props.heliumAtomicNumber());
         if (helium == null) {
             throw new RuntimeException("Helium element not initialized");
         }
@@ -153,14 +150,14 @@ public class StarService {
         helium.setCount(helium.getCount() + producedHelium);
         playerElementRepository.save(helium);
 
-        double meVReleased = desiredEvents * BindingEnergy.totalMeV(HELIUM_ATOMIC_NUMBER, 4);
+        double meVReleased = desiredEvents * BindingEnergy.totalMeV(props.heliumAtomicNumber(), 4);
         if (meVReleased > 0) {
             Save save = saveRepository.findById(saveId).orElseThrow(() -> new RuntimeException("Save not found"));
             PlayerResource energy = playerResourceRepository.findBySaveId(saveId).stream()
                     .filter(r -> r.getResource() != null && "E".equals(r.getResource().getCode()))
                     .findFirst()
                     .orElseThrow(() -> new RuntimeException("Resource E missing"));
-            BigNum delta = new BigNum(meVReleased, ENERGY_SCALE_EXPONENT);
+            BigNum delta = new BigNum(meVReleased, props.energyScaleExponent());
             addEnergyRespectingCap(energy, delta, save.isBrokenInfinity());
             playerResourceRepository.save(energy);
         }
@@ -192,9 +189,9 @@ public class StarService {
     private void addEnergyRespectingCap(PlayerResource energy, BigNum delta, boolean brokenInfinity) {
         BigNum current = new BigNum(energy.getNumber(), energy.getExponent());
         BigNum result = current.add(delta);
-        if (!brokenInfinity && result.getExponent() >= GameEngine.ENERGY_CAP_EXPONENT) {
+        if (!brokenInfinity && result.getExponent() >= gameEngineProperties.energyCapExponent()) {
             energy.setNumber(1.0);
-            energy.setExponent(GameEngine.ENERGY_CAP_EXPONENT);
+            energy.setExponent(gameEngineProperties.energyCapExponent());
         } else {
             energy.setNumber(result.getNumber());
             energy.setExponent(result.getExponent());

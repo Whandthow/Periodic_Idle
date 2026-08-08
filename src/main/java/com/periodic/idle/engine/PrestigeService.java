@@ -1,6 +1,7 @@
 package com.periodic.idle.engine;
 
 import com.periodic.idle.common.BigNum;
+import com.periodic.idle.engine.config.PrestigeProperties;
 import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -10,52 +11,44 @@ import java.util.List;
 
 /**
  * Скидання прогресу задля кристалів пустоти (Void Crystals, VC).
- * Формула:
+ * Формула (коефіцієнти — {@link PrestigeProperties}, {@code balance.prestige.*} у application.yml):
  *   log10Energy = exponent + log10(number)
- *   minLog10Energy = PRESTIGE_MIN_LOG10_ENERGY + PRESTIGE_MIN_LOG10_GROWTH * save.prestigeCount (V23, росте з кожним престижем)
+ *   minLog10Energy = minLog10Energy + minLog10Growth * save.prestigeCount (V23, росте з кожним престижем)
  *   якщо log10Energy < minLog10Energy → 0 кристалів
- *   base_log10 = (log10Energy - minLog10Energy) / PRESTIGE_DIVISOR + 1.0
+ *   base_log10 = (log10Energy - minLog10Energy) / divisor + 1.0
  *   final = base_log10 + log10(CRYSTAL_GAIN multiplier)
  *   кристали = 10^final
+ *
+ * <p>Історія тюнингу (docs/balance.md): V17 rebalance — жива бот-симуляція V12-значень
+ * (25.0 / 3.0, до цього 9.0 / 2.0) показала, що перша реінкарнація фактично вимагала
+ * ~120 БЕЗПЕРЕРВНИХ ігрових днів замість задокументованих 1-3 годин активної гри —
+ * поріг був на порядки недосяжний за розумний час навіть із агресивним реінвестуванням.
+ *
+ * <p>V23: поріг престижу тепер РОСТЕ з кожним наступним престижем ({@code minLog10Growth}),
+ * а не лишається фіксованим. Жива бот-верифікація зниженої CORE-стелі (V23,
+ * {@link UpgradeMultipliers}) показала: сама стеля НЕ була коренем "снігової кулі"
+ * повторних престижів — навіть з набагато меншим максимальним CORE-бустом (~1e100
+ * замість ~1e280) жадібний бот і далі робив престиж кожні ~2с безперервно (як і в
+ * V17/V18), бо фіксований поріг 18.0 тривіально долається БУДЬ-яким ненульовим
+ * CORE-бустом після 1-го престижу. Задокументована ціль "кожна наступна реінкарнація
+ * вимагає істотно більше" (розділ 1 CLAUDE.md) вимагає саме зростаючого порогу, а не
+ * лише капу самого буста — це і є рішення "в" із трьох запропонованих у V17.
+ *
+ * <p>Перший прохід зі значенням {@code minLog10Growth}=20.0 виявився занадто
+ * агресивним (жива перевірка, docs/balance.md): досяжна без CORE-допомоги стеля (як
+ * і в V17, ~23-27) опинилась НИЖЧЕ порогу вже 2-го престижу (18+20=38) — і оскільки
+ * зниження CORE-стелі саме позбавило CORE спроможності "пробити" цю різницю грубою
+ * силою, 2-й престиж не вдавався жодного разу за 5+ хвилин бот-прогону. Знижено до
+ * 5.0, щоб перші кілька престижів лишались досяжними звичайним реінвестуванням, а
+ * CORE ставав по-справжньому необхідним лише через кілька циклів, коли поріг
+ * переростає базову стелю.
  */
 @Service
 @RequiredArgsConstructor
 public class PrestigeService {
 
-    // V17 rebalance: жива бот-симуляція V12-констант (25.0 / 3.0) через реальний
-    // застосунок показала, що перша реінкарнація фактично вимагала ~120 БЕЗПЕРЕРВНИХ
-    // ігрових днів замість задокументованих 1-3 годин активної гри — поріг був
-    // на порядки недосяжний за розумний час навіть із агресивним реінвестуванням.
-    // Було 25.0 / 3.0 (до цього — 9.0 / 2.0) — див. docs/balance.md.
-    public static final double PRESTIGE_MIN_LOG10_ENERGY = 18.0;
-    public static final double PRESTIGE_DIVISOR = 2.5;
-
-    /**
-     * V23 (docs/balance.md): поріг престижу тепер РОСТЕ з кожним наступним престижем
-     * ({@code effectiveMinLog10Energy = PRESTIGE_MIN_LOG10_ENERGY + PRESTIGE_MIN_LOG10_GROWTH * prestigeCount}),
-     * а не лишається фіксованим 18.0. Жива бот-верифікація зниженої CORE-стелі (V23,
-     * {@code UpgradeMultipliers}) показала: сама стеля НЕ була коренем "снігової
-     * кулі" повторних престижів — навіть з набагато меншим максимальним CORE-бустом
-     * (~1e100 замість ~1e280) жадібний бот і далі робив престиж кожні ~2с
-     * безперервно (як і в V17/V18), бо фіксований поріг 18.0 тривіально долається
-     * БУДЬ-яким ненульовим CORE-бустом після 1-го престижу. Задокументована ціль
-     * "кожна наступна реінкарнація вимагає істотно більше" (розділ 1 CLAUDE.md)
-     * вимагає саме зростаючого порогу, а не лише капу самого буста — це і є
-     * рішення "в" із трьох запропонованих у V17 (§ "Нова знахідка: снігова куля").
-     *
-     * <p><b>Перший прохід зі значенням 20.0 виявився занадто агресивним</b> (жива
-     * перевірка, docs/balance.md): досяжна без CORE-допомоги стеля (як і в V17,
-     * ~23-27) опинилась НИЖЧЕ порогу вже 2-го престижу (18+20=38) — і оскільки
-     * зниження CORE-стелі (вище) саме позбавило CORE спроможності "пробити" цю
-     * різницю грубою силою, 2-й престиж не вдавався жодного разу за 5+ хвилин
-     * бот-прогону. Знижено до 5.0, щоб перші кілька престижів лишались досяжними
-     * звичайним реінвестуванням, а CORE ставав по-справжньому необхідним лише
-     * через кілька циклів, коли поріг переростає базову стелю.
-     */
-    private static final double PRESTIGE_MIN_LOG10_GROWTH = 5.0;
-    /** Стартова енергія після resetу, щоб можна було одразу купити 1-й генератор. */
-    public static final double STARTER_ENERGY_NUMBER = 1.0;
-    public static final long   STARTER_ENERGY_EXPONENT = 1L; // 10 E
+    private final PrestigeProperties props;
+    private final ParticleBonus particleBonus;
 
     private final PlayerResourceRepository playerResourceRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
@@ -73,9 +66,9 @@ public class PrestigeService {
 
         List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
         double crystalMult = calcCrystalGainMultiplier(upgrades)
-                * ParticleBonus.electronCrystalMult(resources);
+                * particleBonus.electronCrystalMult(resources);
 
-        double baseLog10 = (log10Energy - minLog10Energy) / PRESTIGE_DIVISOR + 1.0;
+        double baseLog10 = (log10Energy - minLog10Energy) / props.divisor() + 1.0;
         double finalLog10 = baseLog10 + Math.log10(crystalMult);
 
         long exp = (long) Math.floor(finalLog10);
@@ -90,7 +83,7 @@ public class PrestigeService {
      */
     public double effectiveMinLog10Energy(Long saveId) {
         long prestigeCount = saveRepository.findById(saveId).map(Save::getPrestigeCount).orElse(0L);
-        return PRESTIGE_MIN_LOG10_ENERGY + PRESTIGE_MIN_LOG10_GROWTH * prestigeCount;
+        return props.minLog10Energy() + props.minLog10Growth() * prestigeCount;
     }
 
     @Transactional
@@ -108,8 +101,8 @@ public class PrestigeService {
         }
 
         // Скидаємо енергію до стартової (щоб 1-й генератор вже був доступний)
-        energy.setNumber(STARTER_ENERGY_NUMBER);
-        energy.setExponent(STARTER_ENERGY_EXPONENT);
+        energy.setNumber(props.starterEnergyNumber());
+        energy.setExponent(props.starterEnergyExponent());
         playerResourceRepository.save(energy);
 
         // Додаємо кристали
@@ -147,8 +140,8 @@ public class PrestigeService {
             throw new RuntimeException("Resource E missing");
         }
 
-        energy.setNumber(STARTER_ENERGY_NUMBER);
-        energy.setExponent(STARTER_ENERGY_EXPONENT);
+        energy.setNumber(props.starterEnergyNumber());
+        energy.setExponent(props.starterEnergyExponent());
         playerResourceRepository.save(energy);
 
         if (crystals != null) {

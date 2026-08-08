@@ -1,6 +1,7 @@
 package com.periodic.idle.engine;
 
 import com.periodic.idle.content.Element;
+import com.periodic.idle.engine.config.ElementBonusProperties;
 import com.periodic.idle.player.PlayerElement;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ElementBonusTest {
 
+    private final ElementBonusProperties props =
+            new ElementBonusProperties(0.06, 15.0, 0.15, 6.0, 6.0, 2.0);
+    private final ElementBonus bonus = new ElementBonus(props);
+
     @Test
     @DisplayName("distinctCount: рахує лише елементи з count > 0")
     void distinctCount_ignoresZeroCounts() {
@@ -20,7 +25,7 @@ class ElementBonusTest {
                 makePlayerElement(1, 10L),
                 makePlayerElement(2, 0L),
                 makePlayerElement(3, 5L));
-        assertEquals(2L, ElementBonus.distinctCount(elements));
+        assertEquals(2L, bonus.distinctCount(elements));
     }
 
     @Test
@@ -29,7 +34,7 @@ class ElementBonusTest {
         List<PlayerElement> elements = List.of(
                 makePlayerElement(1, 100L),
                 makePlayerElement(2, 899L));
-        assertEquals(999L, ElementBonus.totalAtomCount(elements));
+        assertEquals(999L, bonus.totalAtomCount(elements));
     }
 
     @Test
@@ -38,13 +43,13 @@ class ElementBonusTest {
         List<PlayerElement> elements = List.of(
                 makePlayerElement(1, Long.MAX_VALUE - 1),
                 makePlayerElement(2, Long.MAX_VALUE - 1));
-        assertEquals(Long.MAX_VALUE, ElementBonus.totalAtomCount(elements));
+        assertEquals(Long.MAX_VALUE, bonus.totalAtomCount(elements));
     }
 
     @Test
     @DisplayName("diversityMult: без елементів -> 1.0")
     void diversityMult_noElements_returnsOne() {
-        assertEquals(1.0, ElementBonus.diversityMult(new ArrayList<>()), 1e-9);
+        assertEquals(1.0, bonus.diversityMult(new ArrayList<>()), 1e-9);
     }
 
     @Test
@@ -54,7 +59,7 @@ class ElementBonusTest {
                 makePlayerElement(1, 1L), makePlayerElement(2, 1L), makePlayerElement(3, 1L),
                 makePlayerElement(4, 1L), makePlayerElement(5, 1L));
         // saturating(5,15) = 5 / (1 + 5/15) = 3.75; mult = 1 + 0.06 * 3.75 = 1.225
-        assertEquals(1.225, ElementBonus.diversityMult(elements), 1e-9);
+        assertEquals(1.225, bonus.diversityMult(elements), 1e-9);
     }
 
     @Test
@@ -62,7 +67,7 @@ class ElementBonusTest {
     void diversityMult_saturatesAtFullTable() {
         List<PlayerElement> elements = new ArrayList<>();
         for (int z = 1; z <= 36; z++) elements.add(makePlayerElement(z, 1L));
-        double mult = ElementBonus.diversityMult(elements);
+        double mult = bonus.diversityMult(elements);
         assertTrue(Double.isFinite(mult));
         assertTrue(mult < 1.0 + 0.06 * 15.0 + 1e-6, "мультиплікатор має бути обмежений стелею насичення");
     }
@@ -70,7 +75,7 @@ class ElementBonusTest {
     @Test
     @DisplayName("atomCountMult: без атомів -> 1.0")
     void atomCountMult_noAtoms_returnsOne() {
-        assertEquals(1.0, ElementBonus.atomCountMult(new ArrayList<>()), 1e-9);
+        assertEquals(1.0, bonus.atomCountMult(new ArrayList<>()), 1e-9);
     }
 
     @Test
@@ -78,7 +83,7 @@ class ElementBonusTest {
     void atomCountMult_belowSoftcap_linear() {
         List<PlayerElement> elements = List.of(makePlayerElement(1, 999L));
         // x = log10(999+1) = 3 (точно), effectiveX = 3 (< softcap 6) -> mult = 1 + 0.15*3 = 1.45
-        assertEquals(1.45, ElementBonus.atomCountMult(elements), 1e-9);
+        assertEquals(1.45, bonus.atomCountMult(elements), 1e-9);
     }
 
     @Test
@@ -86,14 +91,14 @@ class ElementBonusTest {
     void atomCountMult_atSoftcapBoundary() {
         List<PlayerElement> elements = List.of(makePlayerElement(1, 999_999L));
         // x = log10(999999+1) = 6 (точно) -> ще на межі, effectiveX = 6 -> mult = 1.9
-        assertEquals(1.9, ElementBonus.atomCountMult(elements), 1e-9);
+        assertEquals(1.9, bonus.atomCountMult(elements), 1e-9);
     }
 
     @Test
     @DisplayName("atomCountMult: 'нереальна' кількість атомів -> суворо обмежений хард-кап")
     void atomCountMult_hardCapNeverExceeded() {
         List<PlayerElement> elements = List.of(makePlayerElement(1, Long.MAX_VALUE));
-        double mult = ElementBonus.atomCountMult(elements);
+        double mult = bonus.atomCountMult(elements);
         assertTrue(Double.isFinite(mult));
         // Теоретична стеля: 1 + 0.15 * (6 + 6) = 2.8 (асимптота, ніколи не досягається точно).
         assertTrue(mult < 2.8, "мультиплікатор має бути суворо обмежений хард-кап стелею");
@@ -103,9 +108,9 @@ class ElementBonusTest {
     @Test
     @DisplayName("atomCountMult: монотонно зростає з кількістю атомів")
     void atomCountMult_monotonicallyIncreasing() {
-        double small = ElementBonus.atomCountMult(List.of(makePlayerElement(1, 100L)));
-        double medium = ElementBonus.atomCountMult(List.of(makePlayerElement(1, 1_000_000L)));
-        double large = ElementBonus.atomCountMult(List.of(makePlayerElement(1, 1_000_000_000_000L)));
+        double small = bonus.atomCountMult(List.of(makePlayerElement(1, 100L)));
+        double medium = bonus.atomCountMult(List.of(makePlayerElement(1, 1_000_000L)));
+        double large = bonus.atomCountMult(List.of(makePlayerElement(1, 1_000_000_000_000L)));
         assertTrue(small < medium);
         assertTrue(medium < large);
     }
@@ -114,15 +119,15 @@ class ElementBonusTest {
     @DisplayName("cnoCatalystMult: бракує хоча б одного з C/N/O -> 1.0")
     void cnoCatalystMult_missingOne_returnsOne() {
         List<PlayerElement> elements = List.of(makePlayerElement(6, 1L), makePlayerElement(7, 1L)); // без O (Z=8)
-        assertEquals(1.0, ElementBonus.cnoCatalystMult(elements), 1e-9);
+        assertEquals(1.0, bonus.cnoCatalystMult(elements), 1e-9);
     }
 
     @Test
-    @DisplayName("cnoCatalystMult: C+N+O усі синтезовані -> CNO_CATALYST_MULT")
+    @DisplayName("cnoCatalystMult: C+N+O усі синтезовані -> cnoCatalystMult (config)")
     void cnoCatalystMult_allPresent_returnsCatalystMult() {
         List<PlayerElement> elements = List.of(
                 makePlayerElement(6, 1L), makePlayerElement(7, 1L), makePlayerElement(8, 1L));
-        assertEquals(ElementBonus.CNO_CATALYST_MULT, ElementBonus.cnoCatalystMult(elements), 1e-9);
+        assertEquals(props.cnoCatalystMult(), bonus.cnoCatalystMult(elements), 1e-9);
     }
 
     @Test
@@ -130,7 +135,7 @@ class ElementBonusTest {
     void cnoCatalystMult_zeroCounts_returnsOne() {
         List<PlayerElement> elements = List.of(
                 makePlayerElement(6, 0L), makePlayerElement(7, 0L), makePlayerElement(8, 0L));
-        assertEquals(1.0, ElementBonus.cnoCatalystMult(elements), 1e-9);
+        assertEquals(1.0, bonus.cnoCatalystMult(elements), 1e-9);
     }
 
     private PlayerElement makePlayerElement(int atomicNumber, long count) {

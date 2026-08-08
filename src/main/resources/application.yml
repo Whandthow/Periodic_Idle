@@ -28,3 +28,73 @@ server:
   error:
     include-message: always
     include-binding-errors: always
+
+# Усі балансні важелі гри (softcap-стелі, пороги, множники, інтервали) в одному місці —
+# докладний коментований знімок значень: docs/balance-settings.txt.
+# Реальні фізичні константи (BindingEnergy/SEMF) НЕ балансні важелі — лишаються в Java.
+balance:
+  game-engine:
+    tick-interval-ms: 100
+    infinite-rate-exponent-jump: 50
+    energy-cap-exponent: 308
+    offline-min-seconds: 2.0
+    offline-max-seconds: 86400
+  generator:
+    min-cost-multiplier: 1.03
+    bulk-hard-cap: 100000
+  upgrade:
+    bulk-hard-cap: 100000
+  upgrade-multipliers:
+    energy-mult-softcap-threshold: 20
+    core-exp-softcap: 60.0
+    core-exp-range: 40.0
+  prestige:
+    min-log10-energy: 18.0
+    min-log10-growth: 5.0
+    divisor: 2.5
+    starter-energy-number: 1.0
+    starter-energy-exponent: 1
+  exchange:
+    bulk-hard-cap: 1000000
+  matter:
+    break-infinity-required: 10
+  particle-bonus:
+    saturation-scale: 1000.0
+    proton-energy-per: 0.25
+    neutron-cost-per: 0.02
+    electron-vc-per: 0.15
+  collapse-cycle-bonus:
+    coeff: 2.5
+    exp-softcap: 10.0
+    exp-range: 10.0
+    vc-persists-after-collapses: 10000
+  element-bonus:
+    diversity-per: 0.06
+    diversity-saturation-scale: 15.0
+    atom-count-per: 0.15
+    atom-softcap-log10: 6.0
+    atom-hard-range-log10: 6.0
+    cno-catalyst-mult: 2.0
+  synthesis:
+    primordial-max-atomic-number: 3
+    stellar-ignition-helium-count: 1000
+    iron-atomic-number: 26
+    heavy-element-hypernova-required: 1
+    energy-scale-exponent: 298
+    bulk-hard-cap: 100000
+  molecule:
+    bulk-hard-cap: 100000
+    ev-per-mev: 1000000.0
+    energy-scale-exponent: 298
+  star:
+    tick-interval-ms: 1000
+    energy-scale-exponent: 298
+    hydrogen-atomic-number: 1
+    helium-atomic-number: 2
+  auto-buy:
+    interval-ms: 250
+  auto-synthesize:
+    interval-ms: 1000
+  auto-upgrade:
+    interval-ms: 1000
+    unlock-collapses: 4

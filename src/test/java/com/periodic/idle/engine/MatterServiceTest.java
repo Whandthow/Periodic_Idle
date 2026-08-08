@@ -2,12 +2,15 @@ package com.periodic.idle.engine;
 
 import com.periodic.idle.content.Resource;
 import com.periodic.idle.content.Upgrade;
+import com.periodic.idle.engine.config.GameEngineProperties;
+import com.periodic.idle.engine.config.MatterProperties;
+import com.periodic.idle.engine.config.PrestigeProperties;
+import com.periodic.idle.engine.config.CollapseCycleBonusProperties;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -22,12 +25,19 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class MatterServiceTest {
 
+    private final MatterProperties props = new MatterProperties(10L);
+    private final GameEngineProperties gameEngineProperties =
+            new GameEngineProperties(100L, 50L, 308L, 2.0, 86400.0);
+    private final PrestigeProperties prestigeProperties =
+            new PrestigeProperties(18.0, 5.0, 2.5, 1.0, 1L);
+    private final CollapseCycleBonus collapseCycleBonus =
+            new CollapseCycleBonus(new CollapseCycleBonusProperties(2.5, 10.0, 10.0, 10_000L));
+
     @Mock private SaveRepository saveRepository;
     @Mock private PlayerResourceRepository playerResourceRepository;
     @Mock private PlayerGeneratorRepository playerGeneratorRepository;
     @Mock private PlayerUpgradeRepository playerUpgradeRepository;
 
-    @InjectMocks
     private MatterService matterService;
 
     private Save save;
@@ -36,9 +46,12 @@ class MatterServiceTest {
 
     @BeforeEach
     void setUp() {
+        matterService = new MatterService(props, gameEngineProperties, prestigeProperties, collapseCycleBonus,
+                saveRepository, playerResourceRepository, playerGeneratorRepository, playerUpgradeRepository);
+
         save = instantiate(Save.class);
         ReflectionTestUtils.setField(save, "id", 1L);
-        energy = makePlayerResource("E", 1.0, GameEngine.ENERGY_CAP_EXPONENT);
+        energy = makePlayerResource("E", 1.0, gameEngineProperties.energyCapExponent());
         p = makePlayerResource("p", 0, 0);
     }
 
@@ -58,8 +71,8 @@ class MatterServiceTest {
 
         matterService.collapse(1L, "p");
 
-        assertEquals(PrestigeService.STARTER_ENERGY_NUMBER, energy.getNumber(), 1e-9);
-        assertEquals(PrestigeService.STARTER_ENERGY_EXPONENT, energy.getExponent());
+        assertEquals(prestigeProperties.starterEnergyNumber(), energy.getNumber(), 1e-9);
+        assertEquals(prestigeProperties.starterEnergyExponent(), energy.getExponent());
         assertEquals(0, gen.getLevel());
         assertEquals(0, upgrade.getLevel());
         assertEquals(3, autobuyUpgrade.getLevel(), "AUTOBUY upgrade must survive collapse so generator auto-buy keeps working");
@@ -72,7 +85,7 @@ class MatterServiceTest {
     @Test
     @DisplayName("collapse: після VC_PERSISTS_AFTER_COLLAPSES колапсів VC більше НЕ скидається")
     void collapse_afterVcPersistThreshold_keepsCrystals() {
-        ReflectionTestUtils.setField(save, "matterCollapses", CollapseCycleBonus.VC_PERSISTS_AFTER_COLLAPSES);
+        ReflectionTestUtils.setField(save, "matterCollapses", collapseCycleBonus.vcPersistsAfterCollapses());
         PlayerResource crystals = makePlayerResource("VC", 5.76, 95);
         when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
         when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(energy, p, crystals));
@@ -113,7 +126,7 @@ class MatterServiceTest {
     @Test
     @DisplayName("breakInfinity: достатньо колапсів -> brokenInfinity=true")
     void breakInfinity_enoughCollapses_success() {
-        save.setMatterCollapses(MatterService.BREAK_INFINITY_REQUIRED);
+        save.setMatterCollapses(props.breakInfinityRequired());
         when(saveRepository.findById(1L)).thenReturn(Optional.of(save));
 
         matterService.breakInfinity(1L);

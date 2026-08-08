@@ -5,12 +5,16 @@ import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorOutput;
 import com.periodic.idle.content.Resource;
 import com.periodic.idle.content.Upgrade;
+import com.periodic.idle.engine.config.CollapseCycleBonusProperties;
+import com.periodic.idle.engine.config.ElementBonusProperties;
+import com.periodic.idle.engine.config.GameEngineProperties;
+import com.periodic.idle.engine.config.ParticleBonusProperties;
+import com.periodic.idle.engine.config.UpgradeMultiplierProperties;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -24,6 +28,16 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class GameEngineTest {
 
+    private final GameEngineProperties props = new GameEngineProperties(100L, 50L, 308L, 2.0, 86400.0);
+    private final UpgradeMultipliers upgradeMultipliers =
+            new UpgradeMultipliers(new UpgradeMultiplierProperties(20, 60.0, 40.0));
+    private final ParticleBonus particleBonus =
+            new ParticleBonus(new ParticleBonusProperties(1_000.0, 0.25, 0.02, 0.15));
+    private final CollapseCycleBonus collapseCycleBonus =
+            new CollapseCycleBonus(new CollapseCycleBonusProperties(2.5, 10.0, 10.0, 10_000L));
+    private final ElementBonus elementBonus =
+            new ElementBonus(new ElementBonusProperties(0.06, 15.0, 0.15, 6.0, 6.0, 2.0));
+
     @Mock
     private SaveRepository saveRepository;
     @Mock
@@ -35,7 +49,6 @@ class GameEngineTest {
     @Mock
     private PlayerElementRepository playerElementRepository;
 
-    @InjectMocks
     private GameEngine gameEngine;
 
     private Save save;
@@ -47,6 +60,10 @@ class GameEngineTest {
 
     @BeforeEach
     void setUp() {
+        gameEngine = new GameEngine(props, upgradeMultipliers, particleBonus, collapseCycleBonus, elementBonus,
+                saveRepository, playerResourceRepository, playerGeneratorRepository,
+                playerUpgradeRepository, playerElementRepository);
+
         save = instantiate(Save.class);
         ReflectionTestUtils.setField(save, "id", 1L);
         save.setPlayerName("dev");
@@ -675,7 +692,7 @@ class GameEngineTest {
         PlayerUpgrade coreUpgrade = createPlayerUpgrade(save,
                 createUpgradeContent(20L, "CORE", 0.15), 400);
 
-        double coreBoost = UpgradeMultipliers.calcCoreBoost(
+        double coreBoost = upgradeMultipliers.calcCoreBoost(
                 List.of(coreUpgrade), List.of(playerEnergy, playerCrystals));
 
         assertTrue(Double.isFinite(coreBoost), "coreBoost має бути скінченним");
@@ -864,7 +881,7 @@ class GameEngineTest {
         gameEngine.tick();
 
         // Кап: число=1.0, експонент=308.
-        assertEquals(GameEngine.ENERGY_CAP_EXPONENT, playerEnergy.getExponent());
+        assertEquals(props.energyCapExponent(), playerEnergy.getExponent());
         assertEquals(1.0, playerEnergy.getNumber(), 1e-9);
     }
 
@@ -874,7 +891,7 @@ class GameEngineTest {
         save.setBrokenInfinity(true);
         // Старт уже на капі — наступний тік має дати щось понад 1e308.
         playerEnergy.setNumber(1.0);
-        playerEnergy.setExponent(GameEngine.ENERGY_CAP_EXPONENT);
+        playerEnergy.setExponent(props.energyCapExponent());
         playerVoidGen.setLevel(1_000_000); // 5e5/sec
 
         when(saveRepository.findAll()).thenReturn(List.of(save));
@@ -885,7 +902,7 @@ class GameEngineTest {
         gameEngine.tick();
 
         // Енергія залишилась >= 1e308 (а кап знятий → можна піднятися ще, але приріст крихітний на масштабі 1e308).
-        assertTrue(playerEnergy.getExponent() >= GameEngine.ENERGY_CAP_EXPONENT,
+        assertTrue(playerEnergy.getExponent() >= props.energyCapExponent(),
                 "експонент має бути >= 308 при знятому капі");
     }
 
@@ -893,7 +910,7 @@ class GameEngineTest {
     @DisplayName("processSave: енергія, що вже на капі без brokenInfinity — більше не росте")
     void processSave_atCap_doesNotGrow() {
         playerEnergy.setNumber(1.0);
-        playerEnergy.setExponent(GameEngine.ENERGY_CAP_EXPONENT);
+        playerEnergy.setExponent(props.energyCapExponent());
 
         when(saveRepository.findAll()).thenReturn(List.of(save));
         when(playerResourceRepository.findBySaveId(1L)).thenReturn(List.of(playerEnergy));
@@ -902,7 +919,7 @@ class GameEngineTest {
 
         gameEngine.tick();
 
-        assertEquals(GameEngine.ENERGY_CAP_EXPONENT, playerEnergy.getExponent());
+        assertEquals(props.energyCapExponent(), playerEnergy.getExponent());
         assertEquals(1.0, playerEnergy.getNumber(), 1e-9);
     }
 
@@ -967,7 +984,7 @@ class GameEngineTest {
         assertDoesNotThrow(() -> gameEngine.tick());
         // Енергія на капі: (1.0, 308). resourceLog10 = 308 → Тір 1 unlock.
         assertEquals(1.0, playerEnergy.getNumber(), 1e-9);
-        assertEquals(GameEngine.ENERGY_CAP_EXPONENT, playerEnergy.getExponent());
+        assertEquals(props.energyCapExponent(), playerEnergy.getExponent());
     }
 
     @Test

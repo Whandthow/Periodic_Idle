@@ -1,6 +1,9 @@
 package com.periodic.idle.engine;
 
 import com.periodic.idle.common.BigNum;
+import com.periodic.idle.engine.config.GameEngineProperties;
+import com.periodic.idle.engine.config.MatterProperties;
+import com.periodic.idle.engine.config.PrestigeProperties;
 import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,15 +20,22 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class MatterService {
 
-    /** Скільки колапсів матерії потрібно накопичити, щоб відкрити Break Infinity. */
-    public static final long BREAK_INFINITY_REQUIRED = 10L;
-
     private static final Set<String> VALID_PARTICLES = Set.of("p", "n", "e");
+
+    private final MatterProperties props;
+    private final GameEngineProperties gameEngineProperties;
+    private final PrestigeProperties prestigeProperties;
+    private final CollapseCycleBonus collapseCycleBonus;
 
     private final SaveRepository saveRepository;
     private final PlayerResourceRepository playerResourceRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
     private final PlayerUpgradeRepository playerUpgradeRepository;
+
+    /** Скільки колапсів матерії потрібно накопичити, щоб відкрити Break Infinity. */
+    public long breakInfinityRequired() {
+        return props.breakInfinityRequired();
+    }
 
     @Transactional
     public void collapse(Long saveId, String particle) {
@@ -43,7 +53,7 @@ public class MatterService {
         double log10Energy = energy.getNumber() > 0
                 ? Math.log10(energy.getNumber()) + energy.getExponent()
                 : 0.0;
-        if (log10Energy < GameEngine.ENERGY_CAP_EXPONENT) {
+        if (log10Energy < gameEngineProperties.energyCapExponent()) {
             throw new RuntimeException("Потрібно 1e308 енергії");
         }
 
@@ -52,8 +62,8 @@ public class MatterService {
         // саме вони тепер єдина "вічна" валюта прогресу Тіру 1 (ParticleBonus, розділ 7.1).
         // Без цього Ядро (CORE), яке масштабується від log10(VC), могло необмежено
         // накопичуватись між колапсами й переповнювати double у GameEngine.calcCoreBoost.
-        energy.setNumber(PrestigeService.STARTER_ENERGY_NUMBER);
-        energy.setExponent(PrestigeService.STARTER_ENERGY_EXPONENT);
+        energy.setNumber(prestigeProperties.starterEnergyNumber());
+        energy.setExponent(prestigeProperties.starterEnergyExponent());
         playerResourceRepository.save(energy);
 
         List<PlayerGenerator> gens = playerGeneratorRepository.findBySaveId(saveId);
@@ -79,7 +89,7 @@ public class MatterService {
         // право на постійний VC/CORE-снігова-ком (без цього повторний колапс матерії
         // практично недосяжний без VC — жива бот-симуляція, docs/balance.md V17/V18;
         // CollapseCycleBonus — незалежний від VC місток до цього моменту).
-        if (save.getMatterCollapses() < CollapseCycleBonus.VC_PERSISTS_AFTER_COLLAPSES) {
+        if (save.getMatterCollapses() < collapseCycleBonus.vcPersistsAfterCollapses()) {
             PlayerResource crystals = findByCode(resources, "VC");
             if (crystals != null) {
                 crystals.setNumber(0);
@@ -107,8 +117,8 @@ public class MatterService {
         Save save = saveRepository.findById(saveId)
                 .orElseThrow(() -> new RuntimeException("Save not found"));
         if (save.isBrokenInfinity()) return;
-        if (save.getMatterCollapses() < BREAK_INFINITY_REQUIRED) {
-            long remaining = BREAK_INFINITY_REQUIRED - save.getMatterCollapses();
+        if (save.getMatterCollapses() < props.breakInfinityRequired()) {
+            long remaining = props.breakInfinityRequired() - save.getMatterCollapses();
             throw new RuntimeException("Потрібно ще " + remaining + " колапсів матерії");
         }
         save.setBrokenInfinity(true);

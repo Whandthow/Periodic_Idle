@@ -23,6 +23,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class StarController {
 
+    private final ElementBonus elementBonus;
+
     private final StarRepository starRepository;
     private final PlayerStarRepository playerStarRepository;
     private final PlayerElementRepository playerElementRepository;
@@ -42,7 +44,7 @@ public class StarController {
                 .orElseThrow(() -> new RuntimeException("Save not found"));
         // CNO-каталіз (ElementBonus, реальна астрофізика): C+N+O синтезовані -> зоря
         // пропускає пропорційно більше подій за секунду (StarService.processStarTick).
-        double cnoMult = ElementBonus.cnoCatalystMult(elements);
+        double cnoMult = elementBonus.cnoCatalystMult(elements);
 
         List<Map<String, Object>> out = new java.util.ArrayList<>();
         for (Star star : starRepository.findAll()) {

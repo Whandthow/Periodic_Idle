@@ -1,13 +1,13 @@
 package com.periodic.idle.engine;
 
 import com.periodic.idle.content.Resource;
+import com.periodic.idle.engine.config.ExchangeProperties;
 import com.periodic.idle.player.PlayerResource;
 import com.periodic.idle.player.PlayerResourceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -20,9 +20,10 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ExchangeServiceTest {
 
+    private final ExchangeProperties props = new ExchangeProperties(1_000_000);
+
     @Mock private PlayerResourceRepository playerResourceRepository;
 
-    @InjectMocks
     private ExchangeService exchangeService;
 
     private PlayerResource vc;
@@ -32,6 +33,8 @@ class ExchangeServiceTest {
 
     @BeforeEach
     void setUp() {
+        exchangeService = new ExchangeService(props, playerResourceRepository);
+
         vc = makePlayerResource("VC", 1.0, 2); // 100 VC
         p  = makePlayerResource("p", 0, 0);
         n  = makePlayerResource("n", 0, 0);

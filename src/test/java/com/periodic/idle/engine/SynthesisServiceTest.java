@@ -4,12 +4,13 @@ import com.periodic.idle.common.BigNum;
 import com.periodic.idle.content.Element;
 import com.periodic.idle.content.ElementRepository;
 import com.periodic.idle.content.Resource;
+import com.periodic.idle.engine.config.GameEngineProperties;
+import com.periodic.idle.engine.config.SynthesisProperties;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -24,12 +25,16 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class SynthesisServiceTest {
 
+    private final SynthesisProperties props =
+            new SynthesisProperties(3, 1_000L, 26, 1L, 298L, 100_000L);
+    private final GameEngineProperties gameEngineProperties =
+            new GameEngineProperties(100L, 50L, 308L, 2.0, 86400.0);
+
     @Mock private ElementRepository elementRepository;
     @Mock private PlayerElementRepository playerElementRepository;
     @Mock private PlayerResourceRepository playerResourceRepository;
     @Mock private SaveRepository saveRepository;
 
-    @InjectMocks
     private SynthesisService synthesisService;
 
     private Save save;
@@ -43,6 +48,9 @@ class SynthesisServiceTest {
 
     @BeforeEach
     void setUp() {
+        synthesisService = new SynthesisService(props, gameEngineProperties,
+                elementRepository, playerElementRepository, playerResourceRepository, saveRepository);
+
         save = instantiate(Save.class);
         ReflectionTestUtils.setField(save, "id", 1L);
 
@@ -315,7 +323,7 @@ class SynthesisServiceTest {
     @DisplayName("synthesizeBulk: екзотермічний синтез не перевищує кап 1e308 без brokenInfinity")
     void synthesize_exothermic_respectsEnergyCap() {
         energy.setNumber(1.0);
-        energy.setExponent(GameEngine.ENERGY_CAP_EXPONENT); // вже на капі
+        energy.setExponent(gameEngineProperties.energyCapExponent()); // вже на капі
         save.setBrokenInfinity(false);
 
         when(elementRepository.findById(2L)).thenReturn(Optional.of(helium));
@@ -328,7 +336,7 @@ class SynthesisServiceTest {
 
         synthesisService.synthesizeBulk(1L, 2L, 1);
 
-        assertEquals(GameEngine.ENERGY_CAP_EXPONENT, energy.getExponent());
+        assertEquals(gameEngineProperties.energyCapExponent(), energy.getExponent());
         assertEquals(1.0, energy.getNumber(), 1e-9);
     }
 
@@ -336,7 +344,7 @@ class SynthesisServiceTest {
     private PlayerElement ignitedStarHelium() {
         PlayerElement pe = new PlayerElement();
         pe.setElement(helium);
-        pe.setCount(SynthesisService.STELLAR_IGNITION_HELIUM_COUNT);
+        pe.setCount(props.stellarIgnitionHeliumCount());
         return pe;
     }
 

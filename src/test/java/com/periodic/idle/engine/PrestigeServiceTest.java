@@ -4,12 +4,13 @@ import com.periodic.idle.common.BigNum;
 import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.Resource;
 import com.periodic.idle.content.Upgrade;
+import com.periodic.idle.engine.config.ParticleBonusProperties;
+import com.periodic.idle.engine.config.PrestigeProperties;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -23,12 +24,15 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PrestigeServiceTest {
 
+    private final PrestigeProperties props = new PrestigeProperties(18.0, 5.0, 2.5, 1.0, 1L);
+    private final ParticleBonus particleBonus =
+            new ParticleBonus(new ParticleBonusProperties(1_000.0, 0.25, 0.02, 0.15));
+
     @Mock private PlayerResourceRepository playerResourceRepository;
     @Mock private PlayerGeneratorRepository playerGeneratorRepository;
     @Mock private PlayerUpgradeRepository playerUpgradeRepository;
     @Mock private SaveRepository saveRepository;
 
-    @InjectMocks
     private PrestigeService prestigeService;
 
     private PlayerResource energy;
@@ -36,6 +40,9 @@ class PrestigeServiceTest {
 
     @BeforeEach
     void setUp() {
+        prestigeService = new PrestigeService(props, particleBonus,
+                playerResourceRepository, playerGeneratorRepository, playerUpgradeRepository, saveRepository);
+
         Resource energyRes = instantiate(Resource.class);
         ReflectionTestUtils.setField(energyRes, "id", 1L);
         ReflectionTestUtils.setField(energyRes, "code", "E");
@@ -139,8 +146,8 @@ class PrestigeServiceTest {
         BigNum gain = prestigeService.prestige(1L);
 
         // Після resetu — стартова енергія 10 (1.0 * 10^1)
-        assertEquals(PrestigeService.STARTER_ENERGY_NUMBER, energy.getNumber(), 0.001);
-        assertEquals(PrestigeService.STARTER_ENERGY_EXPONENT, energy.getExponent());
+        assertEquals(props.starterEnergyNumber(), energy.getNumber(), 0.001);
+        assertEquals(props.starterEnergyExponent(), energy.getExponent());
         assertEquals(0, pg.getLevel());
         // crystals ~= 100 000
         double crystalsTotal = crystals.getNumber() * Math.pow(10, crystals.getExponent());
@@ -186,8 +193,8 @@ class PrestigeServiceTest {
 
         prestigeService.hardReset(1L);
 
-        assertEquals(PrestigeService.STARTER_ENERGY_NUMBER, energy.getNumber(), 0.001);
-        assertEquals(PrestigeService.STARTER_ENERGY_EXPONENT, energy.getExponent());
+        assertEquals(props.starterEnergyNumber(), energy.getNumber(), 0.001);
+        assertEquals(props.starterEnergyExponent(), energy.getExponent());
         assertEquals(0, crystals.getNumber(), 0.001);
         assertEquals(0, crystals.getExponent());
         assertEquals(0, pg.getLevel());
@@ -205,8 +212,8 @@ class PrestigeServiceTest {
         when(playerUpgradeRepository.findBySaveId(1L)).thenReturn(new ArrayList<>());
 
         assertDoesNotThrow(() -> prestigeService.hardReset(1L));
-        assertEquals(PrestigeService.STARTER_ENERGY_NUMBER, energy.getNumber(), 0.001);
-        assertEquals(PrestigeService.STARTER_ENERGY_EXPONENT, energy.getExponent());
+        assertEquals(props.starterEnergyNumber(), energy.getNumber(), 0.001);
+        assertEquals(props.starterEnergyExponent(), energy.getExponent());
     }
 
     @Test
@@ -257,7 +264,7 @@ class PrestigeServiceTest {
         assertEquals(0L, save.getMatterCollapses());
         assertEquals(0L, save.getPrestigeCount());
         // Енергія повертається до стартової — старий тест уже це покриває, але швидка перевірка:
-        assertEquals(PrestigeService.STARTER_ENERGY_NUMBER, energy.getNumber(), 0.001);
+        assertEquals(props.starterEnergyNumber(), energy.getNumber(), 0.001);
     }
 
     @Test

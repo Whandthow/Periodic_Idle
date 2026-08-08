@@ -3,6 +3,7 @@ package com.periodic.idle.engine;
 import com.periodic.idle.common.BigNum;
 import com.periodic.idle.content.Upgrade;
 import com.periodic.idle.content.UpgradeRepository;
+import com.periodic.idle.engine.config.UpgradeProperties;
 import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,12 +15,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UpgradeService {
 
+    private final UpgradeProperties props;
+
     private final UpgradeRepository upgradeRepository;
     private final PlayerUpgradeRepository playerUpgradeRepository;
     private final PlayerResourceRepository playerResourceRepository;
-
-    /** Запобіжник нескінченного циклу bulk-купівлі. */
-    private static final int BULK_HARD_CAP = 100_000;
 
     @Transactional
     public void buy(Long saveId, Long upgradeId) {
@@ -72,7 +72,7 @@ public class UpgradeService {
         BigNum current = new BigNum(pr.getNumber(), pr.getExponent());
 
         int maxLevel = upgrade.getMaxLevel();
-        int target = amount < 0 ? BULK_HARD_CAP : Math.min(amount, BULK_HARD_CAP);
+        int target = amount < 0 ? props.bulkHardCap() : Math.min(amount, props.bulkHardCap());
         int bought = 0;
         int level = currentLevel;
         while (bought < target && level < maxLevel) {

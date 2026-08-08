@@ -5,12 +5,13 @@ import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorRepository;
 import com.periodic.idle.content.Resource;
 import com.periodic.idle.content.Upgrade;
+import com.periodic.idle.engine.config.GeneratorProperties;
+import com.periodic.idle.engine.config.ParticleBonusProperties;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -23,13 +24,16 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class GeneratorServiceTest {
 
+    private final GeneratorProperties props = new GeneratorProperties(1.03, 100_000);
+    private final ParticleBonus particleBonus =
+            new ParticleBonus(new ParticleBonusProperties(1_000.0, 0.25, 0.02, 0.15));
+
     @Mock private GeneratorRepository generatorRepository;
     @Mock private PlayerGeneratorRepository playerGeneratorRepository;
     @Mock private PlayerResourceRepository playerResourceRepository;
     @Mock private SaveRepository saveRepository;
     @Mock private PlayerUpgradeRepository playerUpgradeRepository;
 
-    @InjectMocks
     private GeneratorService generatorService;
 
     private Resource energy;
@@ -39,6 +43,9 @@ class GeneratorServiceTest {
 
     @BeforeEach
     void setUp() {
+        generatorService = new GeneratorService(props, particleBonus, generatorRepository,
+                playerGeneratorRepository, playerResourceRepository, saveRepository, playerUpgradeRepository);
+
         energy = createResource(1L, "E");
         save = createSave(1L);
 

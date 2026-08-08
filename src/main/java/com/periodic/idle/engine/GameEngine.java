@@ -2,6 +2,7 @@ package com.periodic.idle.engine;
 
 import com.periodic.idle.common.BigNum;
 import com.periodic.idle.content.GeneratorOutput;
+import com.periodic.idle.engine.config.GameEngineProperties;
 import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,27 +18,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class GameEngine {
 
-    private static final long TICK_INTERVAL_MS = 100;
-    private static final double TICK_INTERVAL_SEC = TICK_INTERVAL_MS / 1000.0;
-
-    /**
-     * Коли rate переповнюється в Infinity вже ПІСЛЯ Break Infinity (капу 1e308 більше
-     * нема, нікуди "телепортувати" energy як для capEnergy=true режиму) — замість
-     * пропуску тіку (що назавжди зависало б, бо причина переповнення сама не зникає),
-     * даємо ресурсу один явний "вибуховий" стрибок експоненти. Це не точне число (Infinity
-     * все одно не несе точної інформації), а свідомий скінченний замінник, який не дає
-     * стану застигнути.
-     */
-    private static final long INFINITE_RATE_EXPONENT_JUMP = 50L;
-
-    /** Кап енергії: 1e308. Знімається флагом save.brokenInfinity. */
-    public static final long ENERGY_CAP_EXPONENT = 308L;
-
-    /** Мінімальний розрив від lastTick, щоб вважати це офлайн-періодом (не звичайним джиттером тіку). */
-    private static final double OFFLINE_MIN_SECONDS = 2.0;
-
-    /** Максимальний офлайн-приріст за один "повернення" — щоб не нарахувати роки прогресу за збій годинника. */
-    private static final double OFFLINE_MAX_SECONDS = 24 * 60 * 60;
+    private final GameEngineProperties props;
+    private final UpgradeMultipliers upgradeMultipliers;
+    private final ParticleBonus particleBonus;
+    private final CollapseCycleBonus collapseCycleBonus;
+    private final ElementBonus elementBonus;
 
     private final SaveRepository saveRepository;
     private final PlayerResourceRepository playerResourceRepository;
@@ -57,12 +42,12 @@ public class GameEngine {
         return tickSpeedMultiplier;
     }
 
-    @Scheduled(fixedRate = TICK_INTERVAL_MS)
+    @Scheduled(fixedRateString = "${balance.game-engine.tick-interval-ms}")
     @Transactional
     public void tick() {
         List<Save> saves = saveRepository.findAll();
         for (Save save : saves) {
-            processSave(save, TICK_INTERVAL_SEC * tickSpeedMultiplier);
+            processSave(save, props.tickIntervalSec() * tickSpeedMultiplier);
             save.setLastTick(LocalDateTime.now());
         }
     }
@@ -72,7 +57,7 @@ public class GameEngine {
      * Викликається на старті застосунку для кожного save — рахує реальний dt від
      * {@code lastTick} до зараз і нараховує виробництво так, ніби генератори працювали весь цей час.
      * Не чіпає tickSpeedMultiplier (це dev-прискорення, не стосується реального офлайн-часу)
-     * і обмежене {@link #OFFLINE_MAX_SECONDS}, щоб збій годинника не подарував нескінченність одразу.
+     * і обмежене {@code offlineMaxSeconds}, щоб збій годинника не подарував нескінченність одразу.
      */
     @Transactional
     public void applyOfflineProgress() {
@@ -83,9 +68,9 @@ public class GameEngine {
                 continue;
             }
             double elapsedSeconds = java.time.Duration.between(save.getLastTick(), now).toMillis() / 1000.0;
-            if (!Double.isFinite(elapsedSeconds) || elapsedSeconds < OFFLINE_MIN_SECONDS) continue;
+            if (!Double.isFinite(elapsedSeconds) || elapsedSeconds < props.offlineMinSeconds()) continue;
 
-            double dtSeconds = Math.min(elapsedSeconds, OFFLINE_MAX_SECONDS);
+            double dtSeconds = Math.min(elapsedSeconds, props.offlineMaxSeconds());
             processSave(save, dtSeconds);
             save.setLastTick(now);
         }
@@ -95,6 +80,7 @@ public class GameEngine {
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(save.getId());
         Map<Long, Double> productionPerSec = computeProduction(save.getId());
         boolean capEnergy = !save.isBrokenInfinity();
+        long energyCapExponent = props.energyCapExponent();
 
         for (Map.Entry<Long, Double> entry : productionPerSec.entrySet()) {
             PlayerResource pr = findResource(resources, entry.getKey());
@@ -104,9 +90,9 @@ public class GameEngine {
 
             // Cap-clamp ПЕРЕД перевіркою rate: інакше Infinity-rate (overflow в ENERGY_POW)
             // блокує оновлення енергії, і вона "застигає" нижче капу — Тір 1 не відкривається.
-            if (capEnergy && isEnergy && pr.getExponent() >= ENERGY_CAP_EXPONENT) {
+            if (capEnergy && isEnergy && pr.getExponent() >= energyCapExponent) {
                 pr.setNumber(1.0);
-                pr.setExponent(ENERGY_CAP_EXPONENT);
+                pr.setExponent(energyCapExponent);
                 continue;
             }
 
@@ -114,7 +100,7 @@ public class GameEngine {
             // Energy + Infinity rate до капу → одразу clamp до капу (інакше нескінченно "застрягне").
             if (capEnergy && isEnergy && Double.isInfinite(rate) && rate > 0) {
                 pr.setNumber(1.0);
-                pr.setExponent(ENERGY_CAP_EXPONENT);
+                pr.setExponent(energyCapExponent);
                 continue;
             }
             // Той самий overflow ПІСЛЯ Break Infinity: капу більше нема, куди "телепортувати"
@@ -123,7 +109,7 @@ public class GameEngine {
             // явний скінченний стрибок експоненти: гравець бачить прогрес, а не завислий 0/с.
             if (!capEnergy && isEnergy && Double.isInfinite(rate) && rate > 0) {
                 pr.setNumber(1.0);
-                pr.setExponent(pr.getExponent() + INFINITE_RATE_EXPONENT_JUMP);
+                pr.setExponent(pr.getExponent() + props.infiniteRateExponentJump());
                 continue;
             }
             if (!Double.isFinite(rate) || rate <= 0) continue; // захист від NaN/Infinity
@@ -131,12 +117,12 @@ public class GameEngine {
             double addPerTick = rate * dtSeconds;
             if (capEnergy && isEnergy && Double.isInfinite(addPerTick) && addPerTick > 0) {
                 pr.setNumber(1.0);
-                pr.setExponent(ENERGY_CAP_EXPONENT);
+                pr.setExponent(energyCapExponent);
                 continue;
             }
             if (!capEnergy && isEnergy && Double.isInfinite(addPerTick) && addPerTick > 0) {
                 pr.setNumber(1.0);
-                pr.setExponent(pr.getExponent() + INFINITE_RATE_EXPONENT_JUMP);
+                pr.setExponent(pr.getExponent() + props.infiniteRateExponentJump());
                 continue;
             }
             if (!Double.isFinite(addPerTick) || addPerTick <= 0) continue;
@@ -146,9 +132,9 @@ public class GameEngine {
             BigNum result = current.add(addition);
 
             // Кап енергії на 1e308 до зламу нескінченності.
-            if (capEnergy && isEnergy && result.getExponent() >= ENERGY_CAP_EXPONENT) {
+            if (capEnergy && isEnergy && result.getExponent() >= energyCapExponent) {
                 pr.setNumber(1.0);
-                pr.setExponent(ENERGY_CAP_EXPONENT);
+                pr.setExponent(energyCapExponent);
             } else {
                 pr.setNumber(result.getNumber());
                 pr.setExponent(result.getExponent());
@@ -174,16 +160,16 @@ public class GameEngine {
         List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
 
-        double energyMult = UpgradeMultipliers.calcEnergyMult(upgrades);
-        double genMult = UpgradeMultipliers.calcMultiplier(upgrades, "GENERATOR_MULT");
-        double coreBoost = UpgradeMultipliers.calcCoreBoost(upgrades, resources);
-        double protonMult = ParticleBonus.protonEnergyMult(resources);
+        double energyMult = upgradeMultipliers.calcEnergyMult(upgrades);
+        double genMult = upgradeMultipliers.calcMultiplier(upgrades, "GENERATOR_MULT");
+        double coreBoost = upgradeMultipliers.calcCoreBoost(upgrades, resources);
+        double protonMult = particleBonus.protonEnergyMult(resources);
         double cycleBoost = calcCycleBoost(saveId);
         double elementMult = calcElementMult(saveId);
-        Map<Long, Double> genSpecific = UpgradeMultipliers.calcGenSpecificMults(upgrades, generators);
-        double energyPow = UpgradeMultipliers.calcEnergyPow(upgrades);
-        Map<Long, Double> genStack = UpgradeMultipliers.calcGenStackMults(upgrades, generators);
-        Map<Long, Double> phantomBonus = UpgradeMultipliers.calcPhantomBonus(upgrades, generators);
+        Map<Long, Double> genSpecific = upgradeMultipliers.calcGenSpecificMults(upgrades, generators);
+        double energyPow = upgradeMultipliers.calcEnergyPow(upgrades);
+        Map<Long, Double> genStack = upgradeMultipliers.calcGenStackMults(upgrades, generators);
+        Map<Long, Double> phantomBonus = upgradeMultipliers.calcPhantomBonus(upgrades, generators);
 
         Map<Long, GenBreakdown> result = new HashMap<>();
         for (PlayerGenerator pg : generators) {
@@ -216,16 +202,16 @@ public class GameEngine {
         List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
 
-        double energyMult = UpgradeMultipliers.calcEnergyMult(upgrades);
-        double genMult = UpgradeMultipliers.calcMultiplier(upgrades, "GENERATOR_MULT");
-        double coreBoost = UpgradeMultipliers.calcCoreBoost(upgrades, resources);
-        double protonMult = ParticleBonus.protonEnergyMult(resources);
+        double energyMult = upgradeMultipliers.calcEnergyMult(upgrades);
+        double genMult = upgradeMultipliers.calcMultiplier(upgrades, "GENERATOR_MULT");
+        double coreBoost = upgradeMultipliers.calcCoreBoost(upgrades, resources);
+        double protonMult = particleBonus.protonEnergyMult(resources);
         double cycleBoost = calcCycleBoost(saveId);
         double elementMult = calcElementMult(saveId);
-        Map<Long, Double> genSpecific = UpgradeMultipliers.calcGenSpecificMults(upgrades, generators);
-        double energyPow = UpgradeMultipliers.calcEnergyPow(upgrades);
-        Map<Long, Double> genStack = UpgradeMultipliers.calcGenStackMults(upgrades, generators);
-        Map<Long, Double> phantomBonus = UpgradeMultipliers.calcPhantomBonus(upgrades, generators);
+        Map<Long, Double> genSpecific = upgradeMultipliers.calcGenSpecificMults(upgrades, generators);
+        double energyPow = upgradeMultipliers.calcEnergyPow(upgrades);
+        Map<Long, Double> genStack = upgradeMultipliers.calcGenStackMults(upgrades, generators);
+        Map<Long, Double> phantomBonus = upgradeMultipliers.calcPhantomBonus(upgrades, generators);
 
         Map<Long, Double> production = new HashMap<>();
         for (PlayerGenerator pg : generators) {
@@ -252,7 +238,7 @@ public class GameEngine {
     /** Цикл-буст від кількості колапсів матерії (CollapseCycleBonus) — 0 колапсів -> 1.0. */
     private double calcCycleBoost(Long saveId) {
         return saveRepository.findById(saveId)
-                .map(save -> CollapseCycleBonus.boost(save.getMatterCollapses()))
+                .map(save -> collapseCycleBonus.boost(save.getMatterCollapses()))
                 .orElse(1.0);
     }
 
@@ -262,7 +248,7 @@ public class GameEngine {
      */
     private double calcElementMult(Long saveId) {
         List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
-        return ElementBonus.diversityMult(elements) * ElementBonus.atomCountMult(elements);
+        return elementBonus.diversityMult(elements) * elementBonus.atomCountMult(elements);
     }
 
     private PlayerResource findResource(List<PlayerResource> resources, Long resourceId) {

@@ -4,13 +4,13 @@ import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorRepository;
 import com.periodic.idle.content.Resource;
 import com.periodic.idle.content.ResourceRepository;
+import com.periodic.idle.engine.config.PrestigeProperties;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -24,13 +24,14 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class SaveServiceTest {
 
+    private final PrestigeProperties prestigeProperties = new PrestigeProperties(18.0, 5.0, 2.5, 1.0, 1L);
+
     @Mock private SaveRepository saveRepository;
     @Mock private ResourceRepository resourceRepository;
     @Mock private GeneratorRepository generatorRepository;
     @Mock private PlayerResourceRepository playerResourceRepository;
     @Mock private PlayerGeneratorRepository playerGeneratorRepository;
 
-    @InjectMocks
     private SaveService saveService;
 
     private Resource energyRes;
@@ -39,6 +40,9 @@ class SaveServiceTest {
 
     @BeforeEach
     void setUp() {
+        saveService = new SaveService(prestigeProperties, saveRepository, resourceRepository,
+                generatorRepository, playerResourceRepository, playerGeneratorRepository);
+
         energyRes = instantiate(Resource.class);
         ReflectionTestUtils.setField(energyRes, "id", 1L);
         ReflectionTestUtils.setField(energyRes, "code", "E");
@@ -86,8 +90,8 @@ class SaveServiceTest {
 
         PlayerResource energyPr = savedResources.stream()
                 .filter(pr -> pr.getResource() == energyRes).findFirst().orElseThrow();
-        assertEquals(PrestigeService.STARTER_ENERGY_NUMBER, energyPr.getNumber(), 1e-9);
-        assertEquals(PrestigeService.STARTER_ENERGY_EXPONENT, energyPr.getExponent());
+        assertEquals(prestigeProperties.starterEnergyNumber(), energyPr.getNumber(), 1e-9);
+        assertEquals(prestigeProperties.starterEnergyExponent(), energyPr.getExponent());
         assertSame(result, energyPr.getSave());
 
         PlayerResource vcPr = savedResources.stream()

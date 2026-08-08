@@ -21,6 +21,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class GameStatsService {
 
+    private final UpgradeMultipliers upgradeMultipliers;
+    private final ParticleBonus particleBonus;
+    private final ElementBonus elementBonus;
+    private final CollapseCycleBonus collapseCycleBonus;
+
     private final SaveRepository saveRepository;
     private final PlayerResourceRepository playerResourceRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
@@ -44,30 +49,30 @@ public class GameStatsService {
         List<PlayerUpgrade> upgrades = playerUpgradeRepository.findBySaveId(saveId);
         List<PlayerResource> resources = playerResourceRepository.findBySaveId(saveId);
 
-        double energyMult = UpgradeMultipliers.calcEnergyMult(upgrades);
-        double genMult = UpgradeMultipliers.calcMultiplier(upgrades, "GENERATOR_MULT");
-        double coreBoost = UpgradeMultipliers.calcCoreBoost(upgrades, resources);
-        double protonMult = ParticleBonus.protonEnergyMult(resources);
+        double energyMult = upgradeMultipliers.calcEnergyMult(upgrades);
+        double genMult = upgradeMultipliers.calcMultiplier(upgrades, "GENERATOR_MULT");
+        double coreBoost = upgradeMultipliers.calcCoreBoost(upgrades, resources);
+        double protonMult = particleBonus.protonEnergyMult(resources);
         double cycleBoost = calcCycleBoost(saveId);
-        double energyPow = UpgradeMultipliers.calcEnergyPow(upgrades);
-        Map<Long, Double> genSpecific = UpgradeMultipliers.calcGenSpecificMults(upgrades, generators);
-        Map<Long, Double> genStack = UpgradeMultipliers.calcGenStackMults(upgrades, generators);
+        double energyPow = upgradeMultipliers.calcEnergyPow(upgrades);
+        Map<Long, Double> genSpecific = upgradeMultipliers.calcGenSpecificMults(upgrades, generators);
+        Map<Long, Double> genStack = upgradeMultipliers.calcGenStackMults(upgrades, generators);
         Map<Long, GameEngine.GenBreakdown> breakdown = gameEngine.calculateGeneratorBreakdown(saveId);
         double totalEnergy = breakdown.values().stream()
                 .mapToDouble(GameEngine.GenBreakdown::energyPerSec).sum();
 
-        long pCount = ParticleBonus.count(resources, "p");
-        long nCount = ParticleBonus.count(resources, "n");
-        long eCount = ParticleBonus.count(resources, "e");
-        double neutronCostCut = ParticleBonus.neutronCostReduction(resources);
-        double electronCrystalMult = ParticleBonus.electronCrystalMult(resources);
+        long pCount = particleBonus.count(resources, "p");
+        long nCount = particleBonus.count(resources, "n");
+        long eCount = particleBonus.count(resources, "e");
+        double neutronCostCut = particleBonus.neutronCostReduction(resources);
+        double electronCrystalMult = particleBonus.electronCrystalMult(resources);
         long matterCollapses = saveRepository.findById(saveId).map(Save::getMatterCollapses).orElse(0L);
 
         List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
-        long distinctElements = ElementBonus.distinctCount(elements);
-        long totalAtoms = ElementBonus.totalAtomCount(elements);
-        double diversityMult = ElementBonus.diversityMult(elements);
-        double atomCountMult = ElementBonus.atomCountMult(elements);
+        long distinctElements = elementBonus.distinctCount(elements);
+        long totalAtoms = elementBonus.totalAtomCount(elements);
+        double diversityMult = elementBonus.diversityMult(elements);
+        double atomCountMult = elementBonus.atomCountMult(elements);
 
         // Множники з ярликами джерел.
         List<Map<String, Object>> mults = new ArrayList<>();
@@ -80,19 +85,19 @@ public class GameStatsService {
         mults.add(multEntry("Цикл колапсів", cycleBoost,
                 "10^(2.5 × log10(колапсів+1)), не залежить від VC", (int) matterCollapses));
         mults.add(multEntry("Протони → енергія", protonMult,
-                "+" + pct(ParticleBonus.PROTON_ENERGY_PER) + " за кожен p", (int) pCount));
+                "+" + pct(particleBonus.protonEnergyPer()) + " за кожен p", (int) pCount));
         mults.add(multEntry("Нейтрони → ціна", 1.0 - neutronCostCut,
-                "−" + fmt3(ParticleBonus.NEUTRON_COST_PER) + " до cost-mult за кожен n",
+                "−" + fmt3(particleBonus.neutronCostPer()) + " до cost-mult за кожен n",
                 (int) nCount));
         mults.add(multEntry("Електрони → VC", electronCrystalMult,
-                "+" + pct(ParticleBonus.ELECTRON_VC_PER) + " за кожен e", (int) eCount));
+                "+" + pct(particleBonus.electronVcPer()) + " за кожен e", (int) eCount));
         mults.add(multEntry("Степінь енергії", energyPow,
                 "rate^pow при rate>1", upgradeLevel(upgrades, "ENERGY_POW")));
         mults.add(multEntry("Різноманіття елементів", diversityMult,
-                "+" + pct(ElementBonus.DIVERSITY_PER) + " за кожен різний елемент (крива насичення)",
+                "+" + pct(elementBonus.diversityPer()) + " за кожен різний елемент (крива насичення)",
                 (int) distinctElements));
         mults.add(multEntry("Кількість атомів", atomCountMult,
-                "+" + pct(ElementBonus.ATOM_COUNT_PER) + " за log10(атомів), софт/хард кап",
+                "+" + pct(elementBonus.atomCountPer()) + " за log10(атомів), софт/хард кап",
                 (int) Math.min(totalAtoms, Integer.MAX_VALUE)));
 
         // Per-generator розбивка.
@@ -142,7 +147,7 @@ public class GameStatsService {
         }
 
         List<PlayerElement> elements = playerElementRepository.findBySaveId(saveId);
-        long distinctElements = ElementBonus.distinctCount(elements);
+        long distinctElements = elementBonus.distinctCount(elements);
 
         List<PlayerMolecule> molecules = playerMoleculeRepository.findBySaveId(saveId);
         long distinctMolecules = molecules.stream().filter(pm -> pm.getCount() > 0).count();
@@ -172,7 +177,7 @@ public class GameStatsService {
     /** Цикл-буст від кількості колапсів матерії (CollapseCycleBonus) — 0 колапсів -> 1.0. */
     private double calcCycleBoost(Long saveId) {
         return saveRepository.findById(saveId)
-                .map(save -> CollapseCycleBonus.boost(save.getMatterCollapses()))
+                .map(save -> collapseCycleBonus.boost(save.getMatterCollapses()))
                 .orElse(1.0);
     }
 

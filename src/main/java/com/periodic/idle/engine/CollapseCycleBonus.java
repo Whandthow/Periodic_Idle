@@ -1,5 +1,9 @@
 package com.periodic.idle.engine;
 
+import com.periodic.idle.engine.config.CollapseCycleBonusProperties;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+
 /**
  * Тір 1: перманентний буст від кількості виконаних колапсів матерії
  * ({@code save.matterCollapses}, ніколи не скидається, на відміну від VC —
@@ -15,40 +19,34 @@ package com.periodic.idle.engine;
  * другий, незалежний від VC, множник, що росте з кожним циклом.
  *
  * <p>Формула — той самий tanh-softcap патерн, що й {@code calcCoreBoost}
- * (GameEngine), лише вхід інший (log10(matterCollapses+1) замість
+ * (UpgradeMultipliers), лише вхід інший (log10(matterCollapses+1) замість
  * log10(VC)): математично гарантована стеля, ніякого ризику переповнення
  * double незалежно від того, скільки триватиме "довга гра".
+ *
+ * <p>Коефіцієнти — {@link CollapseCycleBonusProperties} ({@code balance.collapse-cycle-bonus.*}
+ * у application.yml), не Java-константи.
  */
-public final class CollapseCycleBonus {
+@Component
+@RequiredArgsConstructor
+public class CollapseCycleBonus {
 
-    /** Коефіцієнт: сира експонента = COEFF * log10(matterCollapses + 1). */
-    public static final double COEFF = 2.5;
+    private final CollapseCycleBonusProperties props;
 
-    /** Softcap: до цього порогу експонента росте лінійно. */
-    private static final double EXP_SOFTCAP = 10.0;
-
-    /** Ширина асимптоти: ефективна експонента ніколи не перевищує SOFTCAP + RANGE (20). */
-    private static final double EXP_RANGE = 10.0;
-
-    /**
-     * Після стількох колапсів VC більше не скидається колапсом (MatterService) —
-     * гравець "довів" накопичений цикл-досвід і отримує право на постійний VC-снігова-ком.
-     */
-    public static final long VC_PERSISTS_AFTER_COLLAPSES = 10_000L;
-
-    private CollapseCycleBonus() {
+    /** Після стількох колапсів VC більше не скидається колапсом (MatterService). */
+    public long vcPersistsAfterCollapses() {
+        return props.vcPersistsAfterCollapses();
     }
 
     /** Множник виробництва від кількості колапсів. 0 колапсів -> 1.0. */
-    public static double boost(long matterCollapses) {
+    public double boost(long matterCollapses) {
         if (matterCollapses <= 0) return 1.0;
-        double rawExponent = COEFF * Math.log10(matterCollapses + 1.0);
+        double rawExponent = props.coeff() * Math.log10(matterCollapses + 1.0);
         if (!Double.isFinite(rawExponent) || rawExponent <= 0) return 1.0;
 
         double effectiveExponent = rawExponent;
-        if (rawExponent > EXP_SOFTCAP) {
-            double excess = rawExponent - EXP_SOFTCAP;
-            effectiveExponent = EXP_SOFTCAP + EXP_RANGE * Math.tanh(excess / EXP_RANGE);
+        if (rawExponent > props.expSoftcap()) {
+            double excess = rawExponent - props.expSoftcap();
+            effectiveExponent = props.expSoftcap() + props.expRange() * Math.tanh(excess / props.expRange());
         }
         double result = Math.pow(10, effectiveExponent);
         return Double.isFinite(result) ? result : 1.0;

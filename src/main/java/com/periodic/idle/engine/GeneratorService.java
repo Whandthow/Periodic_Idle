@@ -3,6 +3,7 @@ package com.periodic.idle.engine;
 import com.periodic.idle.common.BigNum;
 import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorRepository;
+import com.periodic.idle.engine.config.GeneratorProperties;
 import com.periodic.idle.player.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,17 +15,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GeneratorService {
 
+    private final GeneratorProperties props;
+    private final ParticleBonus particleBonus;
+
     private final GeneratorRepository generatorRepository;
     private final PlayerGeneratorRepository playerGeneratorRepository;
     private final PlayerResourceRepository playerResourceRepository;
     private final SaveRepository saveRepository;
     private final PlayerUpgradeRepository playerUpgradeRepository;
-
-    /** Нижня межа коефіцієнта подорожчання генератора. */
-    private static final double MIN_COST_MULTIPLIER = 1.03;
-
-    /** Жорсткий запобіжник нескінченного циклу при буст-купівлі. */
-    private static final int BULK_HARD_CAP = 100_000;
 
     /**
      * Купити до {@code amount} рівнів. Якщо {@code amount < 0} — купити скільки вистачає ресурсів.
@@ -56,7 +54,7 @@ public class GeneratorService {
 
         BigNum current = new BigNum(pr.getNumber(), pr.getExponent());
 
-        int target = amount < 0 ? BULK_HARD_CAP : Math.min(amount, BULK_HARD_CAP);
+        int target = amount < 0 ? props.bulkHardCap() : Math.min(amount, props.bulkHardCap());
         int bought = 0;
         int level = currentLevel;
         while (bought < target) {
@@ -165,7 +163,7 @@ public class GeneratorService {
 
     /**
      * Примір: baseMult=1.5, upgrade effectValue=0.01 з level=10 → effective=1.4.
-     * Зниження обмежене нижньою межею MIN_COST_MULTIPLIER.
+     * Зниження обмежене нижньою межею GeneratorProperties.minCostMultiplier.
      */
     public double effectiveCostMultiplier(double baseMultiplier, List<PlayerUpgrade> upgrades) {
         return effectiveCostMultiplier(baseMultiplier, upgrades, null);
@@ -186,8 +184,8 @@ public class GeneratorService {
             }
         }
         if (resources != null) {
-            totalReduce += ParticleBonus.neutronCostReduction(resources);
+            totalReduce += particleBonus.neutronCostReduction(resources);
         }
-        return Math.max(MIN_COST_MULTIPLIER, baseMultiplier - totalReduce);
+        return Math.max(props.minCostMultiplier(), baseMultiplier - totalReduce);
     }
 }

@@ -2,12 +2,15 @@ package com.periodic.idle.engine;
 
 import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.Resource;
+import com.periodic.idle.engine.config.CollapseCycleBonusProperties;
+import com.periodic.idle.engine.config.ElementBonusProperties;
+import com.periodic.idle.engine.config.ParticleBonusProperties;
+import com.periodic.idle.engine.config.UpgradeMultiplierProperties;
 import com.periodic.idle.player.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -20,6 +23,15 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class GameStatsServiceTest {
+
+    private final UpgradeMultipliers upgradeMultipliers =
+            new UpgradeMultipliers(new UpgradeMultiplierProperties(20, 60.0, 40.0));
+    private final ParticleBonus particleBonus =
+            new ParticleBonus(new ParticleBonusProperties(1_000.0, 0.25, 0.02, 0.15));
+    private final ElementBonus elementBonus =
+            new ElementBonus(new ElementBonusProperties(0.06, 15.0, 0.15, 6.0, 6.0, 2.0));
+    private final CollapseCycleBonus collapseCycleBonus =
+            new CollapseCycleBonus(new CollapseCycleBonusProperties(2.5, 10.0, 10.0, 10_000L));
 
     @Mock private SaveRepository saveRepository;
     @Mock private PlayerResourceRepository playerResourceRepository;
@@ -35,7 +47,6 @@ class GameStatsServiceTest {
     @Mock private com.periodic.idle.content.AchievementRepository achievementRepository;
     @Mock private GameEngine gameEngine;
 
-    @InjectMocks
     private GameStatsService statsService;
 
     private Save save;
@@ -46,6 +57,11 @@ class GameStatsServiceTest {
 
     @BeforeEach
     void setUp() {
+        statsService = new GameStatsService(upgradeMultipliers, particleBonus, elementBonus, collapseCycleBonus,
+                saveRepository, playerResourceRepository, playerGeneratorRepository, playerUpgradeRepository,
+                playerElementRepository, playerMoleculeRepository, playerStarRepository, playerAchievementRepository,
+                elementRepository, moleculeRepository, starRepository, achievementRepository, gameEngine);
+
         save = instantiate(Save.class);
         ReflectionTestUtils.setField(save, "id", 1L);
         save.setPlayerName("dev");

@@ -4,6 +4,7 @@ import com.periodic.idle.content.Generator;
 import com.periodic.idle.content.GeneratorRepository;
 import com.periodic.idle.content.Resource;
 import com.periodic.idle.content.ResourceRepository;
+import com.periodic.idle.engine.config.PrestigeProperties;
 import com.periodic.idle.player.PlayerGenerator;
 import com.periodic.idle.player.PlayerGeneratorRepository;
 import com.periodic.idle.player.PlayerResource;
@@ -25,6 +26,8 @@ import java.util.Comparator;
 @Service
 @RequiredArgsConstructor
 public class SaveService {
+
+    private final PrestigeProperties prestigeProperties;
 
     private final SaveRepository saveRepository;
     private final ResourceRepository resourceRepository;
@@ -55,8 +58,8 @@ public class SaveService {
             pr.setSave(save);
             pr.setResource(r);
             if ("E".equals(r.getCode())) {
-                pr.setNumber(PrestigeService.STARTER_ENERGY_NUMBER);
-                pr.setExponent(PrestigeService.STARTER_ENERGY_EXPONENT);
+                pr.setNumber(prestigeProperties.starterEnergyNumber());
+                pr.setExponent(prestigeProperties.starterEnergyExponent());
             } else {
                 pr.setNumber(0);
                 pr.setExponent(0);
