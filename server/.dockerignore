@@ -1,0 +1,26 @@
+# Version control
+.git
+.gitignore
+
+# Secrets — never let these into a build context
+.env
+*.pem
+*.key
+
+# Build artifacts from local (non-Docker) builds
+target/
+build/
+*.class
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE / OS noise
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Logs
+*.log
