@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        APP_PORT: 8080
+    container_name: spring-app
+    ports:
+      - "7777:8080"        # хост:контейнер
+    environment:
+      APP_PORT: 8080
+      SERVER_PORT: 8080    # Spring Boot читає саме SERVER_PORT
+    volumes:
+      - app-data:/app/data # щоб дані не губились при перезапуску
+    restart: unless-stopped
+
+volumes:
+  app-data:
