@@ -1,0 +1,24 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  IMAGE: $CI_REGISTRY_IMAGE:latest
+
+build:
+  stage: build
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - docker build -f server/Dockerfile -t $IMAGE .
+    - docker push $IMAGE
+    - docker logout $CI_REGISTRY
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  script:
+    - docker rm -f spring-app || true
+    - docker run -d --name spring-app --restart unless-stopped -p 7777:8080 $IMAGE
+  only:
+    - main
