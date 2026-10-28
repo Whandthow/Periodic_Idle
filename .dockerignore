@@ -15,6 +15,11 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+data/
+
+# Not needed in the server build context
+client/
+docs/
 
 # IDE / OS noise
 .idea/

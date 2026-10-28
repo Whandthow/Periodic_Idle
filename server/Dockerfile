@@ -29,8 +29,6 @@ USER app
 
 COPY --from=build /build/target/app.jar ./app.jar
 
-ARG APP_PORT=8080
-ENV APP_PORT=${APP_PORT}
-EXPOSE ${APP_PORT}
+EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
