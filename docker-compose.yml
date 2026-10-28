@@ -1,0 +1,60 @@
+name: periodic-idle
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: periodic
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:7779:5432"    # лише з самої ВМ (ручний доступ до БД)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d periodic"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    # image: той самий тег, що й CI пушить у registry — дозволяє деплою робити
+    # `docker compose pull && docker compose up -d` без локальної збірки на ВМ.
+    image: ${CI_REGISTRY_IMAGE:-periodic-idle}:server-latest
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      PGHOST: db
+      PGDATABASE: periodic
+      PGUSER: ${DB_USER}
+      PGPASSWORD: ${DB_PASSWORD}
+    ports:
+      - "127.0.0.1:7778:8080"    # лише з самої ВМ (Swagger, дебаг)
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/v3/api-docs || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  client:
+    build: ./client
+    image: ${CI_REGISTRY_IMAGE:-periodic-idle}:client-latest
+    restart: unless-stopped
+    ports:
+      - "7777:80"
+    depends_on:
+      server:
+        condition: service_healthy
+
+volumes:
+  pgdata:
