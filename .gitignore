@@ -39,3 +39,6 @@ data/
 logs/
 CLAUDE.md
 docs/claude/
+
+### TLS-ключі/сертифікати (mkcert, заняття 2.3) ###
+*.pem
